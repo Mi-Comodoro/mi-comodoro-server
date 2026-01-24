@@ -1,7 +1,7 @@
-import { LoggerProviderService } from '@/core/providers/logger';
 import { Controller, Get, HttpCode } from '@nestjs/common';
+import { HealthCheck, HealthCheckService, HttpHealthIndicator } from '@nestjs/terminus';
 
-import { HealthCheckService, HttpHealthIndicator, HealthCheck } from '@nestjs/terminus';
+import { LoggerProviderService } from '@/core/providers/logs';
 
 @Controller('health')
 export class HealthController {

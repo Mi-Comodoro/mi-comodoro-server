@@ -1,7 +1,8 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { Observable, tap, map } from 'rxjs';
-import { LoggerProviderService } from '../providers/logger';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Response } from 'express';
+import { map, Observable, tap } from 'rxjs';
+
+import { LoggerProviderService } from '../providers/logs';
 
 interface SuccessResponse {
   success: boolean;

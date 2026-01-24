@@ -1,7 +1,7 @@
 {
-  "name": "nest-template",
+  "name": "fin-hub-server",
   "version": "1.0.0",
-  "description": "Nestjs template started for begin a new backend projects",
+  "description": "Finanzas personales y Hogar",
   "main": "index.js",
   "scripts": {
     "start": "nest start",
@@ -32,16 +32,20 @@
     "@nestjs/platform-express": "11.1.9",
     "@nestjs/swagger": "11.2.3",
     "@nestjs/terminus": "11.0.0",
+    "@nestjs/typeorm": "11.0.0",
     "axios": "1.13.2",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.3",
-    "joi": "18.0.2"
+    "joi": "18.0.2",
+    "pg": "8.17.2",
+    "typeorm": "0.3.28"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "24.10.1",
     "eslint": "9.39.1",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-simple-import-sort": "12.1.1",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "prettier": "3.7.4",
