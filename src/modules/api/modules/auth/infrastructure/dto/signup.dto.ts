@@ -89,7 +89,7 @@ export class SignUpDto {
   financialProfile?: FinancialProfileEnum;
 }
 
-export class AccountResponseDto {
+class AccountSignUpResponseDto {
   @ApiProperty({ example: '2f303bd7-7db1-4c5f-8d32-f9227617a7bc' })
   id: string;
 
@@ -127,14 +127,11 @@ export class SignUpResponseDataDto {
   @ApiProperty({ example: '7918ef8b-9c7c-454e-8e26-a6d5dfc4faa5' })
   id: string;
 
-  @ApiProperty({ example: 'user4@email.com', description: 'Email del usuario' })
+  @ApiProperty({ example: 'user@email.com', description: 'Email del usuario' })
   email: string;
 
-  @ApiProperty({ example: true, description: 'Indica si el usuario está activo' })
-  isActive: boolean;
-
-  @ApiProperty({ type: AccountResponseDto, description: 'Información de la cuenta asociada' })
-  account: AccountResponseDto;
+  @ApiProperty({ type: AccountSignUpResponseDto, description: 'Información de la cuenta asociada' })
+  account: AccountSignUpResponseDto;
 }
 
 export class SignUpResponseDto {

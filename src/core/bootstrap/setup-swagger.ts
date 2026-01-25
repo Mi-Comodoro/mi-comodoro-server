@@ -14,6 +14,15 @@ export const setupSwagger = (app: INestApplication, configService: SwaggerConfig
     .setVersion(configService.version)
     .addServer(url, configService.title)
     .addTag(configService.tag)
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        in: 'header',
+      },
+      'bearerAuth',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup(configService.path, app, document);

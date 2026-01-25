@@ -18,6 +18,8 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "strictPropertyInitialization": false,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "paths": {
       "@/*": [
         "src/*"

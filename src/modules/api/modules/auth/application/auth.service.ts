@@ -38,7 +38,6 @@ export class AuthService {
         id: randomUUID(),
         email: data.email,
         password: data.passwordHash,
-        isActive: true,
       };
 
       const userCreated: User = await this.userRepository.save(user);
@@ -81,7 +80,6 @@ export class AuthService {
 
     return {
       token: this.jwtProvider.generateToken(payload),
-      active: user.isActive,
       accountType: user.account?.type,
     };
   }

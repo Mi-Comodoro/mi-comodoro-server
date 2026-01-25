@@ -32,7 +32,11 @@ export class AccountRepositoryImpl implements AccountRepository {
       throw error;
     }
   }
-  /* findById(id: string): Promise<Account | null> {
-    throw new Error('Method not implemented.');
-  } */
+  async findById(id: string): Promise<Account | null> {
+    const account = await this.accountRepository.findOne({ where: { id } });
+    if (!account) {
+      return null;
+    }
+    return account as Account;
+  }
 }
