@@ -13,9 +13,6 @@ export class UserEntity {
   @Column({ name: 'password' })
   password: string;
 
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
-
   @OneToOne(() => AccountEntity, (account) => account.user)
   account: AccountEntity;
 }
