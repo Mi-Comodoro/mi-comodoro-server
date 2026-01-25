@@ -6,11 +6,14 @@ import {
   ExceptionFilter,
   ForbiddenException,
   HttpException,
+  Injectable,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Response } from 'express';
+
+import { LoggerProviderService } from '../providers';
 
 interface ErrorResponse {
   success: false;
@@ -20,7 +23,11 @@ interface ErrorResponse {
 }
 
 @Catch()
+@Injectable()
 export class GlobalHttpExceptionFilter implements ExceptionFilter {
+  private readonly context: string = GlobalHttpExceptionFilter.name;
+  constructor(private readonly logger: LoggerProviderService) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -55,13 +62,12 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       message = this.extractMessage(exception);
       error = 'InternalServerError';
     } else if (exception instanceof HttpException) {
-      // fallback para otros HttpException
       status = exception.getStatus();
       message = this.extractMessage(exception);
       error = this.getExceptionName(exception);
     } else {
-      // === UNKNOWN ERROR (throw new Error(), errores JS, errores de libs, etc) ===
-      console.error('Unhandled exception:', exception);
+      console.log(exception);
+      this.logger.error(this.context, `Unhandled exception: ${JSON.stringify(exception)}`);
     }
 
     const json: ErrorResponse = {
