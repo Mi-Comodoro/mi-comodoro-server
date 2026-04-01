@@ -1,18 +1,54 @@
-import { Column, Entity, OneToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-import { AccountEntity } from '../../../account/infrastructure/database/account.entity';
+import { BudgetEntity } from '../../../budgets/infrastructure/database/entities/budget.entity';
+import { FinancesEntity } from '../../../finances/infrastructure/database/entities/finances.entity';
+import { SavingGoalEntity } from '../../../savings/infrastructure/database/entities/saving-goals.entity';
+import { TransactionEntity } from '../../../transactions/infrastructure/database/entities/transaction.entity';
+import { UserProfileEntity } from '../../../user-profile/infrastructure/database/entities/user-profile.entity';
 
+enum PROVIDERS {
+  'LOCAL' = 'LOCAL',
+  'GOOGLE' = 'GOOGLE',
+}
+
+enum ON_BOARDING {
+  COMPLETED = 'COMPLETED',
+  PENDING = 'PENDING',
+}
 @Entity('users')
 export class UserEntity {
-  @PrimaryColumn('uuid')
+  @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column({ unique: true })
+  @Column({ unique: true, name: 'email', nullable: false })
   email: string;
-
-  @Column({ name: 'password' })
+  @Column({ name: 'password', nullable: true })
   password: string;
-
-  @OneToOne(() => AccountEntity, (account) => account.user)
-  account: AccountEntity;
+  @Column({ name: 'provider', nullable: false, default: PROVIDERS.LOCAL, enum: PROVIDERS })
+  provider: string;
+  @Column({ name: 'onboarding', nullable: false, default: ON_BOARDING.PENDING, enum: ON_BOARDING })
+  onboarding: string;
+  @Column({ name: 'token_version', type: 'int', default: 0 })
+  tokenVersion: number;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+  @OneToOne(() => UserProfileEntity, (userProfile) => userProfile.user)
+  userProfile: UserProfileEntity;
+  @OneToMany(() => BudgetEntity, (budget) => budget.owner)
+  budgets: BudgetEntity[];
+  @OneToOne(() => FinancesEntity, (finances) => finances.user)
+  finances: FinancesEntity;
+  @OneToMany(() => TransactionEntity, (transaction) => transaction.user)
+  transactions: TransactionEntity[];
+  @OneToMany(() => SavingGoalEntity, (savingGoal) => savingGoal.user, { onDelete: 'CASCADE' })
+  savingGoals: SavingGoalEntity[];
 }

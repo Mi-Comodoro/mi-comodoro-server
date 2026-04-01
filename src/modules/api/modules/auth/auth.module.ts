@@ -3,15 +3,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { SecurityJwtModule } from '@/core/config/security/jwt/jwt.module';
 
-import { AccountEntity } from '../account/infrastructure/database/account.entity';
-import { AccountRepositoryImpl } from '../account/infrastructure/repository/account.repository.impl';
+import { UserProfileEntity } from '../user-profile/infrastructure/database/entities/user-profile.entity';
+import { UserProfileRepositoryImpl } from '../user-profile/infrastructure/repository/user-profile.repository.impl';
 import { UserEntity } from '../users/infrastructure/database/user.entity';
 import { UserRepositoryImpl } from '../users/infrastructure/repository/user.repository.impl';
 import { AuthService } from './application/auth.service';
 import { AuthController } from './infrastructure/controller/auth.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, AccountEntity]), SecurityJwtModule],
+  imports: [TypeOrmModule.forFeature([UserEntity, UserProfileEntity]), SecurityJwtModule],
   providers: [
     AuthService,
     {
@@ -19,8 +19,8 @@ import { AuthController } from './infrastructure/controller/auth.controller';
       useClass: UserRepositoryImpl,
     },
     {
-      provide: 'AccountRepository',
-      useClass: AccountRepositoryImpl,
+      provide: 'UserProfileRepository',
+      useClass: UserProfileRepositoryImpl,
     },
   ],
   controllers: [AuthController],

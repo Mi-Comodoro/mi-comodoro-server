@@ -10,7 +10,8 @@
     "lint": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write src/**/*.ts",
     "build": "tsc -p tsconfig.build.json && tsc-alias",
-    "prepare": "husky"
+    "prepare": "husky",
+    "seed:categories": "ts-node -r tsconfig-paths/register src/scripts/seed-categories.ts"
   },
   "repository": {
     "type": "git",
@@ -25,21 +26,25 @@
   },
   "homepage": "https://github.com/migueljalvarez/nest-template#readme",
   "dependencies": {
-    "@nestjs/axios": "4.0.1",
-    "@nestjs/common": "11.1.9",
-    "@nestjs/config": "4.0.2",
-    "@nestjs/core": "11.1.9",
+    "@nestjs/axios": "^4.0.1",
+    "@nestjs/common": "^11.1.16",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.1.16",
+    "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "11.1.9",
-    "@nestjs/swagger": "11.2.3",
+    "@nestjs/platform-express": "^11.1.16",
+    "@nestjs/swagger": "^11.2.6",
     "@nestjs/terminus": "11.0.0",
     "@nestjs/typeorm": "11.0.0",
     "argon2": "^0.44.0",
-    "axios": "1.13.2",
+    "axios": "^1.13.6",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.3",
     "date-fns": "^4.1.0",
+    "decimal.js": "^10.6.0",
+    "fast-xml-parser": "^5.5.5",
+    "firebase-admin": "^13.7.0",
     "joi": "18.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -49,16 +54,26 @@
   "devDependencies": {
     "@types/date-fns": "^2.5.3",
     "@types/express": "5.0.6",
-    "@types/node": "24.10.1",
+    "@types/node": "^25.5.0",
     "@types/passport-jwt": "^4.0.1",
-    "eslint": "9.39.1",
+    "eslint": "^9.39.4",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-simple-import-sort": "12.1.1",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "prettier": "3.7.4",
+    "ts-node": "^10.9.2",
     "tsc-alias": "1.8.16",
+    "tsconfig-paths": "^4.2.0",
     "typescript-eslint": "8.48.1"
+  },
+  "overrides": {
+    "@nestjs/common": {
+      "file-type": "^16.5.4"
+    },
+    "file-type": "^16.5.4",
+    "@tootallnate/once": "2.0.0",
+    "http-proxy-agent": "7.0.2"
   },
   "engines": {
     "node": "22.11.x",

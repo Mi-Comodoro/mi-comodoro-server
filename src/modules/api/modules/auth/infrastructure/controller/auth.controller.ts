@@ -1,13 +1,32 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { CurrentUser } from '@/common/decorator/current-user.request';
 import { usePassword } from '@/common/utils';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AuthService } from '../../application/auth.service';
-import { SignInDto, SignInResponseDto, SignUpDto, SignUpResponseDto } from '../dto/';
+import {
+  GoogleSignInDto,
+  GoogleSignInResponseDto,
+  LogoutResponseDto,
+  RefreshResponseDto,
+  SignInDto,
+  SignInResponseDto,
+  SignUpDto,
+  SignUpResponseDto,
+} from '../dto/';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   private readonly context: string = AuthController.name;
@@ -17,11 +36,12 @@ export class AuthController {
   ) {}
 
   @Post('/signup')
+  @ApiOperation({ summary: 'Registrar un nuevo usuario local' })
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(409, 'User already exists')
   async signup(@Body() body: SignUpDto) {
-    this.logger.info(this.context, 'creating user account');
+    this.logger.info(this.context, 'creating user user-profile');
     const { passwordHash, passwordLowerCase } = usePassword();
     const password = body.password;
     const lowerPassword = passwordLowerCase(password);
@@ -42,11 +62,12 @@ export class AuthController {
 
   @Post('/signin')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Iniciar sesion con email y contrasena' })
   @ApiOkResponse({ type: SignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(404, 'User not found')
   async signin(@Body() body: SignInDto) {
-    this.logger.info(this.context, 'Logging into the user account');
+    this.logger.info(this.context, 'Logging into the user user-profile');
     const { passwordLowerCase } = usePassword();
     const password = body.password;
     const lowerPassword = passwordLowerCase(password);
@@ -56,5 +77,38 @@ export class AuthController {
       password: lowerPassword,
     };
     return await this.authService.signin(data);
+  }
+
+  @Post('/google')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
+  @ApiOkResponse({ type: GoogleSignInResponseDto })
+  @ApiErrorResponse(400, 'Invalid request data')
+  async loginWithGoogle(@Body() body: GoogleSignInDto) {
+    return await this.authService.loginWithGoogle(body.data);
+  }
+
+  @Post('/refresh')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(200)
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Renovar el JWT de la sesion autenticada' })
+  @ApiOkResponse({ type: RefreshResponseDto })
+  @ApiErrorResponse(401, 'Unauthorized')
+  async refresh(@CurrentUser() user: JwtPayload) {
+    return await this.authService.refresh(user);
+  }
+
+  @Post('/logout')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(200)
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Cerrar sesion e invalidar los tokens activos del usuario' })
+  @ApiOkResponse({ type: LogoutResponseDto })
+  @ApiErrorResponse(401, 'Unauthorized')
+  @ApiErrorResponse(404, 'User not found')
+  async logout(@CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Closing session for user ${user.userId}`);
+    return await this.authService.logout(user);
   }
 }

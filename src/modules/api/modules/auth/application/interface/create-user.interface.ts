@@ -1,12 +1,10 @@
-import { FinancialProfileType, GenderType, UsageType } from '../../../account/domain/account.types';
+import { GenderType } from '../../../user-profile/domain/user-profile.types';
 
-export interface CreateUserAccount {
+export interface CreateUserProfile {
   email: string;
   passwordHash: string;
   name: string;
   displayName?: string;
   gender?: GenderType;
   country?: string;
-  usageType?: UsageType;
-  financialProfile?: FinancialProfileType;
 }

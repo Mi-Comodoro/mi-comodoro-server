@@ -12,7 +12,7 @@ import {
 
 import { PASSWORD_REGEX } from '@/common/constants';
 
-import { FinancialProfileEnum, GenderEnum, UsageEnum } from '../enum/signup.emun';
+import { FinancialProfileEnum, GenderEnum, UsageEnum } from '../../../shared/enum/enum';
 
 export class SignUpDto {
   @ApiProperty({
@@ -80,7 +80,7 @@ export class SignUpDto {
   usageType?: UsageEnum;
 
   @ApiPropertyOptional({
-    example: FinancialProfileEnum.EMPLOYEE,
+    example: FinancialProfileEnum.employee,
     description: 'Perfil financiero del usuario',
     enum: FinancialProfileEnum,
   })
@@ -89,7 +89,7 @@ export class SignUpDto {
   financialProfile?: FinancialProfileEnum;
 }
 
-class AccountSignUpResponseDto {
+class UserProfileSignUpResponseDto {
   @ApiProperty({ example: '2f303bd7-7db1-4c5f-8d32-f9227617a7bc' })
   id: string;
 
@@ -113,7 +113,7 @@ class AccountSignUpResponseDto {
   usageType?: UsageEnum;
 
   @ApiPropertyOptional({
-    example: 'EMPLOYEE',
+    example: 'employee',
     enum: FinancialProfileEnum,
     description: 'Perfil financiero',
   })
@@ -130,8 +130,11 @@ export class SignUpResponseDataDto {
   @ApiProperty({ example: 'user@email.com', description: 'Email del usuario' })
   email: string;
 
-  @ApiProperty({ type: AccountSignUpResponseDto, description: 'Información de la cuenta asociada' })
-  account: AccountSignUpResponseDto;
+  @ApiProperty({
+    type: UserProfileSignUpResponseDto,
+    description: 'Información de la cuenta asociada',
+  })
+  userProfile: UserProfileSignUpResponseDto;
 }
 
 export class SignUpResponseDto {

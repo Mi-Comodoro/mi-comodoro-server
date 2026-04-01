@@ -1,0 +1,88 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
+import { BillsEntity } from '@/modules/api/modules/bills/infrastructure/database/bills.entity';
+import { BudgetEntity } from '@/modules/api/modules/budgets/infrastructure/database/entities/budget.entity';
+import { CategoryEntity } from '@/modules/api/modules/categories/infrastructure/database/category.entity';
+import { PlannedExpenseEntity } from '@/modules/api/modules/expenses/infrastructure/database/expenses-planned.entity';
+import { IncomesEntity } from '@/modules/api/modules/incomes/infrstructure/database/entities/incomes.entity';
+import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
+
+import { Transaction } from '../../../domain/transaction';
+
+@Entity('transactions')
+export class TransactionEntity implements Transaction {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+  })
+  amount: number;
+  @Column()
+  source: string;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ name: 'user_id', nullable: false })
+  userId: string;
+  @Column({ name: 'budget_id', nullable: false })
+  budgetId: string;
+
+  @Column({ name: 'bill_id', nullable: true })
+  billId: string;
+
+  @Column({ name: 'category_id', nullable: false })
+  categoryId: string;
+
+  @Column({
+    type: 'enum',
+    enum: ['income', 'expense', 'savings'],
+    name: 'type',
+    nullable: false,
+  })
+  type: 'income' | 'expense' | 'savings';
+  @ManyToOne(() => UserEntity, (user) => user.transactions, {
+    onDelete: 'CASCADE',
+  })
+  user: UserEntity;
+  @ManyToOne(() => BudgetEntity, (budget) => budget.transactions, {
+    onDelete: 'CASCADE',
+  })
+  budget: BudgetEntity;
+
+  @ManyToOne(() => CategoryEntity)
+  category: CategoryEntity;
+  @ManyToOne(() => IncomesEntity, { nullable: true })
+  incomeSource: IncomesEntity;
+  @ManyToOne(() => BillsEntity, { nullable: true })
+  @JoinColumn({ name: 'bill_id', referencedColumnName: 'id' })
+  bill: BillsEntity;
+  @ManyToOne(() => AccountEntity, { nullable: true })
+  @JoinColumn({ name: 'account_id', referencedColumnName: 'id' })
+  account: AccountEntity;
+  @ManyToOne(() => PlannedExpenseEntity, { nullable: true })
+  @JoinColumn({ name: 'planned_expense_id' })
+  plannedExpense?: PlannedExpenseEntity;
+
+  @Column({ nullable: true })
+  planned_expense_id?: string;
+  @Column({ type: 'date', name: 'transaction_date', nullable: false })
+  transactionDate: Date;
+  @Column({ type: 'date', name: 'nulled_at', nullable: true })
+  nulledAt?: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+}

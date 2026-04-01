@@ -1,19 +1,17 @@
-import { Account } from '../../../account/domain/account.entity';
+import { UserProfile } from '../../../user-profile/domain/user-profile.entity';
 import { User } from '../../../users/domain/user.entity';
 
-export const signUpToClient = (user: User, account: Account) => {
+export const signUpToClient = (user: User, userProfile: UserProfile) => {
   return {
     id: user.id,
     email: user.email,
-    account: {
-      id: account.id,
-      name: account.name,
-      displayName: account.displayName,
-      gender: account.gender,
-      country: account.country,
-      usageType: account.usageType,
-      financialProfile: account.financialProfile,
-      isActive: account.isActive,
+    userProfile: {
+      id: userProfile.id,
+      name: userProfile.name,
+      displayName: userProfile.displayName,
+      gender: userProfile.gender,
+      country: userProfile.country,
+      isActive: userProfile.isActive,
     },
   };
 };
