@@ -104,7 +104,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async findById(budgetId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
-    const budget = await this.budgetRepository.findOneBy({ id: budgetId });
+    const budget = await this.budgetRepository.findOne({ where: { id: budgetId } });
 
     return budget ?? null;
   }

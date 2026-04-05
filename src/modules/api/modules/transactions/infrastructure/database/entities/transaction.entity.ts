@@ -14,6 +14,7 @@ import { BudgetEntity } from '@/modules/api/modules/budgets/infrastructure/datab
 import { CategoryEntity } from '@/modules/api/modules/categories/infrastructure/database/category.entity';
 import { PlannedExpenseEntity } from '@/modules/api/modules/expenses/infrastructure/database/expenses-planned.entity';
 import { IncomesEntity } from '@/modules/api/modules/incomes/infrstructure/database/entities/incomes.entity';
+import { PlannedIncomeEntity } from '@/modules/api/modules/incomes/infrstructure/database/entities/incomes-planned.entity';
 import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
 
 import { Transaction } from '../../../domain/transaction';
@@ -71,12 +72,19 @@ export class TransactionEntity implements Transaction {
   @ManyToOne(() => AccountEntity, { nullable: true })
   @JoinColumn({ name: 'account_id', referencedColumnName: 'id' })
   account: AccountEntity;
+
+  @Column({ name: 'planned_expense_id', nullable: true })
+  plannedExpenseId?: string;
   @ManyToOne(() => PlannedExpenseEntity, { nullable: true })
   @JoinColumn({ name: 'planned_expense_id' })
   plannedExpense?: PlannedExpenseEntity;
 
-  @Column({ nullable: true })
-  planned_expense_id?: string;
+  @Column({ name: 'planned_income_id', nullable: true })
+  plannedIncomeId?: string;
+
+  @ManyToOne(() => PlannedIncomeEntity, { nullable: true })
+  @JoinColumn({ name: 'planned_income_id' })
+  plannedIncome?: PlannedIncomeEntity;
   @Column({ type: 'date', name: 'transaction_date', nullable: false })
   transactionDate: Date;
   @Column({ type: 'date', name: 'nulled_at', nullable: true })

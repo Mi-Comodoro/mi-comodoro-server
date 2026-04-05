@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
-import { PlannedSaving } from '../../domain/savings-planned';
+import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
 import { PlannedSavingEntity } from '../database/entities/saving-planned.entity';
 import { PlannedSavingMapper } from '../mapper/planned.mapper';
 
@@ -45,6 +45,16 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
     });
 
     return entities.map(PlannedSavingMapper.toDomain);
+  }
+
+  async update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null> {
+    const result = await this.plannedSavingRepository.update(id, {
+      status: domain.status as PlannedSavingStatus,
+    });
+
+    if (result.affected === 0) return null;
+
+    return this.findById(id);
   }
 
   /*   findAll(): Promise<PlannedSaving[]> {

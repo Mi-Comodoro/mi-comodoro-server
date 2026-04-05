@@ -14,6 +14,7 @@ export class PlannedIncomeMapper {
       incomeSourceId: entity.incomeSourceId ?? '',
       createdAt: entity.createdAt,
     };
+
     return planned;
   }
   //static toEntity(planned: PlannedIncome): PlannedIncomeEntity {}

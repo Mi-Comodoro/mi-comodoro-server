@@ -22,4 +22,15 @@ export class GoalsRepositoryImpl implements GoalsRepository {
     });
     return result.map((item) => SavingsGoalsMapper.toDomain(item));
   }
+
+  async findById(id: string): Promise<SavingGoal | null> {
+    const result = await this.savingsGoalsRepository.findOne({
+      where: { id },
+      relations: { account: true },
+    });
+    if (!result) {
+      return null;
+    }
+    return SavingsGoalsMapper.toDomain(result);
+  }
 }

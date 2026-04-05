@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { BudgetEntity } from '../budgets/infrastructure/database/entities/budget.entity';
+import { BudgetRepositoryImpl } from '../budgets/infrastructure/repositories/budget.repository.impl';
+import { CategoryEntity } from '../categories/infrastructure/database/category.entity';
+import { CategoryRepositoryImpl } from '../categories/infrastructure/repositories/category.repository.impl';
+import { TransactionEntity } from '../transactions/infrastructure/database/entities/transaction.entity';
+import { TransactionRepositoryImpl } from '../transactions/infrastructure/repositories/transaction.repository.impl';
 import { SavingAllocationService } from './application/services/allocations.service';
 import { GoalsService } from './application/services/goals.service';
 import { PlannedSavingService } from './application/services/planned-saving.service';
@@ -16,7 +22,14 @@ import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/plann
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SavingGoalEntity, SavingAllocationEntity, PlannedSavingEntity]),
+    TypeOrmModule.forFeature([
+      SavingGoalEntity,
+      SavingAllocationEntity,
+      PlannedSavingEntity,
+      TransactionEntity,
+      BudgetEntity,
+      CategoryEntity,
+    ]),
   ],
   providers: [
     GoalsService,
@@ -34,6 +47,20 @@ import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/plann
     {
       provide: 'PlannedSavingRepository',
       useClass: PlannedSavingRepositoryImpl,
+    },
+
+    {
+      provide: 'TransactionRepository',
+      useClass: TransactionRepositoryImpl,
+    },
+
+    {
+      provide: 'BudgetRepository',
+      useClass: BudgetRepositoryImpl,
+    },
+    {
+      provide: 'CategoryRepository',
+      useClass: CategoryRepositoryImpl,
     },
   ],
   controllers: [GoalsController, SavingAllocationController, PlannedSavingController],

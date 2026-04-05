@@ -1,5 +1,6 @@
 export enum PlannedSavingStatus {
   PENDING = 'pending',
+  SKIPPED = 'skipped',
   COMPLETED = 'completed',
 }
 
@@ -13,6 +14,6 @@ export interface PlannedSaving {
   plannedIncomeId: string;
   savingGoalId: string;
   account?: { id: string; name: string };
-  savingGoal?: { id: string; name: string };
-  plannedIncome?: { id: string; amount: number; date: Date };
+  savingGoal?: { id: string; name: string; reason: string };
+  plannedIncome?: { id: string; amount: number; date: Date; source: string };
 }

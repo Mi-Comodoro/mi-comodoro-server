@@ -18,13 +18,18 @@ export class PlannedSavingMapper {
       savingGoalId: entity.savingGoal?.id,
       account: entity.account ? { id: entity.account.id, name: entity.account.name } : undefined,
       savingGoal: entity.savingGoal
-        ? { id: entity.savingGoal.id, name: entity.savingGoal.name }
+        ? {
+            id: entity.savingGoal.id,
+            name: entity.savingGoal.name,
+            reason: entity.savingGoal.reason,
+          }
         : undefined,
       plannedIncome: entity.plannedIncome
         ? {
             id: entity.plannedIncome.id,
             amount: Number(entity.plannedIncome.amount),
             date: entity.plannedIncome.date,
+            source: entity.plannedIncome.source,
           }
         : undefined,
     };

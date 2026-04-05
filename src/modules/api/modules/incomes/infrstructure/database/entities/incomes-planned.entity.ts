@@ -24,7 +24,7 @@ export class PlannedIncomeEntity implements PlannedIncome {
   budgetId: string;
 
   @Column({ name: 'source_label', nullable: true })
-  source?: string;
+  source: string;
 
   @Column('decimal')
   amount: number;

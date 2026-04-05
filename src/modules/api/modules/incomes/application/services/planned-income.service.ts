@@ -81,7 +81,7 @@ export class PlannedIncomeService {
     }
     await this.createIncomeTransaction(plannedIncome, budget);
     const plannedSavings = await this.generatePlannedSavings(plannedIncome, budget);
-    console.log(plannedIncome, plannedSavings);
+
     return {
       plannedIncome,
       plannedSavings,
@@ -155,6 +155,7 @@ export class PlannedIncomeService {
     }
 
     await this.transactionRepository.save({
+      plannedIncomeId: plannedIncome.id,
       amount: plannedIncome.amount,
       source: plannedIncome.source ?? 'unknown',
       budgetId: plannedIncome.budgetId,

@@ -1,10 +1,10 @@
 // infrastructure/repositories/transaction.repository.impl.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 import { TransactionRepository } from '../../domain/repositories/transaction.repository';
-import { Transaction } from '../../domain/transaction';
+import { Transaction, TransactionFilters, TransactionPagination } from '../../domain/transaction';
 import { TransactionEntity } from '../database/entities/transaction.entity';
 import { TransactionMapper } from '../mapper/transaction.mapper';
 
@@ -21,16 +21,44 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     return TransactionMapper.toDomain(saved);
   }
 
-  async findByBudget(budgetId: string, type?: Transaction['type']): Promise<Transaction[]> {
-    const entities = await this.transactionRepository.find({
-      where: {
-        budgetId,
-        ...(type && { type }),
-      },
+  async findByBudget(
+    budgetId: string,
+    filters: TransactionFilters,
+  ): Promise<{
+    data: Transaction[];
+    pagination: TransactionPagination;
+  }> {
+    const { type, categoryId, dateFrom, dateTo, page = 1, limit = 20 } = filters;
+
+    const where: FindOptionsWhere<TransactionEntity> = { budgetId };
+
+    if (type) where.type = type;
+    if (categoryId) where.categoryId = categoryId;
+    if (dateFrom || dateTo) {
+      where.transactionDate =
+        dateFrom && dateTo
+          ? Between(new Date(dateFrom), new Date(dateTo))
+          : dateFrom
+            ? MoreThanOrEqual(new Date(dateFrom))
+            : LessThanOrEqual(new Date(dateTo!));
+    }
+
+    const [entities, total] = await this.transactionRepository.findAndCount({
+      where,
       relations: { category: true },
       order: { transactionDate: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return entities.map(TransactionMapper.toDomain);
+    return {
+      data: entities.map(TransactionMapper.toDomain),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

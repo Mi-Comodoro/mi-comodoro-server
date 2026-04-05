@@ -5,7 +5,7 @@ export interface PlannedIncome {
   date: Date;
   budgetId: string;
   incomeSourceId?: string;
-  source?: string;
+  source: string;
   status: INCOME_STATUS;
   createdAt?: Date;
   updatedAt?: Date;
