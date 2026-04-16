@@ -8,12 +8,16 @@ import {
 
 import { LoggerProviderService } from '@/core/providers';
 
+import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
 import { FinancesRepository } from '../../finances/domain/repositories/finances.repository';
 import { PlannedIncomeRepository } from '../../incomes/domain/repositories/incomes-planned.repository';
 import { SavingAllocationRepository } from '../../savings/domain/repositories/allocation.repository';
-import { Budget } from '../domain/budget';
-import { BudgetRepository } from '../domain/repositories/budget.repository';
+import { Budget, BudgetStatus } from '../domain/budget';
+import {
+  BudgetHistoricalSummary,
+  BudgetRepository,
+} from '../domain/repositories/budget.repository';
 
 type CreateBudgetInput = {
   userId: string;
@@ -125,6 +129,57 @@ export class BudgetService {
     return await this.budgetRepository.findAllByFinancesId(financesId, year);
   }
 
+  async getAllBudgetsByUserId(userId: string, year?: number): Promise<Budget[]> {
+    this.logger.info(
+      this.context,
+      `Getting all budgets for userId: ${userId}${year ? `, year: ${year}` : ''}`,
+    );
+
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) {
+      throw new NotFoundException('Finances not found for user');
+    }
+
+    return await this.budgetRepository.findAllByFinancesId(finances.id, year);
+  }
+
+  async getHistoricalSummary(
+    userId: string,
+    year?: number,
+  ): Promise<
+    Array<
+      BudgetHistoricalSummary & {
+        status: BudgetStatus;
+        savingsRate: number;
+      }
+    >
+  > {
+    const resolvedYear = year ?? new Date().getFullYear();
+
+    this.logger.info(
+      this.context,
+      `Getting historical summary for userId: ${userId}, year: ${resolvedYear}`,
+    );
+
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) {
+      throw new NotFoundException('Finances not found for user');
+    }
+
+    const summary = await this.budgetRepository.findHistoricalSummaryByFinancesId(
+      finances.id,
+      resolvedYear,
+    );
+
+    return summary.map((item) => ({
+      ...item,
+      status: item.status as BudgetStatus,
+      savingsRate:
+        item.receivedIncome > 0
+          ? Number(((item.totalSavings / item.receivedIncome) * 100).toFixed(2))
+          : 0,
+    }));
+  }
   async getBudgetById(budgetId: string): Promise<Budget> {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
     const budget = await this.budgetRepository.findById(budgetId);
@@ -276,7 +331,7 @@ export class BudgetService {
         name: expense.name,
         expectedAmount: expense.expectedAmount,
         dueDate: this.adjustDateToTargetMonth(expense.dueDate, targetMonth, targetYear),
-        status: 'PLANNED',
+        status: PlannedExpenseStatus.PLANNED,
         isEssential: expense.isEssential,
         notes: expense.notes,
         billsId: expense.billsId,

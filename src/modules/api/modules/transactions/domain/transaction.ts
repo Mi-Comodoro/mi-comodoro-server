@@ -13,12 +13,18 @@ export interface Transaction {
   plannedIncomeId?: string;
   accountId?: string; // ← faltaba, lo usás en savings
 
+  // Trazabilidad de movimiento entre cuentas
+  fromAccountId?: string; // Cuenta origen del movimiento
+  toAccountId?: string; // Cuenta destino del movimiento
+
   // tipo
   type: 'income' | 'expense' | 'savings';
 
   // relaciones enriquecidas opcionales (para vistas)
   category?: { id: string; name: string };
   account?: { id: string; name: string };
+  fromAccount?: { id: string; name: string };
+  toAccount?: { id: string; name: string };
 
   // fechas
   transactionDate: Date;

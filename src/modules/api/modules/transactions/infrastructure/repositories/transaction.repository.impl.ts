@@ -1,7 +1,14 @@
 // infrastructure/repositories/transaction.repository.impl.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  IsNull,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 
 import { TransactionRepository } from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters, TransactionPagination } from '../../domain/transaction';
@@ -21,6 +28,30 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     return TransactionMapper.toDomain(saved);
   }
 
+  async findById(id: string): Promise<Transaction | null> {
+    const entity = await this.transactionRepository.findOne({
+      where: { id, nulledAt: IsNull() },
+      relations: { category: true },
+    });
+    return entity ? TransactionMapper.toDomain(entity) : null;
+  }
+
+  async update(id: string, data: Partial<Transaction>): Promise<Transaction | null> {
+    // Crear objeto de actualización solo con campos definidos
+    const updateData: Partial<TransactionEntity> = {};
+
+    if (data.amount !== undefined) updateData.amount = data.amount;
+    if (data.source !== undefined) updateData.source = data.source;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
+    if (data.transactionDate !== undefined) updateData.transactionDate = data.transactionDate;
+
+    const result = await this.transactionRepository.update(id, updateData);
+    if (result.affected === 0) return null;
+
+    return await this.findById(id);
+  }
+
   async findByBudget(
     budgetId: string,
     filters: TransactionFilters,
@@ -30,7 +61,7 @@ export class TransactionRepositoryImpl implements TransactionRepository {
   }> {
     const { type, categoryId, dateFrom, dateTo, page = 1, limit = 20 } = filters;
 
-    const where: FindOptionsWhere<TransactionEntity> = { budgetId };
+    const where: FindOptionsWhere<TransactionEntity> = { budgetId, nulledAt: IsNull() };
 
     if (type) where.type = type;
     if (categoryId) where.categoryId = categoryId;
@@ -60,5 +91,10 @@ export class TransactionRepositoryImpl implements TransactionRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async softDelete(id: string): Promise<boolean> {
+    const result = await this.transactionRepository.update(id, { nulledAt: new Date() });
+    return (result.affected ?? 0) > 0;
   }
 }

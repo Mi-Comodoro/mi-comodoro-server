@@ -1,6 +1,6 @@
 import { ApiProperty, ApiResponseProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsNotEmpty, IsNumber, IsString, IsUUID, Min } from 'class-validator';
+import { IsDate, IsDateString, IsNotEmpty, IsNumber, IsString, IsUUID, Min } from 'class-validator';
 
 import { PlannedSavingStatus } from '../../../savings/domain/savings-planned';
 import { INCOME_STATUS } from '../../domain/income-planned';
@@ -145,6 +145,93 @@ export class PlannedIncomeResponseDto {
   data: PlannedIncomeResponseDataDto;
 }
 
+export class UnplannedIncomeTransactionResponseDataDto {
+  @ApiResponseProperty({
+    type: 'string',
+    format: 'uuid',
+    example: '0a6c0b5c-5d75-4cb6-8fd0-4f3185806c1f',
+  })
+  id: string;
+
+  @ApiResponseProperty({ type: 'number', example: 3500.5 })
+  amount: number;
+
+  @ApiResponseProperty({ type: 'string', example: 'Bono extraordinario' })
+  source: string;
+
+  @ApiResponseProperty({ type: 'string', example: 'income' })
+  type: 'income';
+
+  @ApiResponseProperty({
+    type: 'string',
+    format: 'uuid',
+    example: 'a4f5cbfc-8f34-4038-92f1-3eff825a70c6',
+  })
+  budgetId: string;
+
+  @ApiResponseProperty({
+    type: 'string',
+    format: 'uuid',
+    example: 'b2e070e1-0371-5f73-bec6-9b726c06f930',
+  })
+  userId: string;
+
+  @ApiResponseProperty({ type: 'string', format: 'date-time', example: '2026-04-15T00:00:00.000Z' })
+  transactionDate: Date;
+
+  @ApiResponseProperty({ type: 'string', format: 'uuid', example: null })
+  toAccountId?: string;
+}
+
+export class UnplannedIncomeResponseDataDto {
+  @ApiResponseProperty({ type: UnplannedIncomeTransactionResponseDataDto })
+  transaction: UnplannedIncomeTransactionResponseDataDto;
+
+  @ApiResponseProperty({ type: [PlannedSavingResponseDataDto] })
+  plannedSavings: PlannedSavingResponseDataDto[];
+}
+
+export class UnplannedIncomeResponseDto {
+  @ApiResponseProperty({ type: 'boolean', example: true })
+  success: boolean;
+
+  @ApiResponseProperty({ type: UnplannedIncomeResponseDataDto })
+  data: UnplannedIncomeResponseDataDto;
+}
+
+export class CreateUnplannedIncomeDto {
+  @ApiProperty({ type: 'number', example: 1200.5, description: 'Monto del ingreso no planificado' })
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @ApiProperty({
+    type: 'string',
+    example: 'Bono extraordinario',
+    description: 'Fuente o descripcion del ingreso',
+  })
+  @IsString()
+  @IsNotEmpty()
+  source: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'uuid',
+    example: 'a4f5cbfc-8f34-4038-92f1-3eff825a70c6',
+    description: 'UUID del presupuesto activo al que pertenece el ingreso',
+  })
+  @IsUUID()
+  budgetId: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'date-time',
+    example: '2026-04-15T00:00:00.000Z',
+    description: 'Fecha real del ingreso no planificado',
+  })
+  @IsDateString()
+  date: string;
+}
 export class CreateManualPlannedIncomeDto {
   @ApiProperty({
     type: 'string',

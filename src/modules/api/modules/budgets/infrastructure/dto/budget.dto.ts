@@ -90,6 +90,39 @@ export class BudgetListResponseDto {
   data: BudgetResponseData[];
 }
 
+export class BudgetHistoricalSummaryItemDto {
+  @ApiResponseProperty({ type: 'string', example: 'Abril' })
+  month: string;
+
+  @ApiResponseProperty({ type: 'number', example: 2026 })
+  year: number;
+
+  @ApiResponseProperty({ type: 'string', example: 'ACTIVE' })
+  status: 'ACTIVE' | 'CLOSED' | 'PLANNED';
+
+  @ApiResponseProperty({ type: 'number', example: 4500000 })
+  expectedIncome: number;
+
+  @ApiResponseProperty({ type: 'number', example: 4200000 })
+  receivedIncome: number;
+
+  @ApiResponseProperty({ type: 'number', example: 2100000 })
+  totalExpenses: number;
+
+  @ApiResponseProperty({ type: 'number', example: 840000 })
+  totalSavings: number;
+
+  @ApiResponseProperty({ type: 'number', example: 20 })
+  savingsRate: number;
+}
+
+export class BudgetHistoricalSummaryResponseDto {
+  @ApiResponseProperty({ type: 'boolean', example: true })
+  success: boolean;
+
+  @ApiResponseProperty({ type: [BudgetHistoricalSummaryItemDto] })
+  data: BudgetHistoricalSummaryItemDto[];
+}
 export class CreateBudgetDto {
   @ApiProperty({
     type: 'number',

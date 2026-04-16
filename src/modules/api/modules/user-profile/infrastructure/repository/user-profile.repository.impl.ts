@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { addDays } from 'date-fns';
 import { Repository } from 'typeorm';
@@ -15,7 +15,6 @@ export class UserProfileRepositoryImpl implements UserProfileRepository {
   constructor(
     private readonly logger: LoggerProviderService,
     @InjectRepository(UserProfileEntity)
-    @Inject('UserProfileRepository')
     private readonly userProfileRepository: Repository<UserProfileEntity>,
   ) {}
   async save(userProfile: UserProfile): Promise<UserProfile> {
@@ -54,7 +53,7 @@ export class UserProfileRepositoryImpl implements UserProfileRepository {
   async update(userId: string, userProfile: UserProfileDTO): Promise<UserProfile> {
     const existingProfile = await this.userProfileRepository.findOne({ where: { userId } });
     if (!existingProfile) {
-      throw new Error(`UserProfile not found for userId: ${userId}`);
+      throw new NotFoundException(`UserProfile not found for userId: ${userId}`);
     }
     const data = { ...existingProfile, ...userProfile };
 

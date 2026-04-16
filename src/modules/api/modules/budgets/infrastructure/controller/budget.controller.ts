@@ -27,7 +27,12 @@ import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { BudgetService } from '../../application/budget.service';
-import { BudgetListResponseDto, BudgetResponseDto, CreateBudgetDto } from '../dto/budget.dto';
+import {
+  BudgetHistoricalSummaryResponseDto,
+  BudgetListResponseDto,
+  BudgetResponseDto,
+  CreateBudgetDto,
+} from '../dto/budget.dto';
 
 @ApiTags('budgets')
 @Controller('budgets')
@@ -64,6 +69,63 @@ export class BudgetController {
       sourceBudgetId: body.sourceBudgetId,
       name: body.name,
     });
+  }
+
+  @Get('/')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Listar todos los presupuestos del usuario autenticado',
+    description: 'Retorna todos los presupuestos del usuario, opcionalmente filtrados por año',
+  })
+  @ApiOkResponse({ type: BudgetListResponseDto })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    type: Number,
+    example: 2026,
+    description: 'Año para filtrar presupuestos (por defecto: año actual)',
+  })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Finances not found for user')
+  async getAllBudgets(@CurrentUser() user: JwtPayload, @Query('year') year?: string) {
+    const currentYear = new Date().getFullYear();
+    const parsedYear = year ? parseInt(year, 10) : currentYear;
+
+    this.logger.info(
+      this.context,
+      `Getting all budgets for user ${user.userId}, year: ${parsedYear}`,
+    );
+
+    return await this.budgetService.getAllBudgetsByUserId(user.userId, parsedYear);
+  }
+
+  @Get('/summary/historical')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Obtener resumen historico de presupuestos del usuario autenticado',
+    description:
+      'Retorna el resumen mensual de ingresos esperados, ingresos recibidos, gastos, ahorro y tasa de ahorro para un a�o determinado.',
+  })
+  @ApiOkResponse({ type: BudgetHistoricalSummaryResponseDto })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    type: Number,
+    example: 2026,
+    description: 'A�o a consultar (por defecto: a�o actual)',
+  })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Finances not found for user')
+  async getHistoricalSummary(@CurrentUser() user: JwtPayload, @Query('year') year?: string) {
+    const currentYear = new Date().getFullYear();
+    const parsedYear = year ? parseInt(year, 10) : currentYear;
+
+    this.logger.info(
+      this.context,
+      `Getting historical budget summary for user ${user.userId}, year: ${parsedYear}`,
+    );
+
+    return await this.budgetService.getHistoricalSummary(user.userId, parsedYear);
   }
 
   @Get('/current/:financeId/')
@@ -152,7 +214,10 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetListResponseDto })
   @ApiQuery({ name: 'year', required: false, type: Number, example: 2026 })
-  async getAllBudgets(@Param('financeId') financeId: string, @Query('year') year?: string) {
+  async getAllBudgetsByFinanceId(
+    @Param('financeId') financeId: string,
+    @Query('year') year?: string,
+  ) {
     const parsedYear = year ? parseInt(year, 10) : undefined;
     this.logger.info(
       this.context,

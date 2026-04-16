@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AccountModule } from '../accounts/account.module';
 import { BudgetModule } from '../budgets/budget.module';
 import { CategoryModule } from '../categories/category.module';
 import { SavingsModule } from '../savings/savings.module';
@@ -18,6 +19,7 @@ import { PlannedIncomeRepositoryImpl } from './infrstructure/repositories/income
 @Module({
   imports: [
     TypeOrmModule.forFeature([IncomesEntity, PlannedIncomeEntity]),
+    AccountModule, // ← provee AccountRepository
     SavingsModule, // ← provee PlannedSavingRepository, SavingAllocationRepository
     TransactionModule, // ← provee TransactionRepository
     CategoryModule, // ← provee CategoryRepository

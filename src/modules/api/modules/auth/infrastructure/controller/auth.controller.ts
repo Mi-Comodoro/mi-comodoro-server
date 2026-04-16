@@ -96,6 +96,7 @@ export class AuthController {
   @ApiOkResponse({ type: RefreshResponseDto })
   @ApiErrorResponse(401, 'Unauthorized')
   async refresh(@CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'Refreshing authenticated session');
     return await this.authService.refresh(user);
   }
 

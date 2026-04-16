@@ -1,21 +1,51 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+} from '@nestjs/swagger';
 
+import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { CurrentUser } from '@/common/decorator/current-user.request';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { ExpenseService } from '../../application/services/expense.service';
-import { CreateExpensePlanDto } from '../dto/expense.dto';
+import {
+  CreateExpensePlanDto,
+  CreateUnplannedExpenseDto,
+  UpdateExpenseDto,
+} from '../dto/expense.dto';
 import { GetPlannedExpensesQueryDto } from '../dto/expense.query.dto';
-import { PlannedExpensesResponseDto } from '../dto/expense.response.dto';
+import {
+  CompletePlannedExpenseResponseDto,
+  PlannedExpensesResponseDto,
+  UnplannedExpenseResponseDto,
+} from '../dto/expense.response.dto';
 
-@Controller('expense')
+@Controller(['expense', 'expenses'])
 export class ExpenseController {
   private readonly context = ExpenseController.name;
   constructor(
     private readonly logger: LoggerProviderService,
     private readonly expenseService: ExpenseService,
   ) {}
+
   @Post('/plan')
   @UseGuards(AuthGuard('jwt'))
   async plan(
@@ -27,6 +57,27 @@ export class ExpenseController {
     return await this.expenseService.addPlan(body);
   }
 
+  @Post('/unplanned')
+  @ApiOperation({ summary: 'Registrar un gasto no planificado y generar su transaccion' })
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiCreatedResponse({ type: UnplannedExpenseResponseDto })
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Budget is not active')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Category not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async createUnplanned(@CurrentUser() user: JwtPayload, @Body() body: CreateUnplannedExpenseDto) {
+    this.logger.info(this.context, 'Creating unplanned expense');
+    return await this.expenseService.createUnplannedExpense({
+      userId: user.userId,
+      amount: body.amount,
+      categoryId: body.categoryId,
+      description: body.description,
+      budgetId: body.budgetId,
+      date: new Date(body.date),
+    });
+  }
+
   @Get('/')
   @ApiOperation({ summary: 'Listar gastos planificados con filtros' })
   @ApiResponse({
@@ -35,5 +86,69 @@ export class ExpenseController {
   })
   async findAll(@Query() query: GetPlannedExpensesQueryDto) {
     return await this.expenseService.findAll(query);
+  }
+
+  @Patch('/:id/complete')
+  @ApiOperation({
+    summary: 'Marcar un gasto planificado como pagado y generar su transacción',
+  })
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'UUID del gasto planificado',
+    example: '0a6c0b5c-5d75-4cb6-8fd0-4f3185806c1f',
+  })
+  @ApiOkResponse({ type: CompletePlannedExpenseResponseDto })
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Este gasto ya fue pagado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Este gasto está cancelado')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned expense not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async completePlannedExpense(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'Complete planned expense');
+    return await this.expenseService.completePlannedExpense(id, user.userId);
+  }
+
+  @Patch('/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Actualizar un gasto planificado' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'UUID del gasto planificado',
+    example: '0a6c0b5c-5d75-4cb6-8fd0-4f3185806c1f',
+  })
+  @ApiOkResponse({ description: 'Gasto planificado actualizado exitosamente' })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned expense not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async updatePlannedExpense(
+    @Param('id') id: string,
+    @Body() updateData: UpdateExpenseDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, 'Update planned expense');
+    return await this.expenseService.updatePlannedExpense(id, user.userId, updateData);
+  }
+
+  @Delete('/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Cancelar un gasto planificado (soft delete)' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'UUID del gasto planificado',
+    example: '0a6c0b5c-5d75-4cb6-8fd0-4f3185806c1f',
+  })
+  @ApiOkResponse({ description: 'Gasto planificado cancelado exitosamente' })
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'No se puede cancelar un gasto ya pagado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Este gasto ya está cancelado')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned expense not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async cancelPlannedExpense(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'Cancel planned expense');
+    return await this.expenseService.cancelPlannedExpense(id, user.userId);
   }
 }

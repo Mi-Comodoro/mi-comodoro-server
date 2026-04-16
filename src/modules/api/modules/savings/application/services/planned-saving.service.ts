@@ -1,5 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 
+import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { CategoryType } from '../../../categories/domain/category';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
@@ -20,6 +21,8 @@ export class PlannedSavingService {
     private readonly categoryRepository: CategoryRepository,
     @Inject('BudgetRepository') private readonly budgetRepository: BudgetRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('AccountRepository')
+    private readonly accountRepository: AccountRepository,
   ) {}
 
   async findByBudget(budgetId: string): Promise<PlannedSaving[]> {
@@ -61,7 +64,12 @@ export class PlannedSavingService {
     // 3. Buscar la meta para obtener el nombre como source
     const meta = await this.goalsRepository.findById(planned.savingGoalId);
 
-    // 4. Crear transaction
+    // 4. Buscar la cuenta principal del usuario (de donde sale el dinero)
+    const primaryAccount = await this.accountRepository.findPrimaryByUserId(
+      budget.ownerId as string,
+    );
+
+    // 5. Crear transaction
     const transaction = await this.transactionRepository.save({
       amount: planned.amount,
       type: 'savings',
@@ -70,6 +78,8 @@ export class PlannedSavingService {
       budgetId: planned.budgetId,
       categoryId: category.id,
       accountId: planned.accountId,
+      fromAccountId: primaryAccount?.id, // De donde sale (cuenta principal)
+      toAccountId: planned.accountId, // A donde llega (cuenta de la meta)
       transactionDate: new Date(),
     });
 

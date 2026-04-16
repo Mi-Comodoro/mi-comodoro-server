@@ -19,6 +19,8 @@ export class AccountEntity implements Account {
   name: string;
   @Column({ nullable: true })
   description: string;
+  @Column({ nullable: true })
+  type: string;
   @Column({
     type: 'decimal',
     precision: 10, // Un número total más grande es más seguro
@@ -30,6 +32,8 @@ export class AccountEntity implements Account {
   compoundingFrequency: CompoundingFrequency;
   @Column({ default: true })
   isActive: boolean;
+  @Column({ name: 'is_primary', default: false })
+  isPrimary: boolean;
   @Column({ name: 'user_id' })
   userId: string;
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })

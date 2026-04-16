@@ -23,7 +23,7 @@ export class SavingAllocationController {
 
   @Get('/:budgetId')
   @UseGuards(AuthGuard('jwt'))
-  async find(@Param('budgedId') budgetId: string) {
+  async find(@Param('budgetId') budgetId: string) {
     this.logger.info(this.context, 'getting savings goals');
     return await this.savingAllocationService.find(budgetId);
   }

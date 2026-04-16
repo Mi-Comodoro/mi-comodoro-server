@@ -73,6 +73,21 @@ export class TransactionEntity implements Transaction {
   @JoinColumn({ name: 'account_id', referencedColumnName: 'id' })
   account: AccountEntity;
 
+  @Column({ name: 'account_id', nullable: true })
+  accountId?: string;
+
+  @Column({ name: 'from_account_id', nullable: true })
+  fromAccountId?: string;
+  @ManyToOne(() => AccountEntity, { nullable: true })
+  @JoinColumn({ name: 'from_account_id', referencedColumnName: 'id' })
+  fromAccount?: AccountEntity;
+
+  @Column({ name: 'to_account_id', nullable: true })
+  toAccountId?: string;
+  @ManyToOne(() => AccountEntity, { nullable: true })
+  @JoinColumn({ name: 'to_account_id', referencedColumnName: 'id' })
+  toAccount?: AccountEntity;
+
   @Column({ name: 'planned_expense_id', nullable: true })
   plannedExpenseId?: string;
   @ManyToOne(() => PlannedExpenseEntity, { nullable: true })

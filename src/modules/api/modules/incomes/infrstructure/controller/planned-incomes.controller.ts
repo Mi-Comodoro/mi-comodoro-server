@@ -10,14 +10,18 @@ import {
 } from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { CurrentUser } from '@/common/decorator/current-user.request';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { PlannedIncomeService } from '../../application/services/planned-income.service';
 import {
   CreateManualPlannedIncomeDto,
+  CreateUnplannedIncomeDto,
   MarkPlannedIncomeAsReceivedResponseDto,
   PlannedIncomeListResponseDto,
   PlannedIncomeResponseDto,
+  UnplannedIncomeResponseDto,
 } from '../dto/planned-income.dto';
 
 @ApiTags('planned-incomes')
@@ -40,6 +44,25 @@ export class PlannedIncomeController {
   async createManual(@Body() body: CreateManualPlannedIncomeDto) {
     this.logger.info(this.context, 'Creating manual planned income');
     return await this.plannedIncomeService.createManual(body);
+  }
+
+  @Post('/unplanned')
+  @ApiOperation({ summary: 'Registrar un ingreso no planificado y generar ahorros planeados' })
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiCreatedResponse({ type: UnplannedIncomeResponseDto })
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Budget is not active')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async createUnplanned(@CurrentUser() user: JwtPayload, @Body() body: CreateUnplannedIncomeDto) {
+    this.logger.info(this.context, 'Creating unplanned income');
+    return await this.plannedIncomeService.createUnplannedIncome({
+      userId: user.userId,
+      amount: body.amount,
+      source: body.source,
+      budgetId: body.budgetId,
+      date: new Date(body.date),
+    });
   }
 
   @Get('/:budgetId')

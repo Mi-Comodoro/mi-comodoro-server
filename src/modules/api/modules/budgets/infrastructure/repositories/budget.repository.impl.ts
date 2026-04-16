@@ -1,11 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
 import { Budget } from '../../domain/budget';
-import { BudgetRepository } from '../../domain/repositories/budget.repository';
+import {
+  BudgetHistoricalSummary,
+  BudgetRepository,
+} from '../../domain/repositories/budget.repository';
 import { BudgetEntity } from '../database/entities/budget.entity';
 
 @Injectable()
@@ -102,6 +105,87 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     return budgets;
   }
 
+  async findHistoricalSummaryByFinancesId(
+    financesId: string,
+    year: number,
+  ): Promise<BudgetHistoricalSummary[]> {
+    this.logger.info(
+      this.context,
+      `Finding historical budget summary for financesId: ${financesId}, year: ${year}`,
+    );
+
+    const rows = (await this.budgetRepository.query(
+      `
+        SELECT
+          budget.month AS "month",
+          budget.year AS "year",
+          budget.status AS "status",
+          (
+            SELECT COALESCE(SUM(planned_income.amount), 0)
+            FROM incomes_planned planned_income
+            WHERE CAST(planned_income.budget_id AS text) = CAST(budget.id AS text)
+          ) AS "expectedIncome",
+          (
+            SELECT COALESCE(SUM(transaction.amount), 0)
+            FROM transactions transaction
+            WHERE CAST(transaction.budget_id AS text) = CAST(budget.id AS text)
+              AND transaction.type = $1
+          ) AS "receivedIncome",
+          (
+            SELECT COALESCE(SUM(transaction.amount), 0)
+            FROM transactions transaction
+            WHERE CAST(transaction.budget_id AS text) = CAST(budget.id AS text)
+              AND transaction.type = $2
+          ) AS "totalExpenses",
+          (
+            SELECT COALESCE(SUM(planned_saving.amount), 0)
+            FROM planned_savings planned_saving
+            WHERE CAST(planned_saving."budgetId" AS text) = CAST(budget.id AS text)
+              AND planned_saving.status = $3
+          ) AS "totalSavings"
+        FROM budgets budget
+        WHERE CAST(budget.finances_id AS text) = CAST($4 AS text)
+          AND budget.year = $5
+        ORDER BY
+          budget.year ASC,
+          CASE LOWER(budget.month)
+            WHEN 'enero' THEN 1
+            WHEN 'febrero' THEN 2
+            WHEN 'marzo' THEN 3
+            WHEN 'abril' THEN 4
+            WHEN 'mayo' THEN 5
+            WHEN 'junio' THEN 6
+            WHEN 'julio' THEN 7
+            WHEN 'agosto' THEN 8
+            WHEN 'septiembre' THEN 9
+            WHEN 'octubre' THEN 10
+            WHEN 'noviembre' THEN 11
+            WHEN 'diciembre' THEN 12
+            ELSE 13
+          END ASC
+      `,
+      ['income', 'expense', 'completed', financesId, year],
+    )) as Array<{
+      month: string;
+      year: string;
+      status: string;
+      expectedIncome: string;
+      receivedIncome: string;
+      totalExpenses: string;
+      totalSavings: string;
+    }>;
+
+    return rows.map((row) => ({
+      month: row.month,
+      year: Number(row.year),
+      status: row.status,
+      expectedIncome: Number(row.expectedIncome ?? 0),
+      receivedIncome: Number(row.receivedIncome ?? 0),
+      totalExpenses: Number(row.totalExpenses ?? 0),
+      totalSavings: Number(row.totalSavings ?? 0),
+    }));
+  }
+
   async findById(budgetId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
     const budget = await this.budgetRepository.findOne({ where: { id: budgetId } });
@@ -116,13 +200,13 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       const result = await this.budgetRepository.update({ id: budgetId }, { status: 'ACTIVE' });
 
       if (!result.affected) {
-        throw new Error(`Budget not found: ${budgetId}`);
+        throw new NotFoundException(`Budget not found: ${budgetId}`);
       }
 
       const updated = await this.findById(budgetId);
 
       if (!updated) {
-        throw new Error(`Budget not found after update: ${budgetId}`);
+        throw new NotFoundException(`Budget not found after update: ${budgetId}`);
       }
 
       return updated;

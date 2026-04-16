@@ -33,4 +33,23 @@ export class CreateAccountDto {
   @IsString()
   @IsOptional()
   description: string;
+
+  @ApiProperty({
+    example: 'bank',
+    required: false,
+    description: 'Tipo de cuenta (e.g., bank, cash, savings)',
+  })
+  @IsString()
+  @IsOptional()
+  type: string;
+
+  @ApiProperty({
+    example: false,
+    default: false,
+    required: false,
+    description: 'Indica si es la cuenta principal del usuario',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isPrimary: boolean;
 }

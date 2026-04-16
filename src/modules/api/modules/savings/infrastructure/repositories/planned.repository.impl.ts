@@ -56,14 +56,4 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
 
     return this.findById(id);
   }
-
-  /*   findAll(): Promise<PlannedSaving[]> {
-    throw new Error('Method not implemented.');
-  }
-  update(plannedSaving: PlannedSaving): Promise<PlannedSaving> {
-    throw new Error('Method not implemented.');
-  }
-  delete(id: string): Promise<void> {
-    throw new Error('Method not implemented.');
-  } */
 }

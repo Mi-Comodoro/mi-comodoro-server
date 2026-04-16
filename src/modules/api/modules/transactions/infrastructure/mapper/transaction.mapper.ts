@@ -20,12 +20,20 @@ export class TransactionMapper {
       billId: entity.billId,
       plannedExpenseId: entity.plannedExpenseId,
       plannedIncomeId: entity.plannedIncomeId,
-      accountId: entity.account?.id, // ← desde relación
+      accountId: entity.accountId, // ← campo directo
+      fromAccountId: entity.fromAccountId,
+      toAccountId: entity.toAccountId,
       type: entity.type,
       category: entity.category
         ? { id: entity.category.id, name: entity.category.name }
         : undefined,
       account: entity.account ? { id: entity.account.id, name: entity.account.name } : undefined,
+      fromAccount: entity.fromAccount
+        ? { id: entity.fromAccount.id, name: entity.fromAccount.name }
+        : undefined,
+      toAccount: entity.toAccount
+        ? { id: entity.toAccount.id, name: entity.toAccount.name }
+        : undefined,
       transactionDate: entity.transactionDate,
       nulledAt: entity.nulledAt,
       createdAt: entity.createdAt,
@@ -37,14 +45,15 @@ export class TransactionMapper {
     const entity = new TransactionEntity();
 
     if (domain.id) entity.id = domain.id;
-    entity.amount = Number(domain.amount);
-    entity.source = domain.source as string;
-    entity.description = domain.description as string;
-    entity.userId = domain.userId as string;
-    entity.budgetId = domain.budgetId as string;
-    entity.categoryId = domain.categoryId as string;
-    entity.type = domain.type as 'income' | 'expense' | 'savings';
-    entity.transactionDate = domain.transactionDate as Date;
+    if (domain.amount !== undefined) entity.amount = Number(domain.amount);
+    if (domain.source) entity.source = domain.source;
+    if (domain.description !== undefined) entity.description = domain.description;
+    if (domain.userId) entity.userId = domain.userId;
+    if (domain.budgetId) entity.budgetId = domain.budgetId;
+    if (domain.categoryId) entity.categoryId = domain.categoryId;
+    if (domain.type) entity.type = domain.type;
+    if (domain.transactionDate) entity.transactionDate = domain.transactionDate;
+    if (domain.nulledAt !== undefined) entity.nulledAt = domain.nulledAt;
 
     if (domain.billId) {
       entity.billId = domain.billId;
@@ -56,6 +65,18 @@ export class TransactionMapper {
 
     if (domain.plannedIncomeId) {
       entity.plannedIncomeId = domain.plannedIncomeId;
+    }
+
+    if (domain.accountId) {
+      entity.accountId = domain.accountId;
+    }
+
+    if (domain.fromAccountId) {
+      entity.fromAccountId = domain.fromAccountId;
+    }
+
+    if (domain.toAccountId) {
+      entity.toAccountId = domain.toAccountId;
     }
 
     if (domain.userId) {
@@ -81,6 +102,20 @@ export class TransactionMapper {
       const account = new AccountEntity();
       account.id = domain.accountId;
       entity.account = account;
+    }
+
+    if (domain.fromAccountId) {
+      entity.fromAccountId = domain.fromAccountId;
+      const fromAccount = new AccountEntity();
+      fromAccount.id = domain.fromAccountId;
+      entity.fromAccount = fromAccount;
+    }
+
+    if (domain.toAccountId) {
+      entity.toAccountId = domain.toAccountId;
+      const toAccount = new AccountEntity();
+      toAccount.id = domain.toAccountId;
+      entity.toAccount = toAccount;
     }
 
     return entity;

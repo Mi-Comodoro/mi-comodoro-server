@@ -11,7 +11,7 @@ import {
 import { BillsEntity } from '../../../bills/infrastructure/database/bills.entity';
 import { BudgetEntity } from '../../../budgets/infrastructure/database/entities/budget.entity';
 import { CategoryEntity } from '../../../categories/infrastructure/database/category.entity';
-import { PlannedExpense } from '../../domain/expenses';
+import { PlannedExpense, PlannedExpenseStatus } from '../../domain/expenses';
 
 @Entity('expenses_planned')
 export class PlannedExpenseEntity implements PlannedExpense {
@@ -54,8 +54,12 @@ export class PlannedExpenseEntity implements PlannedExpense {
   expectedAmount: number;
   @Column({ name: 'due_date', type: 'date' })
   dueDate: Date;
-  @Column()
-  status: 'PLANNED' | 'PAID' | 'CANCELED' | 'SKIPPED';
+  @Column({
+    type: 'enum',
+    enum: PlannedExpenseStatus,
+    default: PlannedExpenseStatus.PLANNED,
+  })
+  status: PlannedExpenseStatus;
   @Column({ default: true, name: 'is_essential' })
   isEssential: boolean;
   @Column({ type: 'text', nullable: true })

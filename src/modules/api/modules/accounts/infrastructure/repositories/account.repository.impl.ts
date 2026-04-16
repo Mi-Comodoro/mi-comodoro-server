@@ -18,4 +18,10 @@ export class AccountRepositoryImpl implements AccountRepository {
     const result = await this.accountRepository.find({ where: { userId } });
     return result.map((item) => AccountMapper.toDomain(item));
   }
+  async findPrimaryByUserId(userId: string): Promise<Account | null> {
+    const result = await this.accountRepository.findOne({
+      where: { userId, isPrimary: true },
+    });
+    return result ? AccountMapper.toDomain(result) : null;
+  }
 }

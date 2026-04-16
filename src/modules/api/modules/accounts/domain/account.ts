@@ -5,9 +5,11 @@ export interface Account {
   id?: string;
   name: string;
   description?: string;
+  type?: string;
   interestRate: number;
   compoundingFrequency: CompoundingFrequency;
   isActive: boolean;
+  isPrimary?: boolean;
   userId: string;
   user?: User;
   createdAt?: Date;

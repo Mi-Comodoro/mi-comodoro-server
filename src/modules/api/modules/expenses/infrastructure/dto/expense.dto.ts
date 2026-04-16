@@ -1,60 +1,120 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
-import { PlannedExpense } from '../../domain/expenses';
-type STATUS_ENUM = 'PLANNED' | 'ACTIVE' | 'CANCELLED' | 'SKIPPED';
-export class CreateExpensePlanDto implements PlannedExpense {
-  @IsString()
-  @IsOptional()
-  @ApiProperty({
-    type: 'string',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-    required: false,
-    nullable: true,
-  })
+import { PlannedExpenseStatus } from '../../domain/expenses';
+
+export class CreateExpensePlanDto {
+  @ApiProperty({ example: 'uuid' })
+  @IsNotEmpty()
   budgetId: string;
-  @IsString()
-  @ApiProperty({
-    type: 'string',
-    example: 'PLANNED',
-    required: true,
-  })
-  status: STATUS_ENUM;
 
-  @ApiProperty({ type: 'string', example: 'Arriendo', required: true })
-  @IsString()
-  name: string;
-  @IsNumber()
-  @ApiProperty({ type: 'number', example: 5000000, required: true })
-  expectedAmount: number;
-
-  @ApiProperty({ type: 'string', example: '2f20b698-2eaf-4b75-bfbc-758b727ee8a8', required: true })
-  @IsString()
+  @ApiProperty({ example: 'uuid' })
+  @IsNotEmpty()
   categoryId: string;
 
-  // @IsDate()
+  @ApiProperty({ example: 'Arriendo' })
   @IsString()
-  @ApiProperty({ type: 'string', example: '2026-03-16T07:07:12.34Z', required: true })
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ example: 950000 })
+  @IsNumber()
+  @Min(0)
+  expectedAmount: number;
+
+  @ApiProperty({ example: '2026-05-01' })
+  @IsDateString()
+  @IsNotEmpty()
   dueDate: Date;
+
+  @ApiProperty({ enum: PlannedExpenseStatus, example: PlannedExpenseStatus.PLANNED })
+  @IsEnum(PlannedExpenseStatus)
+  status: PlannedExpenseStatus;
+
+  @ApiProperty({ example: true })
   @IsBoolean()
-  @ApiProperty({ type: 'boolean', example: true })
   isEssential: boolean;
 
+  @ApiProperty({ required: false, example: 'Pago mensual' })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    type: 'string',
-    example: 'Se paga el mes con mora, siempre queda un pago pendiente',
-  })
   notes?: string;
 
+  @ApiProperty({ required: false, example: 'uuid' })
+  @IsOptional()
+  billsId?: string;
+}
+export class CreateUnplannedExpenseDto {
+  @ApiProperty({ example: 950000, description: 'Monto del gasto no planificado' })
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @ApiProperty({
+    example: 'a4f5cbfc-8f34-4038-92f1-3eff825a70c6',
+    description: 'UUID de la categoria del gasto',
+  })
+  @IsUUID()
+  categoryId: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'Compra imprevista',
+    description: 'Descripcion opcional del gasto no planificado',
+  })
   @IsString()
   @IsOptional()
+  description?: string;
+
   @ApiProperty({
-    type: 'string',
-    example: 'ba0929a1-1c29-4859-9c7f-c999db23d535',
-    required: false,
-    nullable: true,
+    example: 'a4f5cbfc-8f34-4038-92f1-3eff825a70c6',
+    description: 'UUID del presupuesto activo',
   })
-  billsId?: string;
+  @IsUUID()
+  budgetId: string;
+
+  @ApiProperty({
+    example: '2026-04-15T00:00:00.000Z',
+    description: 'Fecha real del gasto no planificado',
+  })
+  @IsDateString()
+  date: string;
+}
+
+export class UpdateExpenseDto {
+  @ApiProperty({ example: 'Arriendo actualizado', required: false })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ example: 1000000, required: false })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  expectedAmount?: number;
+
+  @ApiProperty({ example: 'a4f5cbfc-8f34-4038-92f1-3eff825a70c6', required: false })
+  @IsUUID()
+  @IsOptional()
+  categoryId?: string;
+
+  @ApiProperty({ example: '2026-05-15', required: false })
+  @IsDateString()
+  @IsOptional()
+  dueDate?: Date;
+
+  @ApiProperty({ example: 'Pago mensual actualizado', required: false })
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

@@ -174,6 +174,7 @@ export class AuthService {
   }
 
   async refresh(payload: JwtPayload) {
+    this.logger.info(this.context, 'Refreshing authenticated session');
     const user = await this.userRepository.findAuthById(payload.userId);
 
     if (!user) {
