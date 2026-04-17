@@ -1,4 +1,4 @@
-# FinHub Backend - Context & Standards
+﻿# FinHub Backend - Context & Standards
 
 ## Project Context
 
@@ -57,8 +57,26 @@ Each module in `src/modules/api/modules/` must follow:
 
 - NestJS, TypeORM, TypeScript, PostgreSQL, JWT (Passport), Swagger.
 
-## Current Focus
+## Current Status (MVP Complete)
 
-- Implementing `PATCH/DELETE` for `expenses` and `transactions`.
-- Manual transaction creation.
-- Budget reporting engine.
+### Implemented endpoints
+AUTH: POST /auth/signup · /signin · /google · /refresh · /logout
+BUDGETS: POST / · GET /finances/:financeId · /current/:financeId
+         /current/:financeId/:year/:month · /:id · /summary/historical
+         PATCH /:id/active
+TRANSACTIONS: GET /budget/:budgetId · POST / · PATCH /:id · DELETE /:id
+EXPENSES: POST /plan · /unplanned · GET / · PATCH /:id/complete · /:id · DELETE /:id
+INCOMES: GET /planned/by-budget/:budgetId · PATCH /planned/:id
+SAVINGS: POST /allocation · GET /allocation/:budgetId
+         GET /planned/budget/:budgetId · PATCH /planned/:id
+         POST /goals · GET /goals
+CATEGORIES: GET /
+USERS: POST /onboarding · GET /me
+USER-PROFILE: GET /me
+ACCOUNTS: POST / · GET /
+
+### Pending
+- POST /settings · GET /settings
+
+### Out of MVP
+- Reports module
