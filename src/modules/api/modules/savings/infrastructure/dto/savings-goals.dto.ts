@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsNotEmpty, IsNumber, IsString, Min, MinDate } from 'class-validator';
+import {
+  IsBoolean,
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Min,
+  MinDate,
+  ValidateIf,
+} from 'class-validator';
 
 import { SavingGoal } from '../../domain/savings-goals';
 
@@ -18,16 +27,18 @@ export class SavingsGoalsCreateDto implements SavingGoal {
   @IsNotEmpty()
   reason: string;
 
-  @ApiProperty({ example: 5000, description: 'Monto total que se desea alcanzar' })
+  @ApiProperty({ example: 5000, description: 'Monto total (opcional)', required: false })
+  @ValidateIf((o) => o.targetAmount !== undefined && o.targetAmount !== null)
   @IsNumber()
   @Min(1)
-  targetAmount: number;
+  targetAmount?: number;
 
-  @ApiProperty({ example: '2025-12-31', description: 'Fecha objetivo para cumplir la meta' })
+  @ApiProperty({ example: '2025-12-31', description: 'Fecha objetivo (opcional)', required: false })
+  @ValidateIf((o) => o.targetDate !== undefined && o.targetDate !== null)
   @Type(() => Date)
   @IsDate()
   @MinDate(new Date())
-  targetDate: Date;
+  targetDate?: Date;
 
   @ApiProperty({ example: true, default: true })
   @IsBoolean()
