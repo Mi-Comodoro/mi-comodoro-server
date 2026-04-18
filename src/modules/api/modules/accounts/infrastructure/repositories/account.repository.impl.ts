@@ -24,4 +24,29 @@ export class AccountRepositoryImpl implements AccountRepository {
     });
     return result ? AccountMapper.toDomain(result) : null;
   }
+
+  async findByIdAndUser(id: string, userId: string): Promise<Account | null> {
+    const result = await this.accountRepository.findOne({
+      where: { id, userId },
+    });
+    return result ? AccountMapper.toDomain(result) : null;
+  }
+
+  async update(id: string, userId: string, data: Partial<Account>): Promise<Account | null> {
+    const existing = await this.accountRepository.findOne({
+      where: { id, userId },
+    });
+
+    if (!existing) {
+      return null;
+    }
+
+    const updated = await this.accountRepository.save({
+      ...existing,
+      ...data,
+      id,
+    });
+
+    return AccountMapper.toDomain(updated);
+  }
 }

@@ -1,6 +1,8 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
+
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { SavingGoal } from '../../domain/savings-goals';
 import { SavingGoalEntity } from '../database/entities/saving-goals.entity';
@@ -32,5 +34,45 @@ export class GoalsRepositoryImpl implements GoalsRepository {
       return null;
     }
     return SavingsGoalsMapper.toDomain(result);
+  }
+
+  async findByIdAndUser(id: string, userId: string): Promise<SavingGoal | null> {
+    const entity = await this.savingsGoalsRepository.findOne({
+      where: { id, userId },
+      relations: { account: true },
+    });
+    if (!entity) return null;
+    return SavingsGoalsMapper.toDomain(entity);
+  }
+
+  async update(id: string, userId: string, data: Partial<SavingGoal>): Promise<SavingGoal | null> {
+    const existing = await this.savingsGoalsRepository.findOne({
+      where: { id, userId },
+    });
+    if (!existing) return null;
+
+    const updateData: Partial<SavingGoalEntity> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.reason !== undefined) updateData.reason = data.reason;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    // Campos nullables — distinguir entre null (borrar) y undefined (no tocar)
+    if (data.targetAmount !== undefined) {
+      updateData.targetAmount = data.targetAmount as number;
+    }
+    if (data.targetDate !== undefined) {
+      updateData.targetDate = data.targetDate as Date;
+    }
+    if (data.accountId !== undefined) {
+      const account = new AccountEntity();
+      account.id = data.accountId;
+      updateData.account = account;
+      updateData.accountId = data.accountId;
+    }
+
+    const result = await this.savingsGoalsRepository.update(id, updateData);
+    if (result.affected === 0) return null;
+
+    return this.findByIdAndUser(id, userId);
   }
 }
