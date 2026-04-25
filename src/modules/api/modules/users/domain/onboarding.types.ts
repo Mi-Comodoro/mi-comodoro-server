@@ -13,6 +13,8 @@ export interface OnboardingFinancesData {
   profile: string;
   usage: string;
   currency: string;
+  accountName: string;
+  interestRate: number;
 }
 
 export interface OnboardingBudgetData {

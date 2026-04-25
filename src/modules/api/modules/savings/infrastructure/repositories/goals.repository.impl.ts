@@ -55,6 +55,7 @@ export class GoalsRepositoryImpl implements GoalsRepository {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.reason !== undefined) updateData.reason = data.reason;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.status !== undefined) updateData.status = data.status;
 
     // Campos nullables — distinguir entre null (borrar) y undefined (no tocar)
     if (data.targetAmount !== undefined) {
@@ -74,5 +75,9 @@ export class GoalsRepositoryImpl implements GoalsRepository {
     if (result.affected === 0) return null;
 
     return this.findByIdAndUser(id, userId);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.savingsGoalsRepository.delete(id);
   }
 }

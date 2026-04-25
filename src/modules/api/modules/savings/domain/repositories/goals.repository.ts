@@ -6,4 +6,5 @@ export interface GoalsRepository {
   findById(id: string): Promise<SavingGoal | null>;
   findByIdAndUser(id: string, userId: string): Promise<SavingGoal | null>;
   update(id: string, userId: string, data: Partial<SavingGoal>): Promise<SavingGoal | null>;
+  delete(id: string): Promise<void>;
 }

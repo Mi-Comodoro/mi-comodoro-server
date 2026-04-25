@@ -9,6 +9,7 @@ export interface PlannedSaving {
   amount: number;
   date: Date;
   status: PlannedSavingStatus;
+  completedAt?: Date | null;
   accountId: string;
   budgetId: string;
   plannedIncomeId: string;

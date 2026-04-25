@@ -11,16 +11,23 @@ import { PlannedSavingService } from './application/services/planned-saving.serv
 import { SavingAllocationController } from './infrastructure/controllers/allocation.controller';
 import { GoalsController } from './infrastructure/controllers/goals.controller';
 import { PlannedSavingController } from './infrastructure/controllers/planned-saving.controller';
+import { GoalHistoryEntity } from './infrastructure/database/entities/goal-history.entity';
 import { SavingAllocationEntity } from './infrastructure/database/entities/saving-allocations.entity';
 import { SavingGoalEntity } from './infrastructure/database/entities/saving-goals.entity';
 import { PlannedSavingEntity } from './infrastructure/database/entities/saving-planned.entity';
 import { SavingAllocationRepositoryImpl } from './infrastructure/repositories/allocations.repository.impl';
+import { GoalHistoryRepositoryImpl } from './infrastructure/repositories/goal-history.repository.impl';
 import { GoalsRepositoryImpl } from './infrastructure/repositories/goals.repository.impl';
 import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/planned.repository.impl';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SavingGoalEntity, SavingAllocationEntity, PlannedSavingEntity]),
+    TypeOrmModule.forFeature([
+      SavingGoalEntity,
+      SavingAllocationEntity,
+      PlannedSavingEntity,
+      GoalHistoryEntity,
+    ]),
     AccountModule,
     forwardRef(() => BudgetModule),
     CategoryModule,
@@ -33,6 +40,10 @@ import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/plann
     {
       provide: 'GoalsRepository',
       useClass: GoalsRepositoryImpl,
+    },
+    {
+      provide: 'GoalHistoryRepository',
+      useClass: GoalHistoryRepositoryImpl,
     },
     {
       provide: 'SavingAllocationRepository',

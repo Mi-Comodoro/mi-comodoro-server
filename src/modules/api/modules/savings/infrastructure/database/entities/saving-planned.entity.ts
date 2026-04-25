@@ -55,6 +55,9 @@ export class PlannedSavingEntity {
   @Column({ type: 'date' })
   date: Date;
 
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

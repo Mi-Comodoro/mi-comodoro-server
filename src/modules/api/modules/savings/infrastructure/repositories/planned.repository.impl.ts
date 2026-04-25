@@ -48,9 +48,16 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
   }
 
   async update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null> {
-    const result = await this.plannedSavingRepository.update(id, {
-      status: domain.status as PlannedSavingStatus,
-    });
+    const updateData: Partial<PlannedSavingEntity> = {};
+
+    if (domain.status !== undefined) {
+      updateData.status = domain.status as PlannedSavingStatus;
+    }
+    if (domain.completedAt !== undefined) {
+      updateData.completedAt = domain.completedAt;
+    }
+
+    const result = await this.plannedSavingRepository.update(id, updateData);
 
     if (result.affected === 0) return null;
 

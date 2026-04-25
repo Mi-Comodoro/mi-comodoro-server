@@ -104,6 +104,24 @@ export class OnboardingFinancesInfoDto implements FinancesInfo {
     example: [new Date(), new Date().setDate(new Date().getDate() + 15)],
   })
   biweeklyPayments: [string, string];
+
+  @ApiProperty({
+    description: 'Primary account name',
+    example: 'Mi Banco',
+  })
+  @IsNotEmpty({ message: 'Account name is required' })
+  @IsString({ message: 'Account name must be a string' })
+  accountName: string;
+
+  @ApiProperty({
+    description: 'Account interest rate',
+    example: 0,
+  })
+  @IsNotEmpty({ message: 'Interest rate is required' })
+  @IsNumber({}, { message: 'Interest rate must be a number' })
+  @Min(0, { message: 'Interest rate must be at least 0' })
+  @Max(100, { message: 'Interest rate cannot exceed 100' })
+  interestRate: number;
 }
 
 class OnboardingStrategyInfoDto implements BudgetInfo {

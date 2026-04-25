@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
@@ -11,6 +12,8 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+
+import { GoalStatus } from '../../domain/savings-goals';
 
 export class UpdateGoalDto {
   @ApiProperty({ required: false, example: 'Fondo de emergencia' })
@@ -41,6 +44,11 @@ export class UpdateGoalDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: GoalStatus })
+  @IsOptional()
+  @IsEnum(GoalStatus)
+  status?: GoalStatus;
 
   @ApiProperty({ required: false, description: 'Cambiar cuenta asociada' })
   @IsOptional()

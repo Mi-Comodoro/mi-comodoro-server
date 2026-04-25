@@ -10,6 +10,8 @@ export class AccountMapper {
       description: entity.description,
       compoundingFrequency: entity.compoundingFrequency,
       isActive: entity.isActive,
+      isPrimary: entity.isPrimary,
+      type: entity.type,
       userId: entity.userId,
     };
   }

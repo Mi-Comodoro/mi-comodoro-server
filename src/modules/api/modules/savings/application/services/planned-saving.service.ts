@@ -6,8 +6,10 @@ import { CategoryType } from '../../../categories/domain/category';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
 import { TransactionRepository } from '../../../transactions/domain/repositories/transaction.repository';
 import { Transaction } from '../../../transactions/domain/transaction';
+import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
+import { GoalStatus } from '../../domain/savings-goals';
 import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
 
 @Injectable()
@@ -21,6 +23,8 @@ export class PlannedSavingService {
     private readonly categoryRepository: CategoryRepository,
     @Inject('BudgetRepository') private readonly budgetRepository: BudgetRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('GoalHistoryRepository')
+    private readonly goalHistoryRepository: GoalHistoryRepository,
     @Inject('AccountRepository')
     private readonly accountRepository: AccountRepository,
   ) {}
@@ -43,8 +47,28 @@ export class PlannedSavingService {
 
     const updated = await this.plannedSavingRepository.update(id, {
       status: PlannedSavingStatus.COMPLETED,
+      completedAt: new Date(),
     });
     const transaction = await this.initSavingTransaction(savingPlanned);
+
+    // Si la meta está en SCHEDULED, cambiar a IN_PROGRESS
+    if (savingPlanned.savingGoalId) {
+      const goal = await this.goalsRepository.findById(savingPlanned.savingGoalId);
+      if (goal && goal.status === GoalStatus.SCHEDULED) {
+        await this.goalsRepository.update(savingPlanned.savingGoalId, goal.userId as string, {
+          status: GoalStatus.IN_PROGRESS,
+        });
+        // Registrar en historial de la meta
+        await this.goalHistoryRepository.add({
+          goalId: savingPlanned.savingGoalId,
+          userId: goal.userId as string,
+          field: 'status',
+          oldValue: GoalStatus.SCHEDULED,
+          newValue: GoalStatus.IN_PROGRESS,
+        });
+      }
+    }
+
     return { savingPlanned: updated!, transaction };
   }
 

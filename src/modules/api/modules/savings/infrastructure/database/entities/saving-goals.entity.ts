@@ -11,7 +11,7 @@ import {
 import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
 import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
 
-import { SavingGoal } from '../../../domain/savings-goals';
+import { GoalStatus, SavingGoal } from '../../../domain/savings-goals';
 
 @Entity('saving_goals')
 export class SavingGoalEntity implements SavingGoal {
@@ -53,6 +53,13 @@ export class SavingGoalEntity implements SavingGoal {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: GoalStatus,
+    default: GoalStatus.SCHEDULED,
+  })
+  status: GoalStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -1,4 +1,4 @@
-import { SavingGoal } from '../../domain/savings-goals';
+import { GoalStatus, SavingGoal } from '../../domain/savings-goals';
 import { SavingGoalEntity } from '../database/entities/saving-goals.entity';
 
 export class SavingsGoalsMapper {
@@ -11,6 +11,7 @@ export class SavingsGoalsMapper {
       targetAmount: entity.targetAmount != null ? Number(entity.targetAmount) : undefined,
       targetDate: entity.targetDate ? new Date(entity.targetDate) : undefined,
       isActive: entity.isActive,
+      status: entity.status ?? GoalStatus.SCHEDULED,
       accountId: entity.accountId,
       accountName: entity.account ? entity.account.name : '',
       updatedAt: entity.updatedAt,

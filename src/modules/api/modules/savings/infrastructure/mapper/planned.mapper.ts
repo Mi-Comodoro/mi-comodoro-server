@@ -12,6 +12,7 @@ export class PlannedSavingMapper {
       amount: Number(entity.amount),
       date: entity.date,
       status: entity.status,
+      completedAt: entity.completedAt ?? null,
       accountId: entity.account?.id,
       budgetId: entity.budget?.id,
       plannedIncomeId: entity.plannedIncome?.id,
@@ -46,6 +47,9 @@ export class PlannedSavingMapper {
     entity.amount = Number(domain.amount);
     entity.date = domain.date as Date;
     entity.status = domain.status as PlannedSavingStatus;
+    if (domain.completedAt !== undefined) {
+      entity.completedAt = domain.completedAt;
+    }
 
     // Relaciones: solo asignar si el ID existe
     if (domain.accountId) {

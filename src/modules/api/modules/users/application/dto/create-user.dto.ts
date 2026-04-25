@@ -19,6 +19,8 @@ export type FinancesInfo = {
   profile: FinancialProfileEnum;
   monthPayment: string | null;
   biweeklyPayments: [string, string];
+  accountName: string;
+  interestRate: number;
 };
 export type BudgetInfo = {
   strategy: FinancialStrategyType;

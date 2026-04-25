@@ -39,11 +39,11 @@ export class OnboardingAccountListener {
 
       // Crear la cuenta principal
       const primaryAccount: Account = {
-        name: 'Cuenta Principal',
+        name: payload.data.finances.accountName,
         type: 'bank',
         isPrimary: true,
         userId: payload.userId,
-        interestRate: 0,
+        interestRate: payload.data.finances.interestRate,
         compoundingFrequency: 'monthly',
         isActive: true,
       };
