@@ -12,6 +12,7 @@ import { AccountRepository } from '@/modules/api/modules/accounts/domain/reposit
 import { GoalHistory } from '../../domain/goal-history';
 import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
+import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
 import { GoalStatus, SavingGoal } from '../../domain/savings-goals';
 import { UpdateGoalDto } from '../../infrastructure/dto/update-goal.dto';
 import { UpdateGoalStatusDto } from '../../infrastructure/dto/update-goal-status.dto';
@@ -22,6 +23,7 @@ export class GoalsService {
   constructor(
     @Inject('GoalsRepository') private goalsRepository: GoalsRepository,
     @Inject('GoalHistoryRepository') private historyRepository: GoalHistoryRepository,
+    @Inject('PlannedSavingRepository') private plannedSavingRepository: PlannedSavingRepository,
     @Inject('AccountRepository') private accountRepository: AccountRepository,
     private readonly logger: LoggerProviderService,
   ) {}
@@ -35,13 +37,16 @@ export class GoalsService {
     return await this.goalsRepository.find(userId);
   }
 
-  async findById(id: string, userId: string): Promise<SavingGoal> {
+  async findById(id: string, userId: string) {
     this.logger.info(this.context, `getting saving goal by id: ${id}`);
     const goal = await this.goalsRepository.findByIdAndUser(id, userId);
     if (!goal) {
       throw new NotFoundException('Goal not found');
     }
-    return goal;
+
+    const plannedSavings = await this.plannedSavingRepository.findByGoalId(id);
+
+    return { ...goal, plannedSavings };
   }
 
   async update(id: string, userId: string, dto: UpdateGoalDto): Promise<SavingGoal> {

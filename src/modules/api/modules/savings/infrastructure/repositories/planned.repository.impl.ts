@@ -47,6 +47,16 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
     return entities.map(PlannedSavingMapper.toDomain);
   }
 
+  async findByGoalId(goalId: string): Promise<PlannedSaving[]> {
+    const entities = await this.plannedSavingRepository.find({
+      where: { savingGoal: { id: goalId } },
+      relations: { account: true, savingGoal: true, plannedIncome: true, budget: true },
+      order: { date: 'ASC' },
+    });
+
+    return entities.map(PlannedSavingMapper.toDomain);
+  }
+
   async update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null> {
     const updateData: Partial<PlannedSavingEntity> = {};
 
