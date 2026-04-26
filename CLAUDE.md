@@ -1,5 +1,12 @@
 ﻿# FinHub Backend - Context & Standards
 
+## Entorno de desarrollo
+- **Node.js requerido: v22.x**
+- ESLint falla silenciosamente o no resuelve plugins
+  correctamente con versiones anteriores a Node 22.
+- Verificar versión activa: `node --version`
+- Cambiar con nvm: `nvm use` (lee .nvmrc automáticamente)
+
 ## Project Context
 
 FinTech backend for personal finance management using NestJS, PostgreSQL, and Hexagonal Architecture.
