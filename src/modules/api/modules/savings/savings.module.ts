@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountModule } from '../accounts/account.module';
 import { BudgetModule } from '../budgets/budget.module';
 import { CategoryModule } from '../categories/category.module';
+import { FinancesModule } from '../finances/finances.module';
 import { TransactionModule } from '../transactions/transaction.module';
 import { SavingAllocationService } from './application/services/allocations.service';
 import { GoalsService } from './application/services/goals.service';
@@ -31,6 +32,7 @@ import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/plann
     AccountModule,
     forwardRef(() => BudgetModule),
     CategoryModule,
+    FinancesModule,
     TransactionModule,
   ],
   providers: [

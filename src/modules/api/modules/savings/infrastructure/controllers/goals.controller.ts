@@ -1,12 +1,23 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '@/common/decorator/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GoalsService } from '../../application/services/goals.service';
+import { CreateContributionDto } from '../dto/create-contribution.dto';
 import { SavingsGoalsCreateDto } from '../dto/savings-goals.dto';
 import { UpdateGoalDto } from '../dto/update-goal.dto';
 import { UpdateGoalStatusDto } from '../dto/update-goal-status.dto';
@@ -104,5 +115,24 @@ export class GoalsController {
   async getHistory(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, 'getting savings goal history');
     return await this.goalsService.getHistory(id, user.userId);
+  }
+
+  @Post(':id/contributions')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Registrar aporte a una meta de ahorro' })
+  @ApiParam({ name: 'id', type: String, description: 'ID de la meta' })
+  @ApiBody({ type: CreateContributionDto })
+  @ApiOkResponse({ description: 'Aporte registrado exitosamente' })
+  @ApiBadRequestResponse({ description: 'Validación fallida o cuenta no válida' })
+  @ApiNotFoundResponse({ description: 'Meta no encontrada o budget no encontrado' })
+  @ApiForbiddenResponse({ description: 'No tienes permiso para aportar a esta meta' })
+  async createContribution(
+    @Param('id') id: string,
+    @Body() dto: CreateContributionDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, 'creating contribution for saving goal');
+    return await this.goalsService.createContribution(id, user.userId, dto);
   }
 }

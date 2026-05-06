@@ -8,12 +8,16 @@ import {
 
 import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
+import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
+import { FinancesRepository } from '@/modules/api/modules/finances/domain/repositories/finances.repository';
 
 import { GoalHistory } from '../../domain/goal-history';
 import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
 import { GoalStatus, SavingGoal } from '../../domain/savings-goals';
+import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
+import { CreateContributionDto } from '../../infrastructure/dto/create-contribution.dto';
 import { UpdateGoalDto } from '../../infrastructure/dto/update-goal.dto';
 import { UpdateGoalStatusDto } from '../../infrastructure/dto/update-goal-status.dto';
 
@@ -25,6 +29,8 @@ export class GoalsService {
     @Inject('GoalHistoryRepository') private historyRepository: GoalHistoryRepository,
     @Inject('PlannedSavingRepository') private plannedSavingRepository: PlannedSavingRepository,
     @Inject('AccountRepository') private accountRepository: AccountRepository,
+    @Inject('BudgetRepository') private budgetRepository: BudgetRepository,
+    @Inject('FinancesRepository') private financesRepository: FinancesRepository,
     private readonly logger: LoggerProviderService,
   ) {}
   async create(data: SavingGoal): Promise<SavingGoal> {
@@ -157,6 +163,66 @@ export class GoalsService {
     }
 
     return await this.historyRepository.findByGoalId(goalId);
+  }
+
+  async createContribution(
+    goalId: string,
+    userId: string,
+    dto: CreateContributionDto,
+  ): Promise<PlannedSaving> {
+    this.logger.info(this.context, `creating contribution for goal ${goalId}`);
+
+    // 1. Validar que el goal existe y pertenece al usuario
+    const goal = await this.goalsRepository.findByIdAndUser(goalId, userId);
+    if (!goal) {
+      throw new NotFoundException('Goal not found');
+    }
+
+    // 2. Si es internal, validar que la cuenta existe y pertenece al usuario
+    if (dto.contributionType === 'internal') {
+      if (!dto.accountId) {
+        throw new BadRequestException('accountId is required for internal contributions');
+      }
+      const accounts = await this.accountRepository.get(userId);
+      const accountExists = accounts.some((acc) => acc.id === dto.accountId);
+      if (!accountExists) {
+        throw new BadRequestException(`Account ${dto.accountId} not found or not yours`);
+      }
+    }
+
+    // 3. Obtener el budget activo del mes/año actual
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) {
+      throw new NotFoundException('Finances not found for user');
+    }
+
+    const now = new Date();
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const currentYear = now.getFullYear();
+
+    const budget = await this.budgetRepository.findByFinancesIdAndMonth(
+      finances.id,
+      currentMonth,
+      currentYear,
+    );
+    if (!budget) {
+      throw new NotFoundException(
+        `No budget found for current month (${currentMonth}/${currentYear})`,
+      );
+    }
+
+    // 4. Crear el PlannedSaving con status COMPLETED
+    const plannedSaving = await this.plannedSavingRepository.save({
+      savingGoalId: goalId,
+      budgetId: budget.id,
+      accountId: dto.contributionType === 'internal' ? dto.accountId : undefined,
+      amount: dto.amount,
+      date: new Date(dto.date),
+      status: PlannedSavingStatus.COMPLETED,
+      completedAt: new Date(),
+    });
+
+    return plannedSaving;
   }
 
   private async trackChanges(
