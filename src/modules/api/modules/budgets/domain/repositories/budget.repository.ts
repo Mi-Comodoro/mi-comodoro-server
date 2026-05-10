@@ -21,4 +21,5 @@ export interface BudgetRepository {
   ): Promise<BudgetHistoricalSummary[]>;
   findById(budgetId: string): Promise<Budget | null>;
   active(budgetId: string): Promise<Budget | null>;
+  close(budgetId: string): Promise<Budget | null>;
 }

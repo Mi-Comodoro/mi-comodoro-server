@@ -198,7 +198,15 @@ export class BudgetService {
 
     return await this.budgetRepository.active(budget.id);
   }
+  async close(budgetId: string) {
+    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
+    const budget = (await this.budgetRepository.findById(budgetId)) as Required<Budget>;
+    if (!budget) {
+      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    }
 
+    return await this.budgetRepository.close(budget.id);
+  }
   private async resolveSourceBudget(
     financesId: string,
     month: string,
