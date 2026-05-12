@@ -259,4 +259,21 @@ export class BudgetController {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
     return await this.budgetService.active(budgetId);
   }
+
+  @Patch('/:budgetId/close')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Cerrar un presupuesto por su ID' })
+  @ApiParam({
+    name: 'budgetId',
+    type: String,
+    description: 'UUID del presupuesto a cerrar',
+    example: 'a1d959d0-9260-4e62-adb5-8a615b95e819',
+  })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  async close(@Param('budgetId') budgetId: string) {
+    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
+    return await this.budgetService.close(budgetId);
+  }
 }

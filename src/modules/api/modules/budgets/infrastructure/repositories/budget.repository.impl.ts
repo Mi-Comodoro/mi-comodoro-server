@@ -215,7 +215,28 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       throw error;
     }
   }
+  async close(budgetId: string): Promise<Budget> {
+    this.logger.info(this.context, `Closing budget with ID: ${budgetId}`);
 
+    try {
+      const result = await this.budgetRepository.update({ id: budgetId }, { status: 'CLOSED' });
+
+      if (!result.affected) {
+        throw new NotFoundException(`Budget not found: ${budgetId}`);
+      }
+
+      const updated = await this.findById(budgetId);
+
+      if (!updated) {
+        throw new NotFoundException(`Budget not found after update: ${budgetId}`);
+      }
+
+      return updated;
+    } catch (error) {
+      this.logger.error(this.context, JSON.stringify(error));
+      throw error;
+    }
+  }
   private getMonthNumber(month: string): number {
     return this.monthOrder[month.toLowerCase()] ?? 0;
   }
