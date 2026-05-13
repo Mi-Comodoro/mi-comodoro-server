@@ -1,8 +1,10 @@
 import { Controller, Get, HttpCode } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, HttpHealthIndicator } from '@nestjs/terminus';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import { LoggerProviderService } from '@/core/providers/logs';
 
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   private context: string = HealthController.name;

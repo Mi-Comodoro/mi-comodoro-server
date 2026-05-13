@@ -183,7 +183,7 @@ El proyecto utiliza `@nestjs/config` con servicios de configuracion modulares.
 
 #### Aplicacion
 
-- `APP_ENV`
+- `NODE_ENV`
 - `APP_NAME`
 - `APP_URL`
 - `APP_PORT`
