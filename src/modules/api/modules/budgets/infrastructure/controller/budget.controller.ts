@@ -5,6 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -33,6 +34,8 @@ import {
   BudgetResponseDto,
   CreateBudgetDto,
 } from '../dto/budget.dto';
+import { CloseBudgetDto } from '../dto/close-budget.dto';
+import { TransferBalanceDto } from '../dto/transfer-balance.dto';
 
 @ApiTags('budgets')
 @Controller('budgets')
@@ -226,6 +229,17 @@ export class BudgetController {
     return await this.budgetService.getAllBudgetsByFinancesId(financeId, parsedYear);
   }
 
+  @Get('/closed')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Listar presupuestos cerrados del usuario autenticado' })
+  @ApiOkResponse({ type: BudgetListResponseDto })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Finances not found for user')
+  async getClosed(@CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Getting closed budgets for user ${user.userId}`);
+    return this.budgetService.findClosed(user.userId);
+  }
+
   @Get('/:budgetId')
   @ApiBearerAuth('bearerAuth')
   @UseGuards(AuthGuard('jwt'))
@@ -272,8 +286,36 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async close(@Param('budgetId') budgetId: string) {
-    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    return await this.budgetService.close(budgetId);
+  async close(@Param('budgetId') budgetId: string, @Body() dto: CloseBudgetDto) {
+    this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
+    return await this.budgetService.close(budgetId, dto);
+  }
+
+  @Post('/:budgetId/transfer-balance')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Transferir saldo libre de un presupuesto cerrado a meta o presupuesto',
+  })
+  @ApiParam({
+    name: 'budgetId',
+    type: String,
+    description: 'UUID del presupuesto cerrado origen',
+    example: 'a1d959d0-9260-4e62-adb5-8a615b95e819',
+  })
+  @ApiOkResponse({ description: 'Transferencia realizada correctamente' })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Presupuesto no encontrado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Solo se puede transferir desde presupuestos cerrados')
+  async transferBalance(
+    @Param('budgetId', ParseUUIDPipe) budgetId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: TransferBalanceDto,
+  ) {
+    this.logger.info(
+      this.context,
+      `Transferring balance from budget ${budgetId} for user ${user.userId}`,
+    );
+    await this.budgetService.transferBalance(budgetId, user.userId, dto);
+    return { message: 'Transferencia realizada correctamente' };
   }
 }

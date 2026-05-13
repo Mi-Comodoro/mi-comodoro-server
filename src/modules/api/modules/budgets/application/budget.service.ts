@@ -5,8 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
+import { GoalsRepository } from '@/modules/api/modules/savings/domain/repositories/goals.repository';
+import { PlannedSavingRepository } from '@/modules/api/modules/savings/domain/repositories/planned.repository';
+import { PlannedSavingStatus } from '@/modules/api/modules/savings/domain/savings-planned';
 
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
@@ -18,6 +24,8 @@ import {
   BudgetHistoricalSummary,
   BudgetRepository,
 } from '../domain/repositories/budget.repository';
+import { CloseBudgetDto } from '../infrastructure/dto/close-budget.dto';
+import { TransferBalanceDto } from '../infrastructure/dto/transfer-balance.dto';
 
 type CreateBudgetInput = {
   userId: string;
@@ -56,6 +64,10 @@ export class BudgetService {
     private readonly allocationRepository: SavingAllocationRepository,
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
+    @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('PlannedSavingRepository')
+    private readonly plannedSavingRepository: PlannedSavingRepository,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async createMonthlyBudget(input: CreateBudgetInput): Promise<Budget> {
@@ -198,14 +210,181 @@ export class BudgetService {
 
     return await this.budgetRepository.active(budget.id);
   }
-  async close(budgetId: string) {
-    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    const budget = (await this.budgetRepository.findById(budgetId)) as Required<Budget>;
+  async close(budgetId: string, dto: CloseBudgetDto = {}): Promise<Budget> {
+    this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
+    const budget = await this.budgetRepository.findById(budgetId);
     if (!budget) {
       throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
     }
 
-    return await this.budgetRepository.close(budget.id);
+    const surplus = await this.calculateSurplus(budgetId);
+
+    // No surplus or no action requested: close directly without extra steps
+    if (surplus <= 0 || !dto.surplusAction || dto.surplusAction === 'ignore') {
+      const closed = await this.budgetRepository.close(budgetId);
+      return closed!;
+    }
+
+    // Surplus with action: use QueryRunner for atomicity so the budget stays active on failure
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (dto.surplusAction === 'transfer_to_goal' && dto.targetGoalId) {
+        await this.transferSurplusToGoal(budgetId, dto.targetGoalId, surplus, budget.ownerId);
+      }
+
+      const updates: Record<string, unknown> = { status: 'CLOSED' };
+      if (dto.surplusAction === 'carry_forward') {
+        updates['carry_forward_amount'] = surplus;
+      }
+
+      await queryRunner.manager
+        .createQueryBuilder()
+        .update('budgets')
+        .set(updates)
+        .where('id = :id', { id: budgetId })
+        .execute();
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(this.context, `Error closing budget ${budgetId}: ${JSON.stringify(err)}`);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return (await this.budgetRepository.findById(budgetId))!;
+  }
+
+  @Cron('5 0 1 * *')
+  async closeExpiredBudgets(): Promise<void> {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    this.logger.info(
+      this.context,
+      `Ejecutando cierre automático de presupuestos expirados: ${currentYear}-${currentMonth}`,
+    );
+
+    const expired = await this.budgetRepository.findActiveExpired(currentYear, currentMonth);
+
+    this.logger.info(this.context, `Presupuestos expirados encontrados: ${expired.length}`);
+
+    for (const budget of expired) {
+      try {
+        await this.budgetRepository.close(budget.id as string);
+        this.logger.info(this.context, `Presupuesto ${budget.id} cerrado automáticamente`);
+      } catch (err) {
+        this.logger.error(
+          this.context,
+          `Error cerrando presupuesto ${budget.id}: ${JSON.stringify(err)}`,
+        );
+      }
+    }
+  }
+
+  async findClosed(userId: string): Promise<Budget[]> {
+    this.logger.info(this.context, `Finding closed budgets for userId: ${userId}`);
+
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) {
+      throw new NotFoundException('Finances not found for user');
+    }
+
+    return this.budgetRepository.findClosedByFinancesId(finances.id);
+  }
+
+  async transferBalance(budgetId: string, userId: string, dto: TransferBalanceDto): Promise<void> {
+    if (!dto.targetBudgetId && !dto.goalId) {
+      throw new BadRequestException('Se requiere targetBudgetId o goalId');
+    }
+
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget) {
+      throw new NotFoundException(`Presupuesto ${budgetId} no encontrado`);
+    }
+    if (budget.status !== 'CLOSED') {
+      throw new BadRequestException('Solo se puede transferir desde presupuestos cerrados');
+    }
+
+    const surplus = await this.calculateSurplus(budgetId);
+    if (dto.amount > surplus) {
+      throw new BadRequestException(`El monto supera el saldo libre (${surplus})`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (dto.targetBudgetId) {
+        await queryRunner.manager
+          .createQueryBuilder()
+          .update('budgets')
+          .set({ carryForwardAmount: () => `COALESCE(carry_forward_amount, 0) + ${dto.amount}` })
+          .where('id = :id', { id: dto.targetBudgetId })
+          .execute();
+      }
+
+      if (dto.goalId) {
+        await this.transferSurplusToGoal(budgetId, dto.goalId, dto.amount, userId);
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        this.context,
+        `Error en transferencia desde presupuesto ${budgetId}: ${JSON.stringify(err)}`,
+      );
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private async calculateSurplus(budgetId: string): Promise<number> {
+    const rows = await this.dataSource.query<{ type: string; total: string }[]>(
+      `SELECT type, COALESCE(SUM(amount), 0) AS total
+       FROM transactions
+       WHERE budget_id = $1 AND nulled_at IS NULL
+       GROUP BY type`,
+      [budgetId],
+    );
+
+    const sum = (type: string) => Number(rows.find((r) => r.type === type)?.total ?? 0);
+
+    return sum('income') - sum('savings') - sum('expense');
+  }
+
+  private async transferSurplusToGoal(
+    budgetId: string,
+    goalId: string,
+    amount: number,
+    userId: string,
+  ): Promise<void> {
+    this.logger.info(
+      this.context,
+      `Transfiriendo excedente de $${amount} a meta ${goalId} para usuario ${userId}`,
+    );
+    const goal = await this.goalsRepository.findById(goalId);
+    if (!goal) {
+      throw new NotFoundException(`Goal with ID: ${goalId} not found`);
+    }
+
+    await this.plannedSavingRepository.save({
+      savingGoalId: goalId,
+      accountId: goal.accountId,
+      budgetId,
+      amount,
+      date: new Date(),
+      status: PlannedSavingStatus.COMPLETED,
+      completedAt: new Date(),
+    });
   }
   private async resolveSourceBudget(
     financesId: string,

@@ -54,6 +54,15 @@ export class BudgetEntity implements Budget {
   partnerId?: string;
   @Column({ name: 'updatedBy', nullable: true })
   updatedBy?: string;
+  @Column({
+    name: 'carry_forward_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    default: 0,
+  })
+  carryForwardAmount?: number;
   @ManyToOne(() => UserEntity, (user) => user.budgets, { onDelete: 'CASCADE' })
   owner: UserEntity;
   @OneToMany(() => PlannedExpenseEntity, (expense) => expense.budget)
@@ -62,6 +71,9 @@ export class BudgetEntity implements Budget {
   partner?: UserEntity;
   @OneToMany(() => TransactionEntity, (transaction) => transaction.budget)
   transactions: TransactionEntity[];
+
+  @Column({ name: 'closed_at', type: 'timestamp', nullable: true, default: null })
+  closedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
