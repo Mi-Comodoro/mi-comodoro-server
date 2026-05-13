@@ -15,7 +15,7 @@ const envFilePath: string = getEnvironmentPath(ENVIRONMENT_PATH);
       load: [appRegister],
       validationSchema: Joi.object({
         APP_NAME: Joi.string().required(),
-        APP_ENV: Joi.string()
+        NODE_ENV: Joi.string()
           .valid('local', 'development', 'production')
           .default('development')
           .required(),
