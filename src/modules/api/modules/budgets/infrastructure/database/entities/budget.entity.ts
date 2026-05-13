@@ -72,6 +72,9 @@ export class BudgetEntity implements Budget {
   @OneToMany(() => TransactionEntity, (transaction) => transaction.budget)
   transactions: TransactionEntity[];
 
+  @Column({ name: 'closed_at', type: 'timestamp', nullable: true, default: null })
+  closedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

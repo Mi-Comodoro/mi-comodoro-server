@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -24,6 +25,7 @@ import {
   BudgetRepository,
 } from '../domain/repositories/budget.repository';
 import { CloseBudgetDto } from '../infrastructure/dto/close-budget.dto';
+import { TransferBalanceDto } from '../infrastructure/dto/transfer-balance.dto';
 
 type CreateBudgetInput = {
   userId: string;
@@ -255,6 +257,94 @@ export class BudgetService {
     }
 
     return (await this.budgetRepository.findById(budgetId))!;
+  }
+
+  @Cron('5 0 1 * *')
+  async closeExpiredBudgets(): Promise<void> {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    this.logger.info(
+      this.context,
+      `Ejecutando cierre automático de presupuestos expirados: ${currentYear}-${currentMonth}`,
+    );
+
+    const expired = await this.budgetRepository.findActiveExpired(currentYear, currentMonth);
+
+    this.logger.info(this.context, `Presupuestos expirados encontrados: ${expired.length}`);
+
+    for (const budget of expired) {
+      try {
+        await this.budgetRepository.close(budget.id as string);
+        this.logger.info(this.context, `Presupuesto ${budget.id} cerrado automáticamente`);
+      } catch (err) {
+        this.logger.error(
+          this.context,
+          `Error cerrando presupuesto ${budget.id}: ${JSON.stringify(err)}`,
+        );
+      }
+    }
+  }
+
+  async findClosed(userId: string): Promise<Budget[]> {
+    this.logger.info(this.context, `Finding closed budgets for userId: ${userId}`);
+
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) {
+      throw new NotFoundException('Finances not found for user');
+    }
+
+    return this.budgetRepository.findClosedByFinancesId(finances.id);
+  }
+
+  async transferBalance(budgetId: string, userId: string, dto: TransferBalanceDto): Promise<void> {
+    if (!dto.targetBudgetId && !dto.goalId) {
+      throw new BadRequestException('Se requiere targetBudgetId o goalId');
+    }
+
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget) {
+      throw new NotFoundException(`Presupuesto ${budgetId} no encontrado`);
+    }
+    if (budget.status !== 'CLOSED') {
+      throw new BadRequestException('Solo se puede transferir desde presupuestos cerrados');
+    }
+
+    const surplus = await this.calculateSurplus(budgetId);
+    if (dto.amount > surplus) {
+      throw new BadRequestException(`El monto supera el saldo libre (${surplus})`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (dto.targetBudgetId) {
+        await queryRunner.manager
+          .createQueryBuilder()
+          .update('budgets')
+          .set({ carryForwardAmount: () => `COALESCE(carry_forward_amount, 0) + ${dto.amount}` })
+          .where('id = :id', { id: dto.targetBudgetId })
+          .execute();
+      }
+
+      if (dto.goalId) {
+        await this.transferSurplusToGoal(budgetId, dto.goalId, dto.amount, userId);
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        this.context,
+        `Error en transferencia desde presupuesto ${budgetId}: ${JSON.stringify(err)}`,
+      );
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private async calculateSurplus(budgetId: string): Promise<number> {
