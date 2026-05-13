@@ -5,8 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
+import { GoalsRepository } from '@/modules/api/modules/savings/domain/repositories/goals.repository';
+import { PlannedSavingRepository } from '@/modules/api/modules/savings/domain/repositories/planned.repository';
+import { PlannedSavingStatus } from '@/modules/api/modules/savings/domain/savings-planned';
 
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
@@ -18,6 +23,7 @@ import {
   BudgetHistoricalSummary,
   BudgetRepository,
 } from '../domain/repositories/budget.repository';
+import { CloseBudgetDto } from '../infrastructure/dto/close-budget.dto';
 
 type CreateBudgetInput = {
   userId: string;
@@ -56,6 +62,10 @@ export class BudgetService {
     private readonly allocationRepository: SavingAllocationRepository,
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
+    @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('PlannedSavingRepository')
+    private readonly plannedSavingRepository: PlannedSavingRepository,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async createMonthlyBudget(input: CreateBudgetInput): Promise<Budget> {
@@ -198,14 +208,93 @@ export class BudgetService {
 
     return await this.budgetRepository.active(budget.id);
   }
-  async close(budgetId: string) {
-    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    const budget = (await this.budgetRepository.findById(budgetId)) as Required<Budget>;
+  async close(budgetId: string, dto: CloseBudgetDto = {}): Promise<Budget> {
+    this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
+    const budget = await this.budgetRepository.findById(budgetId);
     if (!budget) {
       throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
     }
 
-    return await this.budgetRepository.close(budget.id);
+    const surplus = await this.calculateSurplus(budgetId);
+
+    // No surplus or no action requested: close directly without extra steps
+    if (surplus <= 0 || !dto.surplusAction || dto.surplusAction === 'ignore') {
+      const closed = await this.budgetRepository.close(budgetId);
+      return closed!;
+    }
+
+    // Surplus with action: use QueryRunner for atomicity so the budget stays active on failure
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (dto.surplusAction === 'transfer_to_goal' && dto.targetGoalId) {
+        await this.transferSurplusToGoal(budgetId, dto.targetGoalId, surplus, budget.ownerId);
+      }
+
+      const updates: Record<string, unknown> = { status: 'CLOSED' };
+      if (dto.surplusAction === 'carry_forward') {
+        updates['carry_forward_amount'] = surplus;
+      }
+
+      await queryRunner.manager
+        .createQueryBuilder()
+        .update('budgets')
+        .set(updates)
+        .where('id = :id', { id: budgetId })
+        .execute();
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(this.context, `Error closing budget ${budgetId}: ${JSON.stringify(err)}`);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return (await this.budgetRepository.findById(budgetId))!;
+  }
+
+  private async calculateSurplus(budgetId: string): Promise<number> {
+    const rows = await this.dataSource.query<{ type: string; total: string }[]>(
+      `SELECT type, COALESCE(SUM(amount), 0) AS total
+       FROM transactions
+       WHERE budget_id = $1 AND nulled_at IS NULL
+       GROUP BY type`,
+      [budgetId],
+    );
+
+    const sum = (type: string) => Number(rows.find((r) => r.type === type)?.total ?? 0);
+
+    return sum('income') - sum('savings') - sum('expense');
+  }
+
+  private async transferSurplusToGoal(
+    budgetId: string,
+    goalId: string,
+    amount: number,
+    userId: string,
+  ): Promise<void> {
+    this.logger.info(
+      this.context,
+      `Transfiriendo excedente de $${amount} a meta ${goalId} para usuario ${userId}`,
+    );
+    const goal = await this.goalsRepository.findById(goalId);
+    if (!goal) {
+      throw new NotFoundException(`Goal with ID: ${goalId} not found`);
+    }
+
+    await this.plannedSavingRepository.save({
+      savingGoalId: goalId,
+      accountId: goal.accountId,
+      budgetId,
+      amount,
+      date: new Date(),
+      status: PlannedSavingStatus.COMPLETED,
+      completedAt: new Date(),
+    });
   }
   private async resolveSourceBudget(
     financesId: string,

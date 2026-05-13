@@ -33,6 +33,7 @@ import {
   BudgetResponseDto,
   CreateBudgetDto,
 } from '../dto/budget.dto';
+import { CloseBudgetDto } from '../dto/close-budget.dto';
 
 @ApiTags('budgets')
 @Controller('budgets')
@@ -272,8 +273,8 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async close(@Param('budgetId') budgetId: string) {
-    this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    return await this.budgetService.close(budgetId);
+  async close(@Param('budgetId') budgetId: string, @Body() dto: CloseBudgetDto) {
+    this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
+    return await this.budgetService.close(budgetId, dto);
   }
 }
