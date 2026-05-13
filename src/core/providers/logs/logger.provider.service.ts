@@ -59,7 +59,7 @@ export class LoggerProviderService extends Logger {
   }
 
   debug(context: string, message: string, method?: string | null, path?: string, data?: object) {
-    if (process.env.APP_ENV === 'production') return;
+    if (process.env.NODE_ENV === 'production') return;
 
     const formatted = this.formatMessage(message, method, path, data);
     this.logger.debug(formatted, context);
