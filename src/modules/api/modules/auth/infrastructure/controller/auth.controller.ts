@@ -7,6 +7,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
 import { CurrentUser } from '@/common/decorator/current-user.request';
@@ -36,6 +37,7 @@ export class AuthController {
   ) {}
 
   @Post('/signup')
+  @Throttle({ short: { ttl: 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Registrar un nuevo usuario local' })
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
@@ -61,6 +63,7 @@ export class AuthController {
   }
 
   @Post('/signin')
+  @Throttle({ short: { ttl: 60_000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con email y contrasena' })
   @ApiOkResponse({ type: SignInResponseDto })
