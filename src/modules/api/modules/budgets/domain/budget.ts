@@ -17,6 +17,7 @@ export interface Budget {
   readonly frequency: string;
   readonly status: BudgetStatus;
   readonly carryForwardAmount?: number;
+  readonly closedAt?: Date | null;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }

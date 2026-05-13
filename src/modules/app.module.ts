@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { InitialConfigModule } from '@/core/config/index';
 import { DatabaseModule } from '@/core/modules/database/postgres.module';
@@ -9,6 +10,7 @@ import { ApiModule } from './api/api.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     EventEmitterModule.forRoot({
       wildcard: false,
       delimiter: '.',

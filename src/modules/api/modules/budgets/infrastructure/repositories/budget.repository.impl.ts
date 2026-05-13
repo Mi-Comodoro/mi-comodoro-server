@@ -219,7 +219,10 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     this.logger.info(this.context, `Closing budget with ID: ${budgetId}`);
 
     try {
-      const result = await this.budgetRepository.update({ id: budgetId }, { status: 'CLOSED' });
+      const result = await this.budgetRepository.update(
+        { id: budgetId },
+        { status: 'CLOSED', closedAt: new Date() },
+      );
 
       if (!result.affected) {
         throw new NotFoundException(`Budget not found: ${budgetId}`);
@@ -237,6 +240,50 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       throw error;
     }
   }
+
+  async findActiveExpired(currentYear: number, currentMonth: number): Promise<Budget[]> {
+    this.logger.info(
+      this.context,
+      `Finding active expired budgets before ${currentYear}-${currentMonth}`,
+    );
+
+    const rows = await this.budgetRepository.query(
+      `
+      SELECT * FROM budgets
+      WHERE status = 'ACTIVE'
+        AND (
+          year < $1
+          OR (
+            year = $1
+            AND CASE LOWER(month)
+              WHEN 'enero'      THEN 1
+              WHEN 'febrero'    THEN 2
+              WHEN 'marzo'      THEN 3
+              WHEN 'abril'      THEN 4
+              WHEN 'mayo'       THEN 5
+              WHEN 'junio'      THEN 6
+              WHEN 'julio'      THEN 7
+              WHEN 'agosto'     THEN 8
+              WHEN 'septiembre' THEN 9
+              WHEN 'octubre'    THEN 10
+              WHEN 'noviembre'  THEN 11
+              WHEN 'diciembre'  THEN 12
+              ELSE 0
+            END < $2
+          )
+        )
+      `,
+      [currentYear, currentMonth],
+    );
+
+    return rows as Budget[];
+  }
+
+  async findClosedByFinancesId(financesId: string): Promise<Budget[]> {
+    this.logger.info(this.context, `Finding closed budgets for financesId: ${financesId}`);
+    return this.budgetRepository.find({ where: { financesId, status: 'CLOSED' } });
+  }
+
   private getMonthNumber(month: string): number {
     return this.monthOrder[month.toLowerCase()] ?? 0;
   }

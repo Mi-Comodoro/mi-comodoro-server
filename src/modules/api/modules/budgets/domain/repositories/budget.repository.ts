@@ -20,6 +20,8 @@ export interface BudgetRepository {
     year: number,
   ): Promise<BudgetHistoricalSummary[]>;
   findById(budgetId: string): Promise<Budget | null>;
+  findActiveExpired(currentYear: number, currentMonth: number): Promise<Budget[]>;
+  findClosedByFinancesId(financesId: string): Promise<Budget[]>;
   active(budgetId: string): Promise<Budget | null>;
   close(budgetId: string): Promise<Budget | null>;
 }
