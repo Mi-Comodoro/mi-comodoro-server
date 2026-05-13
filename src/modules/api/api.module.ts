@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AccountModule } from './modules/accounts/account.module';
+import { AccountsReceivableModule } from './modules/accounts-receivable/accounts-receivable.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BillsModule } from './modules/bills/bills.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
     IncomesModule,
     ExpensesModule,
     AnalyticsModule,
+    AccountsReceivableModule,
   ],
 })
 export class ApiModule {}
