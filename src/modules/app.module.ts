@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { IdempotencyInterceptor } from '@/common/idempotency/idempotency.interceptor';
+import { IdempotencyKey } from '@/common/idempotency/idempotency-key.entity';
 import { InitialConfigModule } from '@/core/config/index';
 import { RolesGuard } from '@/core/config/security/guards/roles.guard';
 import { DatabaseModule } from '@/core/modules/database/postgres.module';
@@ -30,6 +33,7 @@ import { ApiModule } from './api/api.module';
       verboseMemoryLeak: false,
       ignoreErrors: false,
     }),
+    TypeOrmModule.forFeature([IdempotencyKey]),
     InitialConfigModule,
     ApiModule,
     LoggerProviderModule,
@@ -43,6 +47,10 @@ import { ApiModule } from './api/api.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: IdempotencyInterceptor,
     },
   ],
 })
