@@ -17,6 +17,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { UserProfile } from '../../user-profile/domain/user-profile.entity';
 import { UserProfileRepository } from '../../user-profile/domain/user-profile.repository';
 import { User } from '../../users/domain/user.entity';
+import { UserRole } from '../../users/domain/user-role.enum';
 import { UserRepository } from '../../users/domain/user.repository';
 import { CreateUserProfile, LoginUserProfile } from './interface';
 import { signUpToClient } from './mapper/signup.mapper';
@@ -88,6 +89,7 @@ export class AuthService {
     const payload: JwtPayload = {
       userId: user.id,
       email: user.email,
+      role: user.role ?? UserRole.USER,
       userProfileId: user.userProfile?.id ?? '',
       tokenVersion: user.tokenVersion ?? 0,
     };
@@ -134,7 +136,7 @@ export class AuthService {
         userId: userCreated.id as string,
         name: name!,
         displayName: '',
-        photo: decodedToken.picture,
+        photo: decodedToken.picture?.split('?')[0],
         gender: 'prefer_not_to_say',
         country: 'CO',
         type: 'trial',
