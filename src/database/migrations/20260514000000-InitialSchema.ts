@@ -417,20 +417,18 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
 
     // ── Unique constraints ─────────────────────────────────────────────────
+    // Unique constraints back a backing index (relation), so PostgreSQL raises
+    // SQLSTATE 42P07 (duplicate_table) — not 42710 (duplicate_object) — when
+    // the name already exists. CREATE UNIQUE INDEX IF NOT EXISTS is natively
+    // idempotent and avoids that mismatch entirely.
     await queryRunner.query(`
-      DO $$ BEGIN
-        ALTER TABLE users ADD CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE (email);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_97672ac88f789774dd47f7c8be3" ON users (email)
     `);
     await queryRunner.query(`
-      DO $$ BEGIN
-        ALTER TABLE finances ADD CONSTRAINT "UQ_396a36bbb293f255464cff7acf4" UNIQUE (user_id);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_396a36bbb293f255464cff7acf4" ON finances (user_id)
     `);
     await queryRunner.query(`
-      DO $$ BEGIN
-        ALTER TABLE user_profile ADD CONSTRAINT "UQ_eee360f3bff24af1b6890765201" UNIQUE (user_id);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_eee360f3bff24af1b6890765201" ON user_profile (user_id)
     `);
 
     // ── Foreign keys ───────────────────────────────────────────────────────
