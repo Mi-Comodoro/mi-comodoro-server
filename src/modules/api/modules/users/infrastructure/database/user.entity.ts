@@ -13,6 +13,7 @@ import { FinancesEntity } from '../../../finances/infrastructure/database/entiti
 import { SavingGoalEntity } from '../../../savings/infrastructure/database/entities/saving-goals.entity';
 import { TransactionEntity } from '../../../transactions/infrastructure/database/entities/transaction.entity';
 import { UserProfileEntity } from '../../../user-profile/infrastructure/database/entities/user-profile.entity';
+import { UserRole } from '../../domain/user-role.enum';
 
 enum PROVIDERS {
   'LOCAL' = 'LOCAL',
@@ -37,6 +38,8 @@ export class UserEntity {
   onboarding: string;
   @Column({ name: 'token_version', type: 'int', default: 0 })
   tokenVersion: number;
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole;
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })
