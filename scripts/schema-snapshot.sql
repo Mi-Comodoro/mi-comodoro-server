@@ -1,0 +1,30 @@
+-- Schema snapshot captured: 2026-05-14
+-- Command: npx typeorm schema:log -d src/core/config/database/typeorm.config.ts
+-- Output: "Your schema is up to date - there are no queries to be executed by schema synchronization."
+--
+-- This file is for REFERENCE ONLY. Do not execute directly.
+-- The authoritative migration is: src/database/migrations/20260514000000-InitialSchema.ts
+--
+-- Tables present in finhub-development at capture time:
+--   account_payable_payments, account_rate_history, account_receivable_collections,
+--   accounts, accounts_payable, accounts_receivable, bills, budgets, categories,
+--   expenses_planned, finances, financial_health_scores, goal_history, idempotency_keys,
+--   incomes, incomes_planned, migrations, planned_savings, saving_allocations,
+--   saving_goals, transactions, user_profile, users
+--
+-- Enum types:
+--   accounts_compoundingfrequency_enum        ('daily','monthly','annually')
+--   accounts_payable_status_enum              ('active','paid','overdue')
+--   accounts_payable_type_enum                ('loan','credit_card','installment','other')
+--   accounts_receivable_status_enum           ('pending','partial','collected','overdue')
+--   bills_frequency_enum                      ('monthly','weekly','yearly','biweekly')
+--   budgets_status_enum                       ('ACTIVE','CLOSED','PLANNED')
+--   categories_bucket_enum                    ('needs','wants')
+--   categories_type_enum                      ('income','expense','savings')
+--   expenses_planned_status_enum              ('PLANNED','PAID','CANCELED','SKIPPED')
+--   incomes_frequency_enum                    ('monthly','biweekly')
+--   incomes_planned_status_enum               ('PENDING','RECEIVED','SKIPPED')
+--   planned_savings_status_enum               ('pending','skipped','completed')
+--   saving_goals_status_enum                  ('SCHEDULED','IN_PROGRESS','COMPLETED','PAUSED')
+--   transactions_type_enum                    ('income','expense','savings')
+--   users_role_enum                           ('user','admin','super_admin')
