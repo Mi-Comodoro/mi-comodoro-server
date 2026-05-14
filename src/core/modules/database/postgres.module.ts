@@ -14,7 +14,9 @@ import { DatabaseProvider } from '@/core/providers';
       useFactory: async (configService: DatabaseConfigService) => ({
         type: 'postgres',
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
+        migrationsRun: true,
+        migrations: ['dist/database/migrations/*.js'],
         host: configService.host,
         port: Number(configService.port),
         username: configService.username,

@@ -236,6 +236,43 @@ Esto implica que el comportamiento de sincronizacion de esquema debe tratarse co
 
 - [CLAUDE.md](./CLAUDE.md): contexto operativo y reglas del proyecto.
 
+## Desarrollo
+
+### Requisitos
+- Node 22 (ver .nvmrc)
+- PostgreSQL 15+
+- pnpm
+
+### Setup
+```bash
+nvm use
+pnpm install
+cp .env.example .env   # completar variables
+```
+
+### Variables de entorno requeridas
+```
+DATABASE_URL=postgresql://user:pass@localhost:5432/micomodoro
+JWT_SECRET=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+### Migraciones
+```bash
+npx typeorm migration:run -d src/core/config/database/typeorm.config.ts
+```
+
+### Backup
+```bash
+./scripts/backup.sh
+```
+
+### Branching
+- main → producción (solo releases taggeados)
+- develop → staging / integración
+- feat/* fix/* → ramas de trabajo, salen de develop
+
 ## Criterios de mantenimiento
 
 Este README documenta unicamente informacion estable y verificable en el codigo actual:
