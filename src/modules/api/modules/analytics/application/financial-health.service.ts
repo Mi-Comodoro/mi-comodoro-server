@@ -2,6 +2,10 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { LoggerProviderService } from '@/core/providers';
 
+import {
+  AccountPayableSummary,
+  AccountsPayableService,
+} from '../../accounts-payable/application/accounts-payable.service';
 import { Budget } from '../../budgets/domain/budget';
 import { BudgetRepository } from '../../budgets/domain/repositories/budget.repository';
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
@@ -57,6 +61,7 @@ export class FinancialHealthService {
     private readonly plannedSavingRepository: PlannedSavingRepository,
     @Inject('GoalsRepository')
     private readonly goalsRepository: GoalsRepository,
+    private readonly apService: AccountsPayableService,
   ) {}
 
   async getOrCalculateScore(userId: string): Promise<FinancialHealthScore> {
@@ -77,8 +82,12 @@ export class FinancialHealthService {
       throw new NotFoundException('Finanzas no encontradas para el usuario');
     }
 
-    const allBudgets = await this.budgetRepository.findAllByFinancesId(finances.id);
+    const [allBudgets, apSummary] = await Promise.all([
+      this.budgetRepository.findAllByFinancesId(finances.id),
+      this.apService.getSummary(userId),
+    ]);
     const budgets = this.selectLastThree(allBudgets);
+    const debtScore = this.calcDebtScore(apSummary);
 
     if (budgets.length === 0) {
       this.logger.warn(
@@ -89,7 +98,7 @@ export class FinancialHealthService {
         cashFlowScore: 0,
         savingsScore: 0,
         expenseScore: 0,
-        debtScore: 10,
+        debtScore,
       });
     }
 
@@ -100,6 +109,7 @@ export class FinancialHealthService {
     );
 
     const averaged = this.averagePillars(pillarsByMonth);
+    averaged.debtScore = debtScore;
 
     return this.persistScore(userId, averaged);
   }
@@ -195,6 +205,30 @@ export class FinancialHealthService {
     const distribution = nonCanceled > 0 ? (paid / nonCanceled) * 8 : 8;
 
     return Math.round(expenseCtrl + distribution);
+  }
+
+  private calcDebtScore(apSummary: AccountPayableSummary): number {
+    if (apSummary.totalDebt === 0 && apSummary.monthlyCommitments === 0) {
+      return 10;
+    }
+
+    const ratio = apSummary.debtToIncomeRatio;
+    let score: number;
+    if (ratio < 0.3) {
+      score = 20;
+    } else if (ratio < 0.5) {
+      score = 15;
+    } else if (ratio < 1.0) {
+      score = 8;
+    } else {
+      score = 2;
+    }
+
+    if (apSummary.overdueCount > 0) {
+      score = Math.max(0, score - apSummary.overdueCount * 2);
+    }
+
+    return score;
   }
 
   private averagePillars(pillars: PillarScores[]): PillarScores {

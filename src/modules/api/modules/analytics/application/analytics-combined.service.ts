@@ -57,16 +57,23 @@ export class AnalyticsCombinedService {
     ]);
 
     let monthlyIncome = 0;
+    let freeAmount = 0;
+
     if (activeBudget?.id) {
-      const incomes = await this.plannedIncomeRepository.findByBudgetId(activeBudget.id);
+      const [incomes, expenses] = await Promise.all([
+        this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
+        this.plannedExpenseRepository.findByBudget(activeBudget.id),
+      ]);
       monthlyIncome = incomes.reduce((sum, i) => sum + (i.amount ?? 0), 0);
+      const plannedExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
+      freeAmount = Math.max(0, monthlyIncome - plannedExpenses);
     }
 
     return {
-      totalAssets: monthlyIncome,
+      totalAssets: freeAmount,
       totalDebts: apSummary.totalDebt,
       totalReceivable: arSummary.totalReceivable,
-      netPosition: monthlyIncome + arSummary.totalReceivable - apSummary.totalDebt,
+      netPosition: freeAmount + arSummary.totalReceivable - apSummary.totalDebt,
       debtToIncomeRatio: apSummary.debtToIncomeRatio,
       summary: {
         accountsPayable: {
@@ -101,7 +108,7 @@ export class AnalyticsCombinedService {
 
       const projectedPayments = apAccounts.reduce((sum, acc) => {
         if (acc.status === 'active' && acc.minimumPayment) {
-          return sum + Number(acc.minimumPayment) * (i + 1);
+          return sum + Number(acc.minimumPayment) * i;
         }
         return sum;
       }, 0);

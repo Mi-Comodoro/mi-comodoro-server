@@ -18,6 +18,7 @@ import { UserProfile } from '../../user-profile/domain/user-profile.entity';
 import { UserProfileRepository } from '../../user-profile/domain/user-profile.repository';
 import { User } from '../../users/domain/user.entity';
 import { UserRepository } from '../../users/domain/user.repository';
+import { UserRole } from '../../users/domain/user-role.enum';
 import { CreateUserProfile, LoginUserProfile } from './interface';
 import { signUpToClient } from './mapper/signup.mapper';
 
@@ -88,6 +89,7 @@ export class AuthService {
     const payload: JwtPayload = {
       userId: user.id,
       email: user.email,
+      role: user.role ?? UserRole.USER,
       userProfileId: user.userProfile?.id ?? '',
       tokenVersion: user.tokenVersion ?? 0,
     };
@@ -134,7 +136,7 @@ export class AuthService {
         userId: userCreated.id as string,
         name: name!,
         displayName: '',
-        photo: decodedToken.picture,
+        photo: decodedToken.picture?.split('?')[0],
         gender: 'prefer_not_to_say',
         country: 'CO',
         type: 'trial',
@@ -151,6 +153,7 @@ export class AuthService {
       payload = {
         userId: userCreated.id,
         email: userCreated.email,
+        role: userCreated.role ?? UserRole.USER,
         userProfileId: userProfile.id,
         tokenVersion: userCreated.tokenVersion ?? 0,
       };
@@ -158,6 +161,7 @@ export class AuthService {
       payload = {
         userId: user.id,
         email: user.email,
+        role: user.role ?? UserRole.USER,
         userProfileId: user.userProfile?.id ?? '',
         tokenVersion: user.tokenVersion ?? 0,
       };
@@ -188,6 +192,7 @@ export class AuthService {
     const newPayload: JwtPayload = {
       userId: user.id,
       email: user.email,
+      role: user.role ?? UserRole.USER,
       userProfileId: payload.userProfileId,
       tokenVersion: user.tokenVersion,
     };
