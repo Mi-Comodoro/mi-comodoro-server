@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { InitialConfigModule } from '@/core/config/index';
+import { RolesGuard } from '@/core/config/security/guards/roles.guard';
 import { DatabaseModule } from '@/core/modules/database/postgres.module';
 import { LoggerProviderModule } from '@/core/providers/logs';
 
@@ -38,6 +39,10 @@ import { ApiModule } from './api/api.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

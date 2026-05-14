@@ -80,6 +80,8 @@ export class ExpenseController {
 
   @Get('/')
   @ApiOperation({ summary: 'Listar gastos planificados con filtros' })
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
   @ApiResponse({
     status: 200,
     type: PlannedExpensesResponseDto,
