@@ -125,18 +125,16 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
 
     // Compute average monthly income from transactions of type 'income'
     // across the last 3 closed budgets for this user
-    const result = await this.dataSource.query(
-      `SELECT AVG(budget_income) as avg_income FROM (
-        SELECT b.id, COALESCE(SUM(t.amount), 0) as budget_income
-        FROM budgets b
-        LEFT JOIN transactions t ON t.budget_id = b.id AND t.type = 'income' AND t.nulled_at IS NULL
-        WHERE b."ownerId" = $1 AND b.status = 'CLOSED'
-        GROUP BY b.id
-        ORDER BY b.created_at DESC
-        LIMIT 3
-      ) sub`,
-      [userId],
-    );
+    const query = `SELECT AVG(budget_income) as avg_income FROM (
+    SELECT b.id, COALESCE(SUM(t.amount), 0) as budget_income
+    FROM budgets b
+    LEFT JOIN transactions t ON t.budget_id::text = b.id::text AND t.type = 'income' AND t.nulled_at IS NULL
+    WHERE b."ownerId"::text = $1::text AND b.status = 'CLOSED'
+    GROUP BY b.id
+    ORDER BY b.created_at DESC
+    LIMIT 3
+  ) sub`;
+    const result = await this.dataSource.query(query, [userId]);
 
     const avgMonthlyIncome = result[0]?.avg_income ? Number(result[0].avg_income) : 0;
 
