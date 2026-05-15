@@ -11,11 +11,13 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '@/common/decorator/current-user.request';
+import { GroupRoles } from '@/common/decorators/group-roles.decorator';
 import type { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GroupsService } from '../../application/groups.service';
 import { AddMemberDto, CreateGroupDto, UpdateGroupDto } from '../dto/groups.dto';
+import { GroupRolesGuard } from '../guards/group-roles.guard';
 
 @ApiTags('Groups')
 @Controller('groups')
@@ -61,7 +63,8 @@ export class GroupsController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), GroupRolesGuard)
+  @GroupRoles('OWNER')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Editar nombre, tipo o maxMembers del grupo (solo owner)' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
@@ -89,7 +92,8 @@ export class GroupsController {
   }
 
   @Post(':id/members')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), GroupRolesGuard)
+  @GroupRoles('OWNER', 'EDITOR')
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Invitar un miembro al grupo (solo owner)' })
   @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
