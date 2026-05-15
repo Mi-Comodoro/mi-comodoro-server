@@ -20,6 +20,7 @@ export interface SavingGoal {
   accountId: string;
   createdAt?: Date;
   updatedAt?: Date;
+  nulledAt?: Date | null;
   user?: User;
   account?: Account;
 }
