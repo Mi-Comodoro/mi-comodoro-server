@@ -11,6 +11,8 @@ export interface UserProfile {
   country?: string; // ISO-2 (ej: 'CO')}
   type: UserProfileType;
   trialEndsAt?: Date | undefined;
+  isPhoneVerified: boolean;
+  phoneVerifiedAt: Date | null;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
