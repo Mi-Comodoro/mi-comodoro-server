@@ -1,32 +1,36 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
-import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
-import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
-import { CategoryType } from '../../../categories/domain/category';
-import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
-import { TransactionRepository } from '../../../transactions/domain/repositories/transaction.repository';
-import { Transaction } from '../../../transactions/domain/transaction';
+import { LoggerProviderService } from '@/core/providers';
+import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
+import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
+import { CategoryType } from '@/modules/api/modules/categories/domain/category';
+import { CategoryRepository } from '@/modules/api/modules/categories/domain/repositories/category.repository';
+import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
+
 import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
 import { GoalStatus } from '../../domain/savings-goals';
 import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
+import { SavingGoalEntity } from '../../infrastructure/database/entities/saving-goals.entity';
+import { PlannedSavingEntity } from '../../infrastructure/database/entities/saving-planned.entity';
 
 @Injectable()
 export class PlannedSavingService {
+  private readonly context: string = PlannedSavingService.name;
+
   constructor(
     @Inject('PlannedSavingRepository')
     private readonly plannedSavingRepository: PlannedSavingRepository,
-    @Inject('TransactionRepository')
-    private readonly transactionRepository: TransactionRepository,
-    @Inject('CategoryRepository')
-    private readonly categoryRepository: CategoryRepository,
-    @Inject('BudgetRepository') private readonly budgetRepository: BudgetRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
     @Inject('GoalHistoryRepository')
     private readonly goalHistoryRepository: GoalHistoryRepository,
-    @Inject('AccountRepository')
-    private readonly accountRepository: AccountRepository,
+    @Inject('BudgetRepository') private readonly budgetRepository: BudgetRepository,
+    @Inject('CategoryRepository') private readonly categoryRepository: CategoryRepository,
+    @Inject('AccountRepository') private readonly accountRepository: AccountRepository,
+    private readonly dataSource: DataSource,
+    private readonly logger: LoggerProviderService,
   ) {}
 
   async findByBudget(budgetId: string): Promise<PlannedSaving[]> {
@@ -35,78 +39,124 @@ export class PlannedSavingService {
 
   async markAsDone(id: string): Promise<{
     savingPlanned: PlannedSaving;
-    transaction: Transaction;
+    interestTransaction: TransactionEntity | null;
   }> {
+    // Pre-fetch — reads, outside transaction
     const savingPlanned = await this.plannedSavingRepository.findById(id);
-    if (!savingPlanned) {
-      throw new NotFoundException('Planned Savings not fond');
-    }
-    if (savingPlanned.status === 'completed') {
+    if (!savingPlanned) throw new NotFoundException('Planned Savings not found');
+    if (savingPlanned.status === PlannedSavingStatus.COMPLETED) {
       throw new BadRequestException('Este ahorro ya fue ejecutado');
     }
 
-    const updated = await this.plannedSavingRepository.update(id, {
-      status: PlannedSavingStatus.COMPLETED,
-      completedAt: new Date(),
-    });
-    const transaction = await this.initSavingTransaction(savingPlanned);
+    const budget = await this.budgetRepository.findById(savingPlanned.budgetId);
+    if (!budget) throw new NotFoundException('Budget not found');
 
-    // Si la meta está en SCHEDULED, cambiar a IN_PROGRESS
-    if (savingPlanned.savingGoalId) {
-      const goal = await this.goalsRepository.findById(savingPlanned.savingGoalId);
-      if (goal && goal.status === GoalStatus.SCHEDULED) {
-        await this.goalsRepository.update(savingPlanned.savingGoalId, goal.userId as string, {
-          status: GoalStatus.IN_PROGRESS,
-        });
-        // Registrar en historial de la meta
-        await this.goalHistoryRepository.add({
-          goalId: savingPlanned.savingGoalId,
-          userId: goal.userId as string,
-          field: 'status',
-          oldValue: GoalStatus.SCHEDULED,
-          newValue: GoalStatus.IN_PROGRESS,
-        });
-      }
-    }
-
-    return { savingPlanned: updated!, transaction };
-  }
-
-  private async initSavingTransaction(planned: PlannedSaving): Promise<Transaction> {
-    const budgetId = planned.budgetId as string;
-
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget) {
-      throw new NotFoundException('Budget not found');
-    }
-    // 2. Buscar categoría de savings
     const category = await this.categoryRepository.findByType(CategoryType.SAVINGS);
-    if (!category) {
-      throw new NotFoundException('Categoría de ahorro no encontrada');
-    }
+    if (!category) throw new NotFoundException('Categoría de ahorro no encontrada');
 
-    // 3. Buscar la meta para obtener el nombre como source
-    const meta = await this.goalsRepository.findById(planned.savingGoalId);
-
-    // 4. Buscar la cuenta principal del usuario (de donde sale el dinero)
+    const goal = await this.goalsRepository.findById(savingPlanned.savingGoalId);
     const primaryAccount = await this.accountRepository.findPrimaryByUserId(
       budget.ownerId as string,
     );
 
-    // 5. Crear transaction
-    const transaction = await this.transactionRepository.save({
-      amount: planned.amount,
-      type: 'savings',
-      source: meta?.name ?? 'Ahorro',
-      userId: budget.ownerId,
-      budgetId: planned.budgetId,
-      categoryId: category.id,
-      accountId: planned.accountId,
-      fromAccountId: primaryAccount?.id, // De donde sale (cuenta principal)
-      toAccountId: planned.accountId, // A donde llega (cuenta de la meta)
-      transactionDate: new Date(),
+    // Calculate interest if goal has a linked account with interestRate > 0
+    let interestAmount = 0;
+    const today = new Date();
+
+    if (goal) {
+      const account = await this.accountRepository.findByIdAndUser(
+        goal.accountId,
+        goal.userId as string,
+      );
+      const annualRate = Number(account?.interestRate ?? 0);
+
+      if (annualRate > 0) {
+        const completedSavings = await this.plannedSavingRepository.findByGoalId(
+          savingPlanned.savingGoalId,
+        );
+        const accumulatedAmount = completedSavings
+          .filter((s) => s.status === PlannedSavingStatus.COMPLETED)
+          .reduce((sum, s) => sum + Number(s.amount), 0);
+
+        if (accumulatedAmount > 0) {
+          const periodStart = goal.lastInterestDate ?? goal.createdAt ?? today;
+          const days = Math.floor(
+            (today.getTime() - new Date(periodStart).getTime()) / (1000 * 60 * 60 * 24),
+          );
+          if (days > 0) {
+            interestAmount = this.calculateInterest(accumulatedAmount, annualRate, days);
+          }
+        }
+      }
+    }
+
+    // Atomic section: saving update + savings tx + optional interest tx + date update
+    const result = await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        PlannedSavingEntity,
+        { id },
+        {
+          status: PlannedSavingStatus.COMPLETED,
+          completedAt: today,
+        },
+      );
+
+      await manager.save(TransactionEntity, {
+        amount: savingPlanned.amount,
+        type: 'savings' as const,
+        source: goal?.name ?? 'Ahorro',
+        userId: budget.ownerId,
+        budgetId: savingPlanned.budgetId,
+        categoryId: category.id,
+        accountId: savingPlanned.accountId,
+        fromAccountId: primaryAccount?.id,
+        toAccountId: savingPlanned.accountId,
+        transactionDate: today,
+      });
+
+      let interestTx: TransactionEntity | null = null;
+      if (interestAmount > 0 && goal) {
+        this.logger.info(
+          this.context,
+          `Creating interest transaction for goal ${goal.id}: ${interestAmount.toFixed(2)}`,
+        );
+        interestTx = await manager.save(TransactionEntity, {
+          amount: Number(interestAmount.toFixed(2)),
+          type: 'interest' as const,
+          source: `Interés: ${goal.name}`,
+          userId: budget.ownerId,
+          budgetId: savingPlanned.budgetId,
+          categoryId: category.id,
+          accountId: savingPlanned.accountId,
+          toAccountId: savingPlanned.accountId,
+          transactionDate: today,
+        });
+        await manager.update(SavingGoalEntity, { id: goal.id }, { lastInterestDate: today });
+      }
+
+      return interestTx;
     });
 
-    return transaction;
+    // Secondary: goal status SCHEDULED → IN_PROGRESS (non-critical)
+    if (goal && goal.status === GoalStatus.SCHEDULED) {
+      await this.goalsRepository.update(savingPlanned.savingGoalId, goal.userId as string, {
+        status: GoalStatus.IN_PROGRESS,
+      });
+      await this.goalHistoryRepository.add({
+        goalId: savingPlanned.savingGoalId,
+        userId: goal.userId as string,
+        field: 'status',
+        oldValue: GoalStatus.SCHEDULED,
+        newValue: GoalStatus.IN_PROGRESS,
+      });
+    }
+
+    const updated = await this.plannedSavingRepository.findById(id);
+    return { savingPlanned: updated!, interestTransaction: result };
+  }
+
+  private calculateInterest(accumulatedAmount: number, annualRate: number, days: number): number {
+    const wholeDays = Math.floor(days);
+    return accumulatedAmount * (Math.pow(1 + annualRate / 100, wholeDays / 365) - 1);
   }
 }

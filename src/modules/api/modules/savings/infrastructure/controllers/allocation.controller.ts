@@ -1,11 +1,23 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
+import { ApiErrorResponse } from '@/common/decorator/api-error.response';
 import { LoggerProviderService } from '@/core/providers';
 
 import { SavingAllocationService } from '../../application/services/allocations.service';
 import { SavingsAllocationCreateDto } from '../dto/savings-allocation.dto';
 
+@ApiTags('allocations')
+@ApiBearerAuth('bearerAuth')
+@UseGuards(AuthGuard('jwt'))
 @Controller('allocations')
 export class SavingAllocationController {
   private readonly context: string = SavingAllocationController.name;
@@ -13,8 +25,12 @@ export class SavingAllocationController {
     private readonly logger: LoggerProviderService,
     private readonly savingAllocationService: SavingAllocationService,
   ) {}
+
   @Post('/')
-  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Crear una asignación de ahorro' })
+  @ApiCreatedResponse({ description: 'Asignación creada exitosamente' })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Datos inválidos')
   async create(@Body() body: SavingsAllocationCreateDto) {
     this.logger.info(this.context, 'creating savings goals');
     const data = { ...body };
@@ -22,7 +38,10 @@ export class SavingAllocationController {
   }
 
   @Get('/:budgetId')
-  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Obtener asignaciones de ahorro por presupuesto' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiOkResponse({ description: 'Lista de asignaciones de ahorro' })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
   async find(@Param('budgetId') budgetId: string) {
     this.logger.info(this.context, 'getting savings goals');
     return await this.savingAllocationService.find(budgetId);

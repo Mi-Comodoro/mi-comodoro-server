@@ -36,6 +36,12 @@ export class UserProfileEntity implements UserProfile {
   type: UserProfileType;
   @Column({ name: 'trial_ends_at', nullable: true })
   trialEndsAt?: Date;
+  @Column({ name: 'is_phone_verified', default: false })
+  isPhoneVerified: boolean;
+
+  @Column({ name: 'phone_verified_at', type: 'timestamptz', nullable: true })
+  phoneVerifiedAt: Date | null;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
   @CreateDateColumn({ name: 'created_at' })

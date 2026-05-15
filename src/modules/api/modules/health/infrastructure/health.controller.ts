@@ -4,6 +4,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 
 import { LoggerProviderService } from '@/core/providers/logs';
 
+// Endpoint público — no requiere autenticación (usado por monitoreo/healthcheck externo)
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

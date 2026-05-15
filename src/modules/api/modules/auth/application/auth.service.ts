@@ -65,6 +65,8 @@ export class AuthService {
         gender: data.gender || 'prefer_not_to_say',
         country: data.country,
         type: 'trial',
+        isPhoneVerified: false,
+        phoneVerifiedAt: null,
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
@@ -140,6 +142,8 @@ export class AuthService {
         gender: 'prefer_not_to_say',
         country: 'CO',
         type: 'trial',
+        isPhoneVerified: false,
+        phoneVerifiedAt: null,
         isActive: true,
       };
       this.logger.info(

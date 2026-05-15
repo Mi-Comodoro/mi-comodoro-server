@@ -40,6 +40,9 @@ export class UserEntity {
   tokenVersion: number;
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
+  @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true })
+  nulledAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

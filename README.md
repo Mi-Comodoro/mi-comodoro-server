@@ -1,4 +1,4 @@
-# FinHub Server
+# Mi Comodoro Server
 
 API backend para la gestion de finanzas personales y del hogar, construida con NestJS, TypeORM y PostgreSQL.
 
@@ -6,7 +6,7 @@ Su responsabilidad principal es exponer endpoints HTTP para autenticacion, onboa
 
 ## Proposito
 
-- Centralizar la logica de negocio financiera del ecosistema FinHub.
+- Centralizar la logica de negocio financiera del ecosistema Mi Comodoro.
 - Exponer una API autenticada para clientes web y otros consumidores.
 - Mantener una arquitectura modular y hexagonal que facilite el mantenimiento y la evolucion controlada.
 
@@ -239,11 +239,13 @@ Esto implica que el comportamiento de sincronizacion de esquema debe tratarse co
 ## Desarrollo
 
 ### Requisitos
+
 - Node 22 (ver .nvmrc)
 - PostgreSQL 15+
 - pnpm
 
 ### Setup
+
 ```bash
 nvm use
 pnpm install
@@ -251,6 +253,7 @@ cp .env.example .env   # completar variables
 ```
 
 ### Variables de entorno requeridas
+
 ```
 DATABASE_URL=postgresql://user:pass@localhost:5432/micomodoro
 JWT_SECRET=...
@@ -259,19 +262,22 @@ GOOGLE_CLIENT_SECRET=...
 ```
 
 ### Migraciones
+
 ```bash
 npx typeorm migration:run -d src/core/config/database/typeorm.config.ts
 ```
 
 ### Backup
+
 ```bash
 ./scripts/backup.sh
 ```
 
 ### Branching
+
 - main → producción (solo releases taggeados)
 - develop → staging / integración
-- feat/* fix/* → ramas de trabajo, salen de develop
+- feat/_ fix/_ → ramas de trabajo, salen de develop
 
 ## Criterios de mantenimiento
 

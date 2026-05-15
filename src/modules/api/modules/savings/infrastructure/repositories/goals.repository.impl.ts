@@ -1,5 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
 import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
 
@@ -19,7 +19,7 @@ export class GoalsRepositoryImpl implements GoalsRepository {
   }
   async find(userId: string): Promise<SavingGoal[]> {
     const result = await this.savingsGoalsRepository.find({
-      where: { userId },
+      where: { userId, nulledAt: IsNull() },
       relations: { account: true },
     });
     return result.map((item) => SavingsGoalsMapper.toDomain(item));
@@ -27,7 +27,7 @@ export class GoalsRepositoryImpl implements GoalsRepository {
 
   async findById(id: string): Promise<SavingGoal | null> {
     const result = await this.savingsGoalsRepository.findOne({
-      where: { id },
+      where: { id, nulledAt: IsNull() },
       relations: { account: true },
     });
     if (!result) {
@@ -38,7 +38,7 @@ export class GoalsRepositoryImpl implements GoalsRepository {
 
   async findByIdAndUser(id: string, userId: string): Promise<SavingGoal | null> {
     const entity = await this.savingsGoalsRepository.findOne({
-      where: { id, userId },
+      where: { id, userId, nulledAt: IsNull() },
       relations: { account: true },
     });
     if (!entity) return null;
@@ -78,6 +78,6 @@ export class GoalsRepositoryImpl implements GoalsRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.savingsGoalsRepository.delete(id);
+    await this.savingsGoalsRepository.update(id, { nulledAt: new Date() });
   }
 }
