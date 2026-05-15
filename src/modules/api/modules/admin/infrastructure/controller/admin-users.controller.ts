@@ -15,7 +15,7 @@ import { AdminGuard } from '@/common/guards/admin.guard';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AdminUsersService } from '../../application/admin-users.service';
-import { PaginationDto, UpdateUserAdminDto } from '../dto/admin.dto';
+import { AdminStatsDto, PaginationDto, UpdateUserAdminDto } from '../dto/admin.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('bearerAuth')
@@ -28,6 +28,15 @@ export class AdminUsersController {
     private readonly logger: LoggerProviderService,
     private readonly adminUsersService: AdminUsersService,
   ) {}
+
+  @Get('/stats')
+  @ApiOperation({ summary: 'Métricas y estadísticas globales del sistema' })
+  @ApiOkResponse({ description: 'Estadísticas globales', type: AdminStatsDto })
+  @ApiForbiddenResponse({ description: 'Requiere rol admin' })
+  async getStats() {
+    this.logger.info(this.context, 'Admin getting stats');
+    return this.adminUsersService.getStats();
+  }
 
   @Get('/')
   @ApiOperation({ summary: 'Listar todos los usuarios (paginado)' })
