@@ -1,12 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { subDays } from 'date-fns';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
+import { BudgetEntity } from '@/modules/api/modules/budgets/infrastructure/database/entities/budget.entity';
+import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 import { UserProfileEntity } from '@/modules/api/modules/user-profile/infrastructure/database/entities/user-profile.entity';
 import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
 
-import type { PaginationDto, UpdateUserAdminDto } from '../infrastructure/dto/admin.dto';
+import type {
+  AdminStatsDto,
+  PaginationDto,
+  UpdateUserAdminDto,
+} from '../infrastructure/dto/admin.dto';
 
 @Injectable()
 export class AdminUsersService {
@@ -17,6 +24,10 @@ export class AdminUsersService {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(UserProfileEntity)
     private readonly profileRepo: Repository<UserProfileEntity>,
+    @InjectRepository(BudgetEntity)
+    private readonly budgetRepo: Repository<BudgetEntity>,
+    @InjectRepository(TransactionEntity)
+    private readonly transactionRepo: Repository<TransactionEntity>,
     private readonly logger: LoggerProviderService,
   ) {}
 
@@ -76,5 +87,37 @@ export class AdminUsersService {
     const user = await this.userRepo.findOne({ where: { id, nulledAt: IsNull() } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     await this.userRepo.update(id, { nulledAt: new Date() });
+  }
+
+  async getStats(): Promise<AdminStatsDto> {
+    this.logger.info(this.context, 'Getting admin stats');
+    const now = new Date();
+    const [
+      totalUsers,
+      activeUsers,
+      totalBudgets,
+      totalTransactions,
+      newUsersLast30Days,
+      newUsersLast7Days,
+    ] = await Promise.all([
+      this.userRepo.count({ where: { nulledAt: IsNull() } }),
+      this.userRepo
+        .createQueryBuilder('u')
+        .innerJoin('budgets', 'b', 'b."ownerId" = u.id AND b.nulled_at IS NULL')
+        .where('u.nulled_at IS NULL')
+        .getCount(),
+      this.budgetRepo.count(),
+      this.transactionRepo.count({ where: { nulledAt: IsNull() } }),
+      this.userRepo.count({ where: { nulledAt: IsNull(), createdAt: MoreThan(subDays(now, 30)) } }),
+      this.userRepo.count({ where: { nulledAt: IsNull(), createdAt: MoreThan(subDays(now, 7)) } }),
+    ]);
+    return {
+      totalUsers,
+      activeUsers,
+      totalBudgets,
+      totalTransactions,
+      newUsersLast30Days,
+      newUsersLast7Days,
+    };
   }
 }
