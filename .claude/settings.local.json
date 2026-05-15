@@ -6,7 +6,9 @@
       "Bash(npm run lint)",
       "Bash(npm run lint:fix)",
       "Bash(node --version:*)",
-      "Bash(nvm use:*)"
+      "Bash(nvm use:*)",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-update-page"
     ]
   }
 }
