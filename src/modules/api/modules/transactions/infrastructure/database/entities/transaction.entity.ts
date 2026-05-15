@@ -48,11 +48,11 @@ export class TransactionEntity implements Transaction {
 
   @Column({
     type: 'enum',
-    enum: ['income', 'expense', 'savings'],
+    enum: ['income', 'expense', 'savings', 'interest'],
     name: 'type',
     nullable: false,
   })
-  type: 'income' | 'expense' | 'savings';
+  type: 'income' | 'expense' | 'savings' | 'interest';
   @ManyToOne(() => UserEntity, (user) => user.transactions, {
     onDelete: 'CASCADE',
   })

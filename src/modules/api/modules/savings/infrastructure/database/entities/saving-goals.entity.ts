@@ -61,6 +61,9 @@ export class SavingGoalEntity implements SavingGoal {
   })
   status: GoalStatus;
 
+  @Column({ name: 'last_interest_date', nullable: true, type: 'date' })
+  lastInterestDate?: Date | null;
+
   @Column({ name: 'nulled_at', nullable: true, type: 'timestamptz' })
   nulledAt: Date | null;
 
