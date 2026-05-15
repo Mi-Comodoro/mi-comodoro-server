@@ -5,7 +5,7 @@
 -- This file is for REFERENCE ONLY. Do not execute directly.
 -- The authoritative migration is: src/database/migrations/20260514000000-InitialSchema.ts
 --
--- Tables present in finhub-development at capture time:
+-- Tables present in mi-comodoro-development at capture time:
 --   account_payable_payments, account_rate_history, account_receivable_collections,
 --   accounts, accounts_payable, accounts_receivable, bills, budgets, categories,
 --   expenses_planned, finances, financial_health_scores, goal_history, idempotency_keys,

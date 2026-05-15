@@ -1,6 +1,7 @@
-﻿# FinHub Backend - Context & Standards
+﻿# Mi Comodoro Backend - Context & Standards
 
 ## Entorno de desarrollo
+
 - **Node.js requerido: v22.x**
 - ESLint falla silenciosamente o no resuelve plugins
   correctamente con versiones anteriores a Node 22.
@@ -67,23 +68,26 @@ Each module in `src/modules/api/modules/` must follow:
 ## Current Status (MVP Complete)
 
 ### Implemented endpoints
+
 AUTH: POST /auth/signup · /signin · /google · /refresh · /logout
 BUDGETS: POST / · GET /finances/:financeId · /current/:financeId
-         /current/:financeId/:year/:month · /:id · /summary/historical
-         PATCH /:id/active
+/current/:financeId/:year/:month · /:id · /summary/historical
+PATCH /:id/active
 TRANSACTIONS: GET /budget/:budgetId · POST / · PATCH /:id · DELETE /:id
 EXPENSES: POST /plan · /unplanned · GET / · PATCH /:id/complete · /:id · DELETE /:id
 INCOMES: GET /planned/by-budget/:budgetId · PATCH /planned/:id
 SAVINGS: POST /allocation · GET /allocation/:budgetId
-         GET /planned/budget/:budgetId · PATCH /planned/:id
-         POST /goals · GET /goals
+GET /planned/budget/:budgetId · PATCH /planned/:id
+POST /goals · GET /goals
 CATEGORIES: GET /
 USERS: POST /onboarding · GET /me
 USER-PROFILE: GET /me
 ACCOUNTS: POST / · GET /
 
 ### Pending
+
 - POST /settings · GET /settings
 
 ### Out of MVP
+
 - Reports module

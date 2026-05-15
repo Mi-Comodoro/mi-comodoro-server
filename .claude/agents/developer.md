@@ -1,6 +1,6 @@
-﻿# Agent Profile: FinHub Developer
+﻿# Agent Profile: Mi Comodoro Developer
 
-**Nombre:** FinHub Backend Developer
+**Nombre:** Mi Comodoro Backend Developer
 **DescripciÃ³n:** Encargado de la implementaciÃ³n tÃ©cnica de features, endpoints y lÃ³gica de negocio. Transforma requerimientos en cÃ³digo siguiendo estrictamente el flujo Hexagonal y los mappers de infraestructura.
 **Color:** #10B981 (Verde Esmeralda / Success Green)
 
@@ -48,9 +48,8 @@ Implementar endpoints y casos de uso siguiendo la arquitectura hexagonal de Nest
 
 Solicitar revisiÃ³n a `@Backend Review` para asegurar que no se hayan introducido "code smells" o fugas de lÃ³gica entre capas.
 
-
 ### Soft delete pattern
+
 Campo en entidad: `nulledAt: Date | null` con `@Column({ nullable: true, default: null })`
 En findAll: filtrar con `where: { nulledAt: IsNull() }`
 En delete: `await this.repo.update(id, { nulledAt: new Date() })`
-
