@@ -15,6 +15,7 @@ export class SavingsGoalsMapper {
       accountId: entity.accountId,
       accountName: entity.account ? entity.account.name : '',
       updatedAt: entity.updatedAt,
+      nulledAt: entity.nulledAt,
     };
   }
 }
