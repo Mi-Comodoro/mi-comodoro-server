@@ -10,6 +10,7 @@ import { BudgetModule } from './modules/budgets/budget.module';
 import { CategoryModule } from './modules/categories/category.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { FinancesModule } from './modules/finances/finances.module';
+import { GroupsModule } from './modules/groups/groups.module';
 import { HealthModule } from './modules/health/health.module';
 import { IncomesModule } from './modules/incomes/incomes.module';
 import { SavingsModule } from './modules/savings/savings.module';
@@ -35,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     AnalyticsModule,
     AccountsPayableModule,
     AccountsReceivableModule,
+    GroupsModule,
   ],
 })
 export class ApiModule {}
