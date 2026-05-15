@@ -18,6 +18,7 @@ export interface SavingGoal {
   status?: GoalStatus;
   userId?: string;
   accountId: string;
+  lastInterestDate?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
   nulledAt?: Date | null;

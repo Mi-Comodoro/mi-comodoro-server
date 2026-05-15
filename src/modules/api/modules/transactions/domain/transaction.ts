@@ -18,7 +18,7 @@ export interface Transaction {
   toAccountId?: string; // Cuenta destino del movimiento
 
   // tipo
-  type: 'income' | 'expense' | 'savings';
+  type: 'income' | 'expense' | 'savings' | 'interest';
 
   // relaciones enriquecidas opcionales (para vistas)
   category?: { id: string; name: string };
@@ -33,7 +33,7 @@ export interface Transaction {
   updatedAt?: Date;
 }
 export interface TransactionFilters {
-  type?: 'income' | 'expense' | 'savings';
+  type?: 'income' | 'expense' | 'savings' | 'interest';
   categoryId?: string;
   dateFrom?: Date;
   dateTo?: Date;
