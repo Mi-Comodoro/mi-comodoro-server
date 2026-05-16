@@ -64,7 +64,7 @@ export class AnalyticsCombinedService {
         this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
         this.plannedExpenseRepository.findByBudget(activeBudget.id),
       ]);
-      monthlyIncome = incomes.reduce((sum, i) => sum + (i.amount ?? 0), 0);
+      monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
       const plannedExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
       freeAmount = Math.max(0, monthlyIncome - plannedExpenses);
     }
@@ -140,8 +140,8 @@ export class AnalyticsCombinedService {
         this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
         this.plannedExpenseRepository.findByBudget(activeBudget.id),
       ]);
-      monthlyIncome = incomes.reduce((sum, i) => sum + (i.amount ?? 0), 0);
-      monthlyExpenses = expenses.reduce((sum, e) => sum + e.expectedAmount, 0);
+      monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
+      monthlyExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
     }
 
     const monthlyDebtPayments = apSummary.monthlyCommitments;
