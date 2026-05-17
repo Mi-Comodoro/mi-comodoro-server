@@ -16,6 +16,7 @@ import { HealthModule } from './modules/health/health.module';
 import { IncomesModule } from './modules/incomes/incomes.module';
 import { SavingsModule } from './modules/savings/savings.module';
 import { TransactionModule } from './modules/transactions/transaction.module';
+import { TravelExpenseModule } from './modules/travel-expenses/travel-expense.module';
 import { UserProfileModule } from './modules/user-profile/user-profile.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -39,6 +40,7 @@ import { UsersModule } from './modules/users/users.module';
     AccountsReceivableModule,
     GroupsModule,
     AdminModule,
+    TravelExpenseModule,
   ],
 })
 export class ApiModule {}
