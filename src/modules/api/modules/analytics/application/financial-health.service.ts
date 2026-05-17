@@ -136,14 +136,14 @@ export class FinancialHealthService {
     incomes: Awaited<ReturnType<PlannedIncomeRepository['findByBudgetId']>>,
     expenses: Awaited<ReturnType<PlannedExpenseRepository['findByBudget']>>,
   ): number {
-    const incomePlanned = incomes.reduce((sum, i) => sum + (i.amount ?? 0), 0);
+    const incomePlanned = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
     const incomeReceived = incomes
       .filter((i) => i.status === 'RECEIVED')
-      .reduce((sum, i) => sum + (i.amount ?? 0), 0);
+      .reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
 
     const gastosReales = expenses
       .filter((e) => e.status === PlannedExpenseStatus.PAID)
-      .reduce((sum, e) => sum + e.expectedAmount, 0);
+      .reduce((sum, e) => sum + Number(e.expectedAmount), 0);
 
     const ingresoScore =
       incomePlanned > 0 ? Math.min(10, (incomeReceived / incomePlanned) * 10) : 0;
@@ -189,10 +189,10 @@ export class FinancialHealthService {
   private calcExpenses(
     expenses: Awaited<ReturnType<PlannedExpenseRepository['findByBudget']>>,
   ): number {
-    const gastosPlanificados = expenses.reduce((sum, e) => sum + e.expectedAmount, 0);
+    const gastosPlanificados = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
     const gastosReales = expenses
       .filter((e) => e.status === PlannedExpenseStatus.PAID)
-      .reduce((sum, e) => sum + e.expectedAmount, 0);
+      .reduce((sum, e) => sum + Number(e.expectedAmount), 0);
 
     const overrun = Math.max(0, gastosReales - gastosPlanificados);
     const expenseCtrl =
