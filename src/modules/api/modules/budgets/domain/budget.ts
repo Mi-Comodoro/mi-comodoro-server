@@ -16,6 +16,7 @@ export interface Budget {
   readonly strategy: FinancialStrategyType;
   readonly frequency: string;
   readonly status: BudgetStatus;
+  readonly currency: string;
   readonly carryForwardAmount?: number;
   readonly closedAt?: Date | null;
   readonly createdAt?: Date;

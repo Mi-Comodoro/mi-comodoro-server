@@ -72,6 +72,9 @@ export class BudgetEntity implements Budget {
   @OneToMany(() => TransactionEntity, (transaction) => transaction.budget)
   transactions: TransactionEntity[];
 
+  @Column({ type: 'varchar', length: 3, default: 'COP' })
+  currency: string;
+
   @Column({ name: 'closed_at', type: 'timestamp', nullable: true, default: null })
   closedAt: Date | null;
 
