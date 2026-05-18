@@ -50,6 +50,20 @@ export class TravelExpenseService {
         );
       }
     }
+    if (dto.splitType === 'CUSTOM') {
+      const missingAmount = dto.assignments?.some((a) => a.assignedAmount === undefined);
+      if (missingAmount)
+        throw new BadRequestException('Cada asignación CUSTOM debe tener assignedAmount');
+    }
+    if (dto.splitType === 'PERCENTAGE') {
+      const missingPct = dto.assignments?.some((a) => a.percentage === undefined);
+      if (missingPct)
+        throw new BadRequestException('Cada asignación PERCENTAGE debe tener percentage');
+      const total = dto.assignments!.reduce((s, a) => s + (a.percentage ?? 0), 0);
+      if (Math.abs(total - 100) > 0.01) {
+        throw new BadRequestException(`Los porcentajes deben sumar 100 (suma actual: ${total})`);
+      }
+    }
 
     return this.dataSource.transaction(async (manager) => {
       const expenseEntity = manager.create(TravelExpenseEntity, {
@@ -76,11 +90,18 @@ export class TravelExpenseService {
           assignedAmount: perMember,
           settled: false,
         }));
+      } else if (dto.splitType === 'PERCENTAGE') {
+        assignments = dto.assignments!.map((a) => ({
+          expenseId: savedExpense.id,
+          userId: a.userId,
+          assignedAmount: Number(((a.percentage! / 100) * Number(dto.amount)).toFixed(2)),
+          settled: false,
+        }));
       } else {
         assignments = dto.assignments!.map((a) => ({
           expenseId: savedExpense.id,
           userId: a.userId,
-          assignedAmount: a.assignedAmount,
+          assignedAmount: a.assignedAmount!,
           settled: false,
         }));
       }

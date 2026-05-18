@@ -20,10 +20,20 @@ export class CreateAssignmentDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ example: 25000, description: 'Monto asignado al usuario' })
+  @ApiPropertyOptional({ example: 25000, description: 'Monto asignado (requerido para CUSTOM)' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  assignedAmount: number;
+  assignedAmount?: number;
+
+  @ApiPropertyOptional({
+    example: 33.33,
+    description: 'Porcentaje del total (requerido para PERCENTAGE, 0-100)',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  percentage?: number;
 }
 
 export class CreateTravelExpenseDto {
