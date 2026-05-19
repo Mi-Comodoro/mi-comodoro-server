@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
 import { CurrentUser } from '@/common/decorator/current-user.request';
@@ -10,6 +10,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { UsersService } from '../../application/services/users.service';
 import { WrapperResponseMeDto } from '../dto/me.dto';
 import { OnboardingDto } from '../dto/onboarding.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -43,5 +44,17 @@ export class UsersController {
   async getCurrentUser(@CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, 'Getting current user information');
     return await this.userService.getCurrentUser(user);
+  }
+
+  @Patch('/me')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Actualizar datos de perfil del usuario autenticado' })
+  @ApiOkResponse({ description: 'Perfil actualizado' })
+  @ApiErrorResponse(401, 'Unauthorized')
+  @ApiErrorResponse(404, 'User profile not found')
+  async updateMe(@CurrentUser() user: JwtPayload, @Body() dto: UpdateUserDto) {
+    this.logger.info(this.context, `Updating profile for user ${user.userId}`);
+    return await this.userService.updateMe(user.userId, dto);
   }
 }

@@ -78,6 +78,9 @@ export class BudgetEntity implements Budget {
   @Column({ name: 'closed_at', type: 'timestamp', nullable: true, default: null })
   closedAt: Date | null;
 
+  @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true, default: null })
+  nulledAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

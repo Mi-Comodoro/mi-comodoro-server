@@ -201,6 +201,27 @@ export class BudgetService {
     return budget;
   }
 
+  async updateBudget(
+    budgetId: string,
+    data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+  ): Promise<Budget> {
+    this.logger.info(this.context, `Updating budget ${budgetId}`);
+    const updated = await this.budgetRepository.update(budgetId, data);
+    if (!updated) {
+      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    }
+    return updated;
+  }
+
+  async deleteBudget(budgetId: string): Promise<void> {
+    this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget) {
+      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    }
+    await this.budgetRepository.softDelete(budgetId);
+  }
+
   async active(budgetId: string) {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
     const budget = (await this.budgetRepository.findById(budgetId)) as Required<Budget>;

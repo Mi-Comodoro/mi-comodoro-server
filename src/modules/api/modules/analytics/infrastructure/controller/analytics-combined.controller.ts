@@ -1,6 +1,6 @@
-import { Controller, Get, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
 import { CurrentUser } from '@/common/decorator/current-user.request';
@@ -11,6 +11,7 @@ import { AnalyticsCombinedService } from '../../application/analytics-combined.s
 import { CashFlowForecastDto } from '../../application/dto/cash-flow-forecast.dto';
 import { DebtProjectionDto } from '../../application/dto/debt-projection.dto';
 import { NetPositionDto } from '../../application/dto/net-position.dto';
+import { SavingsTrendDto } from '../../application/dto/savings-trend.dto';
 
 @ApiTags('analytics')
 @Controller('analytics')
@@ -23,6 +24,15 @@ export class AnalyticsCombinedController {
     private readonly logger: LoggerProviderService,
     private readonly analyticsCombinedService: AnalyticsCombinedService,
   ) {}
+
+  @Get('savings-trend')
+  @ApiOperation({ summary: 'Tendencia de ahorro de los últimos 6 meses' })
+  @ApiOkResponse({ type: SavingsTrendDto })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')
+  async getSavingsTrend(@CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Solicitando tendencia de ahorro para usuario ${user.userId}`);
+    return this.analyticsCombinedService.getSavingsTrend(user.userId);
+  }
 
   @Get('net-position')
   @ApiOperation({ summary: 'Posición neta financiera actual' })
@@ -44,13 +54,19 @@ export class AnalyticsCombinedController {
 
   @Get('cash-flow-forecast')
   @ApiOperation({ summary: 'Pronóstico de flujo de caja 3 meses' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'month', required: false, type: Number })
   @ApiOkResponse({ type: CashFlowForecastDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')
-  async getCashFlowForecast(@CurrentUser() user: JwtPayload) {
+  async getCashFlowForecast(
+    @CurrentUser() user: JwtPayload,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+  ) {
     this.logger.info(
       this.context,
       `Solicitando pronóstico de flujo de caja para usuario ${user.userId}`,
     );
-    return this.analyticsCombinedService.getCashFlowForecast(user.userId);
+    return this.analyticsCombinedService.getCashFlowForecast(user.userId, year, month);
   }
 }

@@ -284,6 +284,21 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     return this.budgetRepository.find({ where: { financesId, status: 'CLOSED' } });
   }
 
+  async update(
+    budgetId: string,
+    data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+  ): Promise<Budget | null> {
+    this.logger.info(this.context, `Updating budget ${budgetId}`);
+    const result = await this.budgetRepository.update({ id: budgetId }, data);
+    if (!result.affected) return null;
+    return this.findById(budgetId);
+  }
+
+  async softDelete(budgetId: string): Promise<void> {
+    this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
+    await this.budgetRepository.update({ id: budgetId }, { nulledAt: new Date() });
+  }
+
   private getMonthNumber(month: string): number {
     return this.monthOrder[month.toLowerCase()] ?? 0;
   }

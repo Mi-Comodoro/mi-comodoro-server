@@ -8,9 +8,11 @@ import { BudgetRepository } from '../../budgets/domain/repositories/budget.repos
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
 import { FinancesRepository } from '../../finances/domain/repositories/finances.repository';
 import { PlannedIncomeRepository } from '../../incomes/domain/repositories/incomes-planned.repository';
+import { PlannedSavingRepository } from '../../savings/domain/repositories/planned.repository';
 import { CashFlowForecastDto } from './dto/cash-flow-forecast.dto';
 import { DebtProjectionDto } from './dto/debt-projection.dto';
 import { NetPositionDto } from './dto/net-position.dto';
+import { SavingsTrendDto } from './dto/savings-trend.dto';
 
 @Injectable()
 export class AnalyticsCombinedService {
@@ -28,6 +30,8 @@ export class AnalyticsCombinedService {
     private readonly plannedIncomeRepository: PlannedIncomeRepository,
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
+    @Inject('PlannedSavingRepository')
+    private readonly plannedSavingRepository: PlannedSavingRepository,
   ) {}
 
   private getCurrentMonthName(): string {
@@ -123,8 +127,21 @@ export class AnalyticsCombinedService {
     return { projection, simplified: true };
   }
 
-  async getCashFlowForecast(userId: string): Promise<CashFlowForecastDto> {
+  async getSavingsTrend(userId: string): Promise<SavingsTrendDto> {
+    this.logger.info(this.context, `Calculando tendencia de ahorro para usuario ${userId}`);
+    const trend = await this.plannedSavingRepository.findCompletedLast6MonthsByUserId(userId);
+    return { trend };
+  }
+
+  async getCashFlowForecast(
+    userId: string,
+    year?: string,
+    month?: string,
+  ): Promise<CashFlowForecastDto> {
     this.logger.info(this.context, `Calculando pronóstico de flujo de caja para usuario ${userId}`);
+
+    const targetYear = year ? Number(year) : new Date().getFullYear();
+    const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
 
     const [apSummary, arSummary, activeBudget] = await Promise.all([
       this.apService.getSummary(userId),
@@ -148,8 +165,7 @@ export class AnalyticsCombinedService {
     const monthlyReceivables = arSummary.expectedThisMonth;
 
     const months = Array.from({ length: 3 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i);
+      const date = new Date(targetYear, targetMonth - 1 + i, 1);
       const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
       const projectedIncome = monthlyIncome + monthlyReceivables;
       const projectedExpenses = monthlyExpenses + monthlyDebtPayments;

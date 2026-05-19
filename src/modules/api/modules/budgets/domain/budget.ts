@@ -19,6 +19,7 @@ export interface Budget {
   readonly currency?: string;
   readonly carryForwardAmount?: number;
   readonly closedAt?: Date | null;
+  readonly nulledAt?: Date | null;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }

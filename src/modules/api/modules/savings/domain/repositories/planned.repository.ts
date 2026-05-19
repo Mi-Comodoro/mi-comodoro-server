@@ -1,5 +1,10 @@
 import { PlannedSaving } from '../savings-planned';
 
+export interface SavingsTrendPoint {
+  month: string;
+  amount: number;
+}
+
 export interface PlannedSavingRepository {
   save(domain: Partial<PlannedSaving>): Promise<PlannedSaving>;
   saveMany(domain: Partial<PlannedSaving>[]): Promise<PlannedSaving[]>;
@@ -7,4 +12,5 @@ export interface PlannedSavingRepository {
   findByBudget(budgetId: string): Promise<PlannedSaving[]>;
   findByGoalId(goalId: string): Promise<PlannedSaving[]>;
   update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null>;
+  findCompletedLast6MonthsByUserId(userId: string): Promise<SavingsTrendPoint[]>;
 }
