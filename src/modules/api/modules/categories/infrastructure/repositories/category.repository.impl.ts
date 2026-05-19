@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
 import { Category, CategoryType } from '../../domain/category';
 import { CategoryRepository } from '../../domain/repositories/category.repository';
@@ -26,7 +26,7 @@ export class CategoryRepositoryImpl implements CategoryRepository {
   }
 
   async findAll(): Promise<Category[]> {
-    const categoryEntities = await this.categoryRepo.find({ where: { nulledAt: null } });
+    const categoryEntities = await this.categoryRepo.find({ where: { nulledAt: IsNull() } });
     return categoryEntities.map((entity) => CategoryMapper.toDomain(entity));
   }
 
