@@ -8,9 +8,11 @@ import { BudgetRepository } from '../../budgets/domain/repositories/budget.repos
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
 import { FinancesRepository } from '../../finances/domain/repositories/finances.repository';
 import { PlannedIncomeRepository } from '../../incomes/domain/repositories/incomes-planned.repository';
+import { PlannedSavingRepository } from '../../savings/domain/repositories/planned.repository';
 import { CashFlowForecastDto } from './dto/cash-flow-forecast.dto';
 import { DebtProjectionDto } from './dto/debt-projection.dto';
 import { NetPositionDto } from './dto/net-position.dto';
+import { SavingsTrendDto } from './dto/savings-trend.dto';
 
 @Injectable()
 export class AnalyticsCombinedService {
@@ -28,6 +30,8 @@ export class AnalyticsCombinedService {
     private readonly plannedIncomeRepository: PlannedIncomeRepository,
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
+    @Inject('PlannedSavingRepository')
+    private readonly plannedSavingRepository: PlannedSavingRepository,
   ) {}
 
   private getCurrentMonthName(): string {
@@ -121,6 +125,12 @@ export class AnalyticsCombinedService {
     });
 
     return { projection, simplified: true };
+  }
+
+  async getSavingsTrend(userId: string): Promise<SavingsTrendDto> {
+    this.logger.info(this.context, `Calculando tendencia de ahorro para usuario ${userId}`);
+    const trend = await this.plannedSavingRepository.findCompletedLast6MonthsByUserId(userId);
+    return { trend };
   }
 
   async getCashFlowForecast(userId: string): Promise<CashFlowForecastDto> {

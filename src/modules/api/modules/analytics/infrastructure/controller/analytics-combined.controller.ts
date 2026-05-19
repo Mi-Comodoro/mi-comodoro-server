@@ -11,6 +11,7 @@ import { AnalyticsCombinedService } from '../../application/analytics-combined.s
 import { CashFlowForecastDto } from '../../application/dto/cash-flow-forecast.dto';
 import { DebtProjectionDto } from '../../application/dto/debt-projection.dto';
 import { NetPositionDto } from '../../application/dto/net-position.dto';
+import { SavingsTrendDto } from '../../application/dto/savings-trend.dto';
 
 @ApiTags('analytics')
 @Controller('analytics')
@@ -23,6 +24,15 @@ export class AnalyticsCombinedController {
     private readonly logger: LoggerProviderService,
     private readonly analyticsCombinedService: AnalyticsCombinedService,
   ) {}
+
+  @Get('savings-trend')
+  @ApiOperation({ summary: 'Tendencia de ahorro de los últimos 6 meses' })
+  @ApiOkResponse({ type: SavingsTrendDto })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')
+  async getSavingsTrend(@CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Solicitando tendencia de ahorro para usuario ${user.userId}`);
+    return this.analyticsCombinedService.getSavingsTrend(user.userId);
+  }
 
   @Get('net-position')
   @ApiOperation({ summary: 'Posición neta financiera actual' })
