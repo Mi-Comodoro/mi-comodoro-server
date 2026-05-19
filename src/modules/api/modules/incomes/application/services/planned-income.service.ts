@@ -224,4 +224,9 @@ export class PlannedIncomeService {
       // fromAccountId no se usa porque el ingreso no viene de una cuenta interna
     });
   }
+
+  async deletePlannedIncome(id: string): Promise<void> {
+    this.logger.info(this.context, `Deleting planned income ${id}`);
+    await this.plannedIncomeRepository.delete(id);
+  }
 }

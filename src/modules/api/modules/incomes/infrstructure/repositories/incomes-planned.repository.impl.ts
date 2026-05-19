@@ -126,4 +126,8 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
       throw error;
     }
   }
+
+  async delete(id: string): Promise<void> {
+    await this.plannedIncomesRepository.delete({ id });
+  }
 }

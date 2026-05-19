@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -91,6 +102,19 @@ export class PlannedIncomeController {
   async getAllMonthlyIncome() {
     this.logger.info(this.context, `Calculating monthly incomes`);
     return await this.plannedIncomeService.findAll();
+  }
+
+  @Delete('/:id')
+  @ApiOperation({ summary: 'Eliminar un ingreso planificado' })
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'id', type: String, description: 'UUID del ingreso planificado' })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned Income not found')
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
+  async deletePlannedIncome(@Param('id') id: string) {
+    this.logger.info(this.context, `Deleting planned income ${id}`);
+    await this.plannedIncomeService.deletePlannedIncome(id);
   }
 
   @Patch('/:id')

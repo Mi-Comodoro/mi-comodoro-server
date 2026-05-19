@@ -15,4 +15,5 @@ export interface PlannedIncomeRepository {
   markAsReceive(
     id: string,
   ): Promise<Partial<PlannedIncome & { source: string }> | null | undefined>;
+  delete(id: string): Promise<void>;
 }
