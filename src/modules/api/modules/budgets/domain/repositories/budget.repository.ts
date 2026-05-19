@@ -24,4 +24,9 @@ export interface BudgetRepository {
   findClosedByFinancesId(financesId: string): Promise<Budget[]>;
   active(budgetId: string): Promise<Budget | null>;
   close(budgetId: string): Promise<Budget | null>;
+  update(
+    budgetId: string,
+    data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+  ): Promise<Budget | null>;
+  softDelete(budgetId: string): Promise<void>;
 }

@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   HttpStatus,
   NotFoundException,
   Param,
@@ -36,6 +38,7 @@ import {
 } from '../dto/budget.dto';
 import { CloseBudgetDto } from '../dto/close-budget.dto';
 import { TransferBalanceDto } from '../dto/transfer-balance.dto';
+import { UpdateBudgetDto } from '../dto/update-budget.dto';
 
 @ApiTags('budgets')
 @Controller('budgets')
@@ -255,6 +258,30 @@ export class BudgetController {
   async getBudgetById(@Param('budgetId') budgetId: string) {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
     return await this.budgetService.getBudgetById(budgetId);
+  }
+
+  @Patch('/:budgetId')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Actualizar nombre o límites de un presupuesto' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  async updateBudget(@Param('budgetId') budgetId: string, @Body() dto: UpdateBudgetDto) {
+    this.logger.info(this.context, `Updating budget ${budgetId}`);
+    return await this.budgetService.updateBudget(budgetId, dto);
+  }
+
+  @Delete('/:budgetId')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft delete de un presupuesto (nulledAt)' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  async deleteBudget(@Param('budgetId') budgetId: string) {
+    this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
+    await this.budgetService.deleteBudget(budgetId);
   }
 
   @Patch('/:budgetId/active')
