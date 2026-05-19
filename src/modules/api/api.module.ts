@@ -15,6 +15,7 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { HealthModule } from './modules/health/health.module';
 import { IncomesModule } from './modules/incomes/incomes.module';
 import { SavingsModule } from './modules/savings/savings.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { TransactionModule } from './modules/transactions/transaction.module';
 import { TravelExpenseModule } from './modules/travel-expenses/travel-expense.module';
 import { UserProfileModule } from './modules/user-profile/user-profile.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './modules/users/users.module';
     GroupsModule,
     AdminModule,
     TravelExpenseModule,
+    SettingsModule,
   ],
 })
 export class ApiModule {}
