@@ -15,9 +15,16 @@ export class CreatePlans20260519200000 implements MigrationInterface {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
-      INSERT INTO plans (name, price, features, is_public) VALUES
-        ('Free', 0, '["Presupuesto mensual","Metas de ahorro","Analytics","AP/AR","1 cuenta"]', true),
-        ('Pro', 0, '["Todo Free","Grupos compartidos","Múltiples cuentas","Reportes PDF","Soporte prioritario"]', true)
+      INSERT INTO plans (name, price, currency, features, is_active, is_public) VALUES
+        ('Free', 0, 'COP',
+          '["1 presupuesto activo","Transacciones ilimitadas","Metas de ahorro","3 cuentas de referencia","Categorías predefinidas","Proyecciones 1 año","Reportes básicos","Histórico 6 meses"]',
+          true, true),
+        ('Plus', 0, 'COP',
+          '["3 presupuestos activos","Transacciones ilimitadas","Metas de ahorro","Cuentas de referencia ilimitadas","Categorías personalizadas","Proyecciones 3 años","Reportes mensual + anual","Compartido con 2 personas","Histórico 18 meses","Exportar CSV"]',
+          true, true),
+        ('Pro', 0, 'COP',
+          '["Presupuestos ilimitados","Transacciones ilimitadas","Metas de ahorro","Cuentas de referencia ilimitadas","Categorías personalizadas","Proyecciones 10+ años","Reportes completos","Compartido con 6 personas","Histórico ilimitado","Exportar CSV · PDF · Excel","Mi Despensa"]',
+          true, true)
       ON CONFLICT DO NOTHING;
     `);
   }

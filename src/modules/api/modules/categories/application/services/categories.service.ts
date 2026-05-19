@@ -35,7 +35,13 @@ export class CategoriesService {
     this.logger.log(this.context, `Updating category ${id}`);
     const existing = await this.categoriesRepository.findById(id);
     if (!existing) throw new NotFoundException(`Category ${id} not found`);
-    return await this.categoriesRepository.save({ ...existing, ...dto });
+    return await this.categoriesRepository.save({
+      ...existing,
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.type !== undefined && { type: dto.type as CategoryType }),
+      ...(dto.bucket !== undefined && { bucket: dto.bucket as CategoryBucket }),
+      ...(dto.isSelectable !== undefined && { isSelectable: dto.isSelectable }),
+    });
   }
 
   async deleteCategory(id: string): Promise<void> {
