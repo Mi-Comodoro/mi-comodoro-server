@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
+import {
+  PlannedSavingRepository,
+  SavingsTrendPoint,
+} from '../../domain/repositories/planned.repository';
 import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
 import { PlannedSavingEntity } from '../database/entities/saving-planned.entity';
 import { PlannedSavingMapper } from '../mapper/planned.mapper';
@@ -72,5 +75,30 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
     if (result.affected === 0) return null;
 
     return this.findById(id);
+  }
+
+  async findCompletedLast6MonthsByUserId(userId: string): Promise<SavingsTrendPoint[]> {
+    const since = new Date();
+    since.setMonth(since.getMonth() - 6);
+
+    const entities = await this.plannedSavingRepository
+      .createQueryBuilder('ps')
+      .innerJoin('ps.budget', 'budget')
+      .where('budget.ownerId = :userId', { userId })
+      .andWhere('ps.status = :status', { status: PlannedSavingStatus.COMPLETED })
+      .andWhere('ps.completed_at >= :since', { since })
+      .select(['ps.amount', 'ps.completed_at'])
+      .getMany();
+
+    const grouped = new Map<string, number>();
+    for (const entity of entities) {
+      const month = new Date(entity.completedAt!).toLocaleString('es-CO', {
+        month: 'short',
+        year: '2-digit',
+      });
+      grouped.set(month, (grouped.get(month) ?? 0) + Number(entity.amount));
+    }
+
+    return Array.from(grouped.entries()).map(([month, amount]) => ({ month, amount }));
   }
 }

@@ -6,8 +6,10 @@ import { LoggerProviderService } from '@/core/providers';
 
 import { IncomeSource } from '../../../incomes/domain/incomes';
 import { extractDay } from '../../../shared/utils/dates';
+import { UserProfileRepository } from '../../../user-profile/domain/user-profile.repository';
 import { User } from '../../domain/user.entity';
 import { UserRepository } from '../../domain/user.repository';
+import { UpdateUserDto } from '../../infrastructure/dto/update-user.dto';
 import { OnboardingData } from '../dto/create-user.dto';
 
 @Injectable()
@@ -16,6 +18,7 @@ export class UsersService {
 
   constructor(
     @Inject('UserRepository') private readonly userRepository: UserRepository,
+    @Inject('UserProfileRepository') private readonly userProfileRepository: UserProfileRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: LoggerProviderService,
   ) {}
@@ -103,6 +106,16 @@ export class UsersService {
       throw error;
     }
   }
+  async updateMe(userId: string, dto: UpdateUserDto) {
+    this.logger.info(this.context, `Updating profile for user ${userId}`);
+    const profile = await this.userProfileRepository.findByUserId(userId);
+    if (!profile) {
+      throw new NotFoundException('User profile not found');
+    }
+    const updated = await this.userProfileRepository.update(userId, { ...profile, ...dto });
+    return updated;
+  }
+
   async getCurrentUser(payload: JwtPayload) {
     this.logger.info(this.context, `Fetching user details for user ${payload.userId}`);
     const user = await this.userRepository.findById(payload.userId);

@@ -18,4 +18,5 @@ export interface Category {
   isSelectable: boolean;
   createdAt: Date;
   updatedAt: Date;
+  nulledAt?: Date | null;
 }

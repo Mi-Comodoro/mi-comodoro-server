@@ -72,6 +72,9 @@ class BudgetResponseData implements Budget {
 
   @ApiResponseProperty({ type: 'string', example: 'PLANNED' })
   status: 'ACTIVE' | 'CLOSED' | 'PLANNED';
+
+  @ApiResponseProperty({ type: 'string', example: 'COP' })
+  currency: string;
 }
 
 export class BudgetResponseDto {
