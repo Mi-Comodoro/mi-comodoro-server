@@ -1,6 +1,6 @@
-import { Controller, Get, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
 import { CurrentUser } from '@/common/decorator/current-user.request';
@@ -54,13 +54,19 @@ export class AnalyticsCombinedController {
 
   @Get('cash-flow-forecast')
   @ApiOperation({ summary: 'Pronóstico de flujo de caja 3 meses' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'month', required: false, type: Number })
   @ApiOkResponse({ type: CashFlowForecastDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')
-  async getCashFlowForecast(@CurrentUser() user: JwtPayload) {
+  async getCashFlowForecast(
+    @CurrentUser() user: JwtPayload,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+  ) {
     this.logger.info(
       this.context,
       `Solicitando pronóstico de flujo de caja para usuario ${user.userId}`,
     );
-    return this.analyticsCombinedService.getCashFlowForecast(user.userId);
+    return this.analyticsCombinedService.getCashFlowForecast(user.userId, year, month);
   }
 }

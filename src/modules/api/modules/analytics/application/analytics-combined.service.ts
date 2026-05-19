@@ -133,8 +133,15 @@ export class AnalyticsCombinedService {
     return { trend };
   }
 
-  async getCashFlowForecast(userId: string): Promise<CashFlowForecastDto> {
+  async getCashFlowForecast(
+    userId: string,
+    year?: string,
+    month?: string,
+  ): Promise<CashFlowForecastDto> {
     this.logger.info(this.context, `Calculando pronóstico de flujo de caja para usuario ${userId}`);
+
+    const targetYear = year ? Number(year) : new Date().getFullYear();
+    const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
 
     const [apSummary, arSummary, activeBudget] = await Promise.all([
       this.apService.getSummary(userId),
@@ -158,8 +165,7 @@ export class AnalyticsCombinedService {
     const monthlyReceivables = arSummary.expectedThisMonth;
 
     const months = Array.from({ length: 3 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i);
+      const date = new Date(targetYear, targetMonth - 1 + i, 1);
       const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
       const projectedIncome = monthlyIncome + monthlyReceivables;
       const projectedExpenses = monthlyExpenses + monthlyDebtPayments;
