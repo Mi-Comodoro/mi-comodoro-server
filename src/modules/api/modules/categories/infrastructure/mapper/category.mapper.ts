@@ -13,6 +13,7 @@ export class CategoryMapper {
       children: entity.children ? entity.children.map((child) => this.toDomain(child)) : undefined,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
+      nulledAt: entity.nulledAt ?? null,
     };
   }
 
@@ -27,6 +28,7 @@ export class CategoryMapper {
     entity.parentId = domain.parentId;
     entity.createdAt = domain.createdAt;
     entity.updatedAt = domain.updatedAt;
+    entity.nulledAt = domain.nulledAt ?? null;
 
     return entity;
   }

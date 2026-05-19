@@ -26,7 +26,7 @@ export class CategoryRepositoryImpl implements CategoryRepository {
   }
 
   async findAll(): Promise<Category[]> {
-    const categoryEntities = await this.categoryRepo.find();
+    const categoryEntities = await this.categoryRepo.find({ where: { nulledAt: null } });
     return categoryEntities.map((entity) => CategoryMapper.toDomain(entity));
   }
 
@@ -48,5 +48,9 @@ export class CategoryRepositoryImpl implements CategoryRepository {
   }
   async delete(id: string): Promise<void> {
     await this.categoryRepo.delete(id);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.categoryRepo.update({ id }, { nulledAt: new Date() });
   }
 }
