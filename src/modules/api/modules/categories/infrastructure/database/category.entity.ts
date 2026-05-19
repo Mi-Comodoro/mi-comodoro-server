@@ -44,4 +44,6 @@ export class CategoryEntity implements Category {
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+  @Column({ name: 'nulled_at', nullable: true, type: 'timestamp' })
+  nulledAt: Date | null;
 }
