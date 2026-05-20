@@ -1,10 +1,21 @@
-import { Controller, Get, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { CurrentUser } from '@/common/decorator/current-user.request';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 
 import { PlannedSavingService } from '../../application/services/planned-saving.service';
+import { CreatePlannedSavingDto } from '../dto/create-planned-saving.dto';
 
 @ApiTags('planned-savings')
 @ApiBearerAuth('bearerAuth')
@@ -12,6 +23,17 @@ import { PlannedSavingService } from '../../application/services/planned-saving.
 @Controller('planned-savings')
 export class PlannedSavingController {
   constructor(private readonly plannedSavingService: PlannedSavingService) {}
+
+  @Post('/')
+  @ApiOperation({ summary: 'Crear ahorro planificado manualmente vinculado a un ingreso' })
+  @ApiBody({ type: CreatePlannedSavingDto })
+  @ApiCreatedResponse({ description: 'Ahorro planificado creado exitosamente' })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Meta, presupuesto o ingreso no encontrado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Datos inválidos o presupuesto inactivo')
+  async create(@CurrentUser() user: JwtPayload, @Body() dto: CreatePlannedSavingDto) {
+    return await this.plannedSavingService.create(user.userId, dto);
+  }
 
   @Get('budget/:budgetId')
   @ApiOperation({ summary: 'Listar ahorros planificados por presupuesto' })
