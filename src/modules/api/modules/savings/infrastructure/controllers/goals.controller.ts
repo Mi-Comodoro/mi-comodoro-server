@@ -128,6 +128,17 @@ export class GoalsController {
     return await this.goalsService.getGoalContributions(id, user.userId);
   }
 
+  @Get(':id/summary')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Get savings and interest totals for a goal' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Summary retrieved successfully' })
+  async getGoalSummary(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'getting summary for saving goal');
+    return await this.goalsService.getGoalSummary(id, user.userId);
+  }
+
   @Post(':id/interest')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')

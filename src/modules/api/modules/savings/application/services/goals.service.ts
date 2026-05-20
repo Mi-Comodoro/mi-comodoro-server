@@ -13,6 +13,7 @@ import { CategoryType } from '@/modules/api/modules/categories/domain/category';
 import { CategoryRepository } from '@/modules/api/modules/categories/domain/repositories/category.repository';
 import { FinancesRepository } from '@/modules/api/modules/finances/domain/repositories/finances.repository';
 import { TransactionRepository } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
+import { GoalSummary } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 
 import { GoalHistory } from '../../domain/goal-history';
 import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
@@ -341,6 +342,20 @@ export class GoalsService {
     }
 
     return await this.transactionRepository.findByGoalId(goalId);
+  }
+
+  async getGoalSummary(goalId: string, userId: string): Promise<GoalSummary> {
+    this.logger.info(this.context, `getting summary for goal ${goalId}`);
+
+    const goal = await this.goalsRepository.findById(goalId);
+    if (!goal) {
+      throw new NotFoundException('Goal not found');
+    }
+    if (goal.userId !== userId) {
+      throw new UnauthorizedException();
+    }
+
+    return await this.transactionRepository.getGoalSummary(goalId);
   }
 
   private async trackChanges(

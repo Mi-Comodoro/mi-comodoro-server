@@ -10,7 +10,10 @@ import {
   Repository,
 } from 'typeorm';
 
-import { TransactionRepository } from '../../domain/repositories/transaction.repository';
+import {
+  GoalSummary,
+  TransactionRepository,
+} from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters, TransactionPagination } from '../../domain/transaction';
 import { TransactionEntity } from '../database/entities/transaction.entity';
 import { TransactionMapper } from '../mapper/transaction.mapper';
@@ -104,5 +107,23 @@ export class TransactionRepositoryImpl implements TransactionRepository {
       order: { transactionDate: 'DESC' },
     });
     return entities.map(TransactionMapper.toDomain);
+  }
+
+  async getGoalSummary(goalId: string): Promise<GoalSummary> {
+    const rows = await this.transactionRepository
+      .createQueryBuilder('t')
+      .select('t.type', 'type')
+      .addSelect('SUM(t.amount)', 'total')
+      .where('t.saving_goal_id = :goalId', { goalId })
+      .andWhere('t.nulled_at IS NULL')
+      .andWhere("t.type IN ('savings', 'interest')")
+      .groupBy('t.type')
+      .getRawMany<{ type: string; total: string }>();
+
+    const map = new Map(rows.map((r) => [r.type, Number(r.total) || 0]));
+    return {
+      totalSavings: map.get('savings') ?? 0,
+      totalInterest: map.get('interest') ?? 0,
+    };
   }
 }
