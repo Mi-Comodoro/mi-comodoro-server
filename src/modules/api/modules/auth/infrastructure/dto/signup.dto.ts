@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 
 import { PASSWORD_REGEX } from '@/common/constants';
+import { AccountType } from '@/common/enums/account-type.enum';
 
 import { FinancialProfileEnum, GenderEnum, UsageEnum } from '../../../shared/enum/enum';
 
@@ -87,6 +88,15 @@ export class SignUpDto {
   @IsOptional()
   @IsEnum(FinancialProfileEnum)
   financialProfile?: FinancialProfileEnum;
+
+  @ApiPropertyOptional({
+    example: 'free',
+    description: 'Plan de cuenta (trial por defecto)',
+    enum: AccountType,
+  })
+  @IsOptional()
+  @IsString()
+  plan?: string;
 }
 
 class UserProfileSignUpResponseDto {

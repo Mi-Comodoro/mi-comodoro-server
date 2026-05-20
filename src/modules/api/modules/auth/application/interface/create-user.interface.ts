@@ -7,4 +7,5 @@ export interface CreateUserProfile {
   displayName?: string;
   gender?: GenderType;
   country?: string;
+  plan?: string;
 }

@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import * as admin from 'firebase-admin';
 
+import { AccountType } from '@/common/enums/account-type.enum';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
@@ -56,6 +57,16 @@ export class AuthService {
         tokenVersion: 0,
       };
 
+      const planMap: Record<string, AccountType> = {
+        free: AccountType.FREE,
+        plus: AccountType.PLUS,
+        pro: AccountType.PRO,
+        partner: AccountType.PARTNER,
+      };
+      const accountType = planMap[data.plan?.toLowerCase() ?? ''] ?? AccountType.TRIAL;
+      const trialEndsAt =
+        accountType === AccountType.TRIAL ? new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) : null;
+
       const userCreated: User = await this.userRepository.save(user);
       const newUserProfile: UserProfile = {
         id: randomUUID(),
@@ -64,7 +75,8 @@ export class AuthService {
         displayName: data.displayName ?? '',
         gender: data.gender || 'prefer_not_to_say',
         country: data.country,
-        type: 'trial',
+        accountType,
+        trialEndsAt,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
@@ -92,6 +104,7 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role ?? UserRole.USER,
+      accountType: user.userProfile?.accountType,
       userProfileId: user.userProfile?.id ?? '',
       tokenVersion: user.tokenVersion ?? 0,
     };
@@ -100,7 +113,7 @@ export class AuthService {
 
     return {
       token,
-      accountType: user.userProfile?.type,
+      accountType: user.userProfile?.accountType,
       expiresAt: decoded.exp,
     };
   }
@@ -141,7 +154,7 @@ export class AuthService {
         photo: decodedToken.picture?.split('?')[0],
         gender: 'prefer_not_to_say',
         country: 'CO',
-        type: 'trial',
+        accountType: AccountType.TRIAL,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
@@ -151,13 +164,14 @@ export class AuthService {
         `UserProfile created for user ${userCreated.id} with email ${decodedToken.email}`,
       );
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
-      response.accountType = userProfile.type;
+      response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;
       this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
       payload = {
         userId: userCreated.id,
         email: userCreated.email,
         role: userCreated.role ?? UserRole.USER,
+        accountType: userProfile.accountType,
         userProfileId: userProfile.id,
         tokenVersion: userCreated.tokenVersion ?? 0,
       };
@@ -166,10 +180,11 @@ export class AuthService {
         userId: user.id,
         email: user.email,
         role: user.role ?? UserRole.USER,
+        accountType: user.userProfile?.accountType,
         userProfileId: user.userProfile?.id ?? '',
         tokenVersion: user.tokenVersion ?? 0,
       };
-      response.accountType = user.userProfile?.type as string;
+      response.accountType = user.userProfile?.accountType as string;
       response.onboarding = user.onboarding as string;
     }
 
@@ -197,6 +212,7 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role ?? UserRole.USER,
+      accountType: user.userProfile?.accountType,
       userProfileId: payload.userProfileId,
       tokenVersion: user.tokenVersion,
     };

@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { PlanGuard } from '@/common/guards/plan.guard';
 import { IdempotencyInterceptor } from '@/common/idempotency/idempotency.interceptor';
 import { IdempotencyKey } from '@/common/idempotency/idempotency-key.entity';
 import { InitialConfigModule } from '@/core/config/index';
@@ -47,6 +48,10 @@ import { ApiModule } from './api/api.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PlanGuard,
     },
     {
       provide: APP_INTERCEPTOR,
