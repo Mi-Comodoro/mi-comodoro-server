@@ -147,6 +147,7 @@ export class PlannedSavingService {
         fromAccountId: primaryAccount?.id,
         toAccountId: savingPlanned.accountId,
         transactionDate: today,
+        savingGoalId: savingPlanned.savingGoalId ?? undefined,
       });
 
       let interestTx: TransactionEntity | null = null;
@@ -165,6 +166,7 @@ export class PlannedSavingService {
           accountId: savingPlanned.accountId,
           toAccountId: savingPlanned.accountId,
           transactionDate: today,
+          savingGoalId: goal.id,
         });
         await manager.update(SavingGoalEntity, { id: goal.id }, { lastInterestDate: today });
       }
