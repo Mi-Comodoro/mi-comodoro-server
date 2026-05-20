@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import {
+  GoalSavedTotal,
   PlannedSavingRepository,
   SavingsTrendPoint,
 } from '../../domain/repositories/planned.repository';
@@ -75,6 +76,20 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
     if (result.affected === 0) return null;
 
     return this.findById(id);
+  }
+
+  async sumCompletedByGoalIds(goalIds: string[]): Promise<GoalSavedTotal[]> {
+    if (!goalIds.length) return [];
+    const rows = await this.plannedSavingRepository
+      .createQueryBuilder('ps')
+      .innerJoin('ps.savingGoal', 'goal')
+      .where('goal.id IN (:...goalIds)', { goalIds })
+      .andWhere('ps.status = :status', { status: PlannedSavingStatus.COMPLETED })
+      .select('goal.id', 'goalId')
+      .addSelect('SUM(ps.amount)', 'total')
+      .groupBy('goal.id')
+      .getRawMany();
+    return rows.map((r) => ({ goalId: r.goalId, total: Number(r.total) || 0 }));
   }
 
   async findCompletedLast6MonthsByUserId(userId: string): Promise<SavingsTrendPoint[]> {

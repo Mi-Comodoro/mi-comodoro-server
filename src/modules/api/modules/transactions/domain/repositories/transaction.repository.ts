@@ -13,4 +13,5 @@ export interface TransactionRepository {
   findById(id: string): Promise<Transaction | null>;
   update(id: string, data: Partial<Transaction>): Promise<Transaction | null>;
   softDelete(id: string): Promise<boolean>;
+  findByGoalId(goalId: string): Promise<Transaction[]>;
 }

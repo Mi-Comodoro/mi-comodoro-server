@@ -117,6 +117,17 @@ export class GoalsController {
     return await this.goalsService.getHistory(id, user.userId);
   }
 
+  @Get(':id/contributions')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Get all contributions (transactions) for a saving goal' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Contributions retrieved successfully' })
+  async getGoalContributions(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'getting contributions for saving goal');
+    return await this.goalsService.getGoalContributions(id, user.userId);
+  }
+
   @Post(':id/contributions')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')

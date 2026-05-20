@@ -97,4 +97,12 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     const result = await this.transactionRepository.update(id, { nulledAt: new Date() });
     return (result.affected ?? 0) > 0;
   }
+
+  async findByGoalId(goalId: string): Promise<Transaction[]> {
+    const entities = await this.transactionRepository.find({
+      where: { savingGoalId: goalId, nulledAt: IsNull() },
+      order: { transactionDate: 'DESC' },
+    });
+    return entities.map(TransactionMapper.toDomain);
+  }
 }

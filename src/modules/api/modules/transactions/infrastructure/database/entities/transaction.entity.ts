@@ -97,6 +97,9 @@ export class TransactionEntity implements Transaction {
   @Column({ name: 'planned_income_id', nullable: true })
   plannedIncomeId?: string;
 
+  @Column({ name: 'saving_goal_id', nullable: true })
+  savingGoalId?: string;
+
   @ManyToOne(() => PlannedIncomeEntity, { nullable: true })
   @JoinColumn({ name: 'planned_income_id' })
   plannedIncome?: PlannedIncomeEntity;

@@ -12,6 +12,7 @@ export interface Transaction {
   plannedExpenseId?: string;
   plannedIncomeId?: string;
   accountId?: string; // ← faltaba, lo usás en savings
+  savingGoalId?: string;
 
   // Trazabilidad de movimiento entre cuentas
   fromAccountId?: string; // Cuenta origen del movimiento
