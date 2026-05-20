@@ -178,8 +178,10 @@ export class GoalsService {
       throw new NotFoundException('Goal not found');
     }
 
+    const contributionType = dto.contributionType ?? 'external';
+
     // 2. Si es internal, validar que la cuenta existe y pertenece al usuario
-    if (dto.contributionType === 'internal') {
+    if (contributionType === 'internal') {
       if (!dto.accountId) {
         throw new BadRequestException('accountId is required for internal contributions');
       }
@@ -215,7 +217,7 @@ export class GoalsService {
     const plannedSaving = await this.plannedSavingRepository.save({
       savingGoalId: goalId,
       budgetId: budget.id,
-      accountId: dto.contributionType === 'internal' ? dto.accountId : undefined,
+      accountId: contributionType === 'internal' ? dto.accountId : undefined,
       amount: dto.amount,
       date: new Date(dto.date),
       status: PlannedSavingStatus.COMPLETED,

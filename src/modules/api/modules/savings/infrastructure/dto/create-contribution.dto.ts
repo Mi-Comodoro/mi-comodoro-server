@@ -36,12 +36,13 @@ export class CreateContributionDto {
   @IsString()
   notes?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: ['internal', 'external'],
-    example: 'internal',
+    example: 'external',
     description:
-      'Tipo de aporte: internal (desde una cuenta del sistema) o external (fuera del sistema)',
+      'Tipo de aporte: internal (desde una cuenta del sistema) o external (fuera del sistema). Por defecto: external.',
   })
+  @IsOptional()
   @IsEnum(['internal', 'external'])
-  contributionType: 'internal' | 'external';
+  contributionType?: 'internal' | 'external';
 }
