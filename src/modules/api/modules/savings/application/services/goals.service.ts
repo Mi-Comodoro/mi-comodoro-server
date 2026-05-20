@@ -277,6 +277,58 @@ export class GoalsService {
     return plannedSaving;
   }
 
+  async registerGoalInterest(
+    goalId: string,
+    userId: string,
+    amount: number,
+    date: string,
+  ): Promise<void> {
+    this.logger.info(this.context, `registering interest for goal ${goalId}`);
+
+    const goal = await this.goalsRepository.findByIdAndUser(goalId, userId);
+    if (!goal) throw new NotFoundException('Goal not found');
+
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id) throw new NotFoundException('Finances not found for user');
+
+    const MONTH_NAMES = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    const now = new Date();
+    const budget = await this.budgetRepository.findByFinancesIdAndMonth(
+      finances.id,
+      MONTH_NAMES[now.getMonth()],
+      now.getFullYear(),
+    );
+    if (!budget) throw new NotFoundException('No budget found for current month');
+
+    const category = await this.categoryRepository.findByType(CategoryType.SAVINGS);
+    if (!category) throw new NotFoundException('Savings category not found');
+
+    await this.transactionRepository.save({
+      type: 'interest' as const,
+      amount,
+      source: `Interés - ${goal.name}`,
+      userId,
+      budgetId: budget.id,
+      categoryId: category.id,
+      accountId: goal.accountId ?? undefined,
+      transactionDate: new Date(date),
+      savingGoalId: goalId,
+    });
+  }
+
   async getGoalContributions(goalId: string, userId: string) {
     this.logger.info(this.context, `getting contributions for goal ${goalId}`);
 

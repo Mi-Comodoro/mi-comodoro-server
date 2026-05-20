@@ -128,6 +128,21 @@ export class GoalsController {
     return await this.goalsService.getGoalContributions(id, user.userId);
   }
 
+  @Post(':id/interest')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Registrar interés acumulado para una meta de ahorro' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Interés registrado exitosamente' })
+  async registerGoalInterest(
+    @Param('id') id: string,
+    @Body() body: { amount: number; date: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, 'registering interest for saving goal');
+    return await this.goalsService.registerGoalInterest(id, user.userId, body.amount, body.date);
+  }
+
   @Post(':id/contributions')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
