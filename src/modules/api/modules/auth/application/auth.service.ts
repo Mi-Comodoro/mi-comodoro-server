@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import * as admin from 'firebase-admin';
 
+import { AccountType } from '@/common/enums/account-type.enum';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
@@ -64,7 +65,7 @@ export class AuthService {
         displayName: data.displayName ?? '',
         gender: data.gender || 'prefer_not_to_say',
         country: data.country,
-        type: 'trial',
+        accountType: AccountType.TRIAL,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
@@ -100,7 +101,7 @@ export class AuthService {
 
     return {
       token,
-      accountType: user.userProfile?.type,
+      accountType: user.userProfile?.accountType,
       expiresAt: decoded.exp,
     };
   }
@@ -141,7 +142,7 @@ export class AuthService {
         photo: decodedToken.picture?.split('?')[0],
         gender: 'prefer_not_to_say',
         country: 'CO',
-        type: 'trial',
+        accountType: AccountType.TRIAL,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
@@ -151,7 +152,7 @@ export class AuthService {
         `UserProfile created for user ${userCreated.id} with email ${decodedToken.email}`,
       );
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
-      response.accountType = userProfile.type;
+      response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;
       this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
       payload = {
@@ -169,7 +170,7 @@ export class AuthService {
         userProfileId: user.userProfile?.id ?? '',
         tokenVersion: user.tokenVersion ?? 0,
       };
-      response.accountType = user.userProfile?.type as string;
+      response.accountType = user.userProfile?.accountType as string;
       response.onboarding = user.onboarding as string;
     }
 

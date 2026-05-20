@@ -8,11 +8,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { AccountType } from '@/common/enums/account-type.enum';
 import { GenderEnum } from '@/modules/api/modules/shared/enum/enum';
 import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
 
 import { UserProfile } from '../../../domain/user-profile.entity';
-import { GenderType, UserProfileType } from '../../../domain/user-profile.types';
+import { GenderType } from '../../../domain/user-profile.types';
 
 @Entity('user_profile')
 export class UserProfileEntity implements UserProfile {
@@ -32,10 +33,15 @@ export class UserProfileEntity implements UserProfile {
   gender?: GenderType;
   @Column({ type: 'char', length: 2, nullable: true })
   country?: string;
-  @Column()
-  type: UserProfileType;
-  @Column({ name: 'trial_ends_at', nullable: true })
-  trialEndsAt?: Date;
+  @Column({
+    name: 'type',
+    type: 'enum',
+    enum: AccountType,
+    default: AccountType.TRIAL,
+  })
+  accountType: AccountType;
+  @Column({ name: 'trial_ends_at', type: 'timestamp', nullable: true })
+  trialEndsAt: Date | null;
   @Column({ name: 'is_phone_verified', default: false })
   isPhoneVerified: boolean;
 

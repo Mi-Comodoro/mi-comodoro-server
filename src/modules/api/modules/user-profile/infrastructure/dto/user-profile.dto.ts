@@ -1,5 +1,7 @@
 import { ApiResponseProperty } from '@nestjs/swagger';
 
+import { AccountType } from '@/common/enums/account-type.enum';
+
 import { GenderType } from '../../domain/user-profile.types';
 
 class ResponseData {
@@ -29,8 +31,8 @@ class ResponseData {
   @ApiResponseProperty({ type: 'string', example: 'CO' })
   country?: string;
 
-  @ApiResponseProperty({ type: 'string', example: 'TRIAL' })
-  type: string;
+  @ApiResponseProperty({ enum: AccountType, example: AccountType.TRIAL })
+  accountType: AccountType;
 
   @ApiResponseProperty({
     type: 'string',
