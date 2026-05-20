@@ -57,6 +57,16 @@ export class AuthService {
         tokenVersion: 0,
       };
 
+      const planMap: Record<string, AccountType> = {
+        free: AccountType.FREE,
+        plus: AccountType.PLUS,
+        pro: AccountType.PRO,
+        partner: AccountType.PARTNER,
+      };
+      const accountType = planMap[data.plan?.toLowerCase() ?? ''] ?? AccountType.TRIAL;
+      const trialEndsAt =
+        accountType === AccountType.TRIAL ? new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) : null;
+
       const userCreated: User = await this.userRepository.save(user);
       const newUserProfile: UserProfile = {
         id: randomUUID(),
@@ -65,7 +75,8 @@ export class AuthService {
         displayName: data.displayName ?? '',
         gender: data.gender || 'prefer_not_to_say',
         country: data.country,
-        accountType: AccountType.TRIAL,
+        accountType,
+        trialEndsAt,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
@@ -93,6 +104,7 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role ?? UserRole.USER,
+      accountType: user.userProfile?.accountType,
       userProfileId: user.userProfile?.id ?? '',
       tokenVersion: user.tokenVersion ?? 0,
     };
@@ -159,6 +171,7 @@ export class AuthService {
         userId: userCreated.id,
         email: userCreated.email,
         role: userCreated.role ?? UserRole.USER,
+        accountType: userProfile.accountType,
         userProfileId: userProfile.id,
         tokenVersion: userCreated.tokenVersion ?? 0,
       };
@@ -167,6 +180,7 @@ export class AuthService {
         userId: user.id,
         email: user.email,
         role: user.role ?? UserRole.USER,
+        accountType: user.userProfile?.accountType,
         userProfileId: user.userProfile?.id ?? '',
         tokenVersion: user.tokenVersion ?? 0,
       };
@@ -198,6 +212,7 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role ?? UserRole.USER,
+      accountType: user.userProfile?.accountType,
       userProfileId: payload.userProfileId,
       tokenVersion: user.tokenVersion,
     };

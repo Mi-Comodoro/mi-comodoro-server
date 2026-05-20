@@ -57,6 +57,7 @@ export class AuthController {
       country: body.country,
       usageType: body.usageType,
       financialProfile: body.financialProfile,
+      plan: body.plan,
       passwordHash: hash,
     };
     return await this.authService.signup(data);
