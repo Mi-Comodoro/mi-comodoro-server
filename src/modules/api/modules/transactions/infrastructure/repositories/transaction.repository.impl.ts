@@ -109,14 +109,35 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     return entities.map(TransactionMapper.toDomain);
   }
 
-  async getGoalSummary(goalId: string): Promise<GoalSummary> {
+  async getGoalSummary(
+    goalId: string,
+    userId: string,
+    accountId: string,
+    goalName: string,
+  ): Promise<GoalSummary> {
+    // Interest from completePlannedSaving was historically saved without savingGoalId.
+    // Include those orphaned transactions by matching on user + account + source pattern.
+    const orphanedInterestSource = `Interés: ${goalName}`;
+
     const rows = await this.transactionRepository
       .createQueryBuilder('t')
       .select('t.type', 'type')
       .addSelect('SUM(t.amount)', 'total')
-      .where('t.saving_goal_id = :goalId', { goalId })
-      .andWhere('t.nulled_at IS NULL')
+      .where('t.nulled_at IS NULL')
       .andWhere("t.type IN ('savings', 'interest')")
+      .andWhere(
+        `(
+          t.saving_goal_id = :goalId
+          OR (
+            t.type = 'interest'
+            AND t.user_id = :userId
+            AND t.account_id = :accountId
+            AND t.saving_goal_id IS NULL
+            AND t.source = :orphanedSource
+          )
+        )`,
+        { goalId, userId, accountId, orphanedSource: orphanedInterestSource },
+      )
       .groupBy('t.type')
       .getRawMany<{ type: string; total: string }>();
 

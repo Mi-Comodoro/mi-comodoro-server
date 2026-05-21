@@ -355,7 +355,12 @@ export class GoalsService {
       throw new UnauthorizedException();
     }
 
-    return await this.transactionRepository.getGoalSummary(goalId);
+    return await this.transactionRepository.getGoalSummary(
+      goalId,
+      userId,
+      goal.accountId,
+      goal.name,
+    );
   }
 
   private async trackChanges(

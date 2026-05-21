@@ -19,5 +19,10 @@ export interface TransactionRepository {
   update(id: string, data: Partial<Transaction>): Promise<Transaction | null>;
   softDelete(id: string): Promise<boolean>;
   findByGoalId(goalId: string): Promise<Transaction[]>;
-  getGoalSummary(goalId: string): Promise<GoalSummary>;
+  getGoalSummary(
+    goalId: string,
+    userId: string,
+    accountId: string,
+    goalName: string,
+  ): Promise<GoalSummary>;
 }
