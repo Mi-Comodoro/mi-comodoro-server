@@ -8,6 +8,7 @@ import { FinancesModule } from '../finances/finances.module';
 import { TransactionModule } from '../transactions/transaction.module';
 import { SavingAllocationService } from './application/services/allocations.service';
 import { GoalsService } from './application/services/goals.service';
+import { InterestCronService } from './application/services/interest-cron.service';
 import { PlannedSavingService } from './application/services/planned-saving.service';
 import { SavingAllocationController } from './infrastructure/controllers/allocation.controller';
 import { GoalsController } from './infrastructure/controllers/goals.controller';
@@ -39,6 +40,7 @@ import { PlannedSavingRepositoryImpl } from './infrastructure/repositories/plann
     GoalsService,
     SavingAllocationService,
     PlannedSavingService,
+    InterestCronService,
     {
       provide: 'GoalsRepository',
       useClass: GoalsRepositoryImpl,

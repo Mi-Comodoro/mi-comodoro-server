@@ -328,6 +328,8 @@ export class GoalsService {
       transactionDate: new Date(date),
       savingGoalId: goalId,
     });
+
+    await this.goalsRepository.update(goalId, userId, { lastInterestDate: new Date() });
   }
 
   async getGoalContributions(goalId: string, userId: string) {
