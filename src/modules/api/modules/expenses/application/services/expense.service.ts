@@ -34,7 +34,7 @@ export class ExpenseService {
       categoryId: dto.categoryId,
       name: dto.name,
       expectedAmount: dto.expectedAmount,
-      dueDate: dto.dueDate,
+      dueDate: new Date(dto.dueDate),
       status: dto.status,
       isEssential: dto.isEssential,
       notes: dto.notes,

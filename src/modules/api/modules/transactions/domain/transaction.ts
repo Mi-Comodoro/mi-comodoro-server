@@ -7,7 +7,7 @@ export interface Transaction {
   // IDs directos
   userId: string;
   budgetId: string;
-  categoryId: string;
+  categoryId?: string;
   billId?: string;
   plannedExpenseId?: string;
   plannedIncomeId?: string;

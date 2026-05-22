@@ -73,10 +73,15 @@ export class TransactionService {
       throw new BadRequestException('Budget is not active');
     }
 
-    // Validar que la categoría existe
-    const category = await this.categoryRepository.findById(dto.categoryId);
-    if (!category) {
-      throw new NotFoundException('Category not found');
+    // Validar categoría solo para gastos
+    if (dto.type === 'expense') {
+      if (!dto.categoryId) {
+        throw new BadRequestException('Category is required for expense transactions');
+      }
+      const category = await this.categoryRepository.findById(dto.categoryId);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
     }
 
     // Validar account si se proporciona

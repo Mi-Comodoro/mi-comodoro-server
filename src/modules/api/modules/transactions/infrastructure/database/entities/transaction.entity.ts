@@ -43,8 +43,8 @@ export class TransactionEntity implements Transaction {
   @Column({ name: 'bill_id', nullable: true })
   billId: string;
 
-  @Column({ name: 'category_id', nullable: false })
-  categoryId: string;
+  @Column({ name: 'category_id', nullable: true })
+  categoryId?: string;
 
   @Column({
     type: 'enum',
@@ -62,8 +62,8 @@ export class TransactionEntity implements Transaction {
   })
   budget: BudgetEntity;
 
-  @ManyToOne(() => CategoryEntity)
-  category: CategoryEntity;
+  @ManyToOne(() => CategoryEntity, { nullable: true })
+  category?: CategoryEntity;
   @ManyToOne(() => IncomesEntity, { nullable: true })
   incomeSource: IncomesEntity;
   @ManyToOne(() => BillsEntity, { nullable: true })

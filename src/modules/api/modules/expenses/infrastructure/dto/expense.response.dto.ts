@@ -23,6 +23,9 @@ export class PlannedExpenseItemDto {
   bucket: string;
 
   @ApiProperty()
+  isEssential: boolean;
+
+  @ApiProperty()
   isFromBill: boolean;
 }
 

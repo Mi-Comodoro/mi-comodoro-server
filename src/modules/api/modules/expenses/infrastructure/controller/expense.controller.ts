@@ -131,7 +131,11 @@ export class ExpenseController {
     @CurrentUser() user: JwtPayload,
   ) {
     this.logger.info(this.context, 'Update planned expense');
-    return await this.expenseService.updatePlannedExpense(id, user.userId, updateData);
+    const { dueDate, ...rest } = updateData;
+    return await this.expenseService.updatePlannedExpense(id, user.userId, {
+      ...rest,
+      ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
+    });
   }
 
   @Delete('/:id')

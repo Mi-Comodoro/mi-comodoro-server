@@ -23,15 +23,15 @@ export class PlannedSavingEntity {
   budget: BudgetEntity;
 
   // 🔥 clave para trazabilidad por ingreso
-  @ManyToOne(() => PlannedIncomeEntity)
-  plannedIncome: PlannedIncomeEntity;
+  @ManyToOne(() => PlannedIncomeEntity, { nullable: true })
+  plannedIncome?: PlannedIncomeEntity;
 
-  @ManyToOne(() => SavingGoalEntity)
-  savingGoal: SavingGoalEntity;
+  @ManyToOne(() => SavingGoalEntity, { nullable: true })
+  savingGoal?: SavingGoalEntity;
 
   // 👉 redundante pero útil (evita joins)
-  @ManyToOne(() => AccountEntity)
-  account: AccountEntity;
+  @ManyToOne(() => AccountEntity, { nullable: true })
+  account?: AccountEntity;
 
   @Column({
     type: 'decimal',
