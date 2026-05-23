@@ -52,9 +52,9 @@ export class PlannedIncomeController {
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Amount must be greater than 0')
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
-  async createManual(@Body() body: CreateManualPlannedIncomeDto) {
+  async createManual(@CurrentUser() user: JwtPayload, @Body() body: CreateManualPlannedIncomeDto) {
     this.logger.info(this.context, 'Creating manual planned income');
-    return await this.plannedIncomeService.createManual(body);
+    return await this.plannedIncomeService.createManual(body, user.userId);
   }
 
   @Post('/unplanned')
@@ -88,9 +88,9 @@ export class PlannedIncomeController {
   })
   @ApiOkResponse({ type: PlannedIncomeListResponseDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
-  async getMonthlyIncomeSum(@Param('budgetId') budgetId: string) {
+  async getMonthlyIncomeSum(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
     this.logger.info(this.context, `Calculating monthly income sum for month: ${budgetId}`);
-    return await this.plannedIncomeService.getByBudgetId(budgetId);
+    return await this.plannedIncomeService.getByBudgetId(budgetId, user.userId);
   }
 
   @Get('/')
@@ -99,9 +99,9 @@ export class PlannedIncomeController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOkResponse({ type: PlannedIncomeListResponseDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
-  async getAllMonthlyIncome() {
+  async getAllMonthlyIncome(@CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, `Calculating monthly incomes`);
-    return await this.plannedIncomeService.findAll();
+    return await this.plannedIncomeService.findAll(user.userId);
   }
 
   @Delete('/:id')
@@ -112,9 +112,9 @@ export class PlannedIncomeController {
   @ApiParam({ name: 'id', type: String, description: 'UUID del ingreso planificado' })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned Income not found')
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
-  async deletePlannedIncome(@Param('id') id: string) {
+  async deletePlannedIncome(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     this.logger.info(this.context, `Deleting planned income ${id}`);
-    await this.plannedIncomeService.deletePlannedIncome(id);
+    await this.plannedIncomeService.deletePlannedIncome(id, user.userId);
   }
 
   @Patch('/:id')
@@ -133,8 +133,8 @@ export class PlannedIncomeController {
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Invalid income amount')
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Planned Income not found')
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Unauthorized')
-  async markAsReceive(@Param('id') id: string) {
+  async markAsReceive(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     this.logger.info(this.context, 'Mark income as receive');
-    return await this.plannedIncomeService.markAsReceive(id);
+    return await this.plannedIncomeService.markAsReceive(id, user.userId);
   }
 }

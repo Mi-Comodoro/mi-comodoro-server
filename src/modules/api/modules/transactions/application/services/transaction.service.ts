@@ -27,6 +27,7 @@ export class TransactionService {
 
   async findByBudget(
     budgetId: string,
+    userId: string,
     query: {
       type?: string;
       categoryId?: string;
@@ -44,6 +45,11 @@ export class TransactionService {
       totalPages: number;
     };
   }> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
     const filters: TransactionFilters = {
       type: ['income', 'expense', 'savings'].includes(query?.type as string)
         ? (query?.type as TransactionFilters['type'])

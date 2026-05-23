@@ -27,8 +27,13 @@ export class ExpenseService {
     private readonly accountRepository: AccountRepository,
     private readonly logger: LoggerProviderService,
   ) {}
-  async addPlan(dto: CreateExpensePlanDto) {
+  async addPlan(dto: CreateExpensePlanDto, userId: string) {
     this.logger.info(this.context, '');
+    const budget = await this.budgetRepository.findById(dto.budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
     const plannedExpense: PlannedExpense = {
       budgetId: dto.budgetId,
       categoryId: dto.categoryId,
@@ -43,8 +48,17 @@ export class ExpenseService {
     return await this.expensePlannedRepository.add(plannedExpense);
   }
 
-  async findAll(filters: GetPlannedExpensesQueryDto) {
+  async findAll(filters: GetPlannedExpensesQueryDto, userId: string) {
     this.logger.info(this.context, '');
+    if (!filters.budgetId) {
+      throw new BadRequestException('budgetId is required');
+    }
+
+    const budget = await this.budgetRepository.findById(filters.budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
     return await this.expensePlannedRepository.findAll(filters);
   }
 
@@ -123,6 +137,7 @@ export class ExpenseService {
     const budget = await this.budgetRepository.findById(plannedExpense.budgetId);
 
     if (!budget) throw new NotFoundException('Budget not found');
+    if (budget.ownerId !== userId) throw new NotFoundException('Planned expense not found');
     if (budget.status !== 'ACTIVE') throw new BadRequestException('Budget is not active');
 
     const categoria = await this.categoryRepository.findById(plannedExpense.categoryId);

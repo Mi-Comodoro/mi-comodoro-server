@@ -32,26 +32,38 @@ export class PlannedIncomeService {
     private readonly accountRepository: AccountRepository,
   ) {}
 
-  async getByBudgetId(budgetId: string) {
+  async getByBudgetId(budgetId: string, userId: string) {
     this.logger.info(this.context, `Getting planned income by budget: ${budgetId} `);
+    await this.assertBudgetOwner(budgetId, userId);
     return await this.plannedIncomeRepository.findByBudgetId(budgetId);
   }
 
-  async findAll() {
+  async findAll(userId: string) {
     this.logger.info(this.context, `Getting planned income`);
-    return await this.plannedIncomeRepository.findAllPlanedIncomes();
+    const plannedIncomes = await this.plannedIncomeRepository.findAllPlanedIncomes();
+    const ownedPlannedIncomes = [];
+
+    for (const plannedIncome of plannedIncomes) {
+      if (!plannedIncome.budgetId) continue;
+      const budget = await this.budgetRepository.findById(plannedIncome.budgetId);
+      if (budget?.ownerId === userId) {
+        ownedPlannedIncomes.push(plannedIncome);
+      }
+    }
+
+    return ownedPlannedIncomes;
   }
 
-  async createManual(data: { budgetId: string; amount: number; date: Date; source: string }) {
+  async createManual(
+    data: { budgetId: string; amount: number; date: Date; source: string },
+    userId: string,
+  ) {
     this.logger.info(
       this.context,
       `Creating manual planned income for budget: ${data.budgetId}, source: ${data.source}`,
     );
 
-    const budget = await this.budgetRepository.findById(data.budgetId);
-    if (!budget) {
-      throw new NotFoundException('Budget not found');
-    }
+    await this.assertBudgetOwner(data.budgetId, userId);
 
     if (!data.source?.trim()) {
       throw new BadRequestException('Source is required');
@@ -119,8 +131,15 @@ export class PlannedIncomeService {
     };
   }
 
-  async markAsReceive(id: string) {
+  async markAsReceive(id: string, userId: string) {
     this.logger.info(this.context, `Mark income as receive: ${id} `);
+    const existingPlannedIncome = await this.plannedIncomeRepository.findById(id);
+    if (!existingPlannedIncome?.budgetId) {
+      throw new NotFoundException('Planned Income not Fond');
+    }
+
+    await this.assertBudgetOwner(existingPlannedIncome.budgetId, userId);
+
     const plannedIncome = await this.plannedIncomeRepository.markAsReceive(id);
     if (!plannedIncome) {
       throw new NotFoundException('Planned Income not Fond');
@@ -225,8 +244,23 @@ export class PlannedIncomeService {
     });
   }
 
-  async deletePlannedIncome(id: string): Promise<void> {
+  async deletePlannedIncome(id: string, userId: string): Promise<void> {
     this.logger.info(this.context, `Deleting planned income ${id}`);
+    const plannedIncome = await this.plannedIncomeRepository.findById(id);
+    if (!plannedIncome?.budgetId) {
+      throw new NotFoundException('Planned Income not found');
+    }
+
+    await this.assertBudgetOwner(plannedIncome.budgetId, userId);
     await this.plannedIncomeRepository.delete(id);
+  }
+
+  private async assertBudgetOwner(budgetId: string, userId: string): Promise<Budget> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
+    return budget;
   }
 }

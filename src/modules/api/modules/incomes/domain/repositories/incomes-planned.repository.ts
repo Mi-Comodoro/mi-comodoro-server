@@ -11,6 +11,7 @@ export interface PlannedIncomeRepository {
   ): Promise<void>;
 
   findByBudgetId(budgetId: string): Promise<Partial<PlannedIncome & { source: string }>[]>;
+  findById(id: string): Promise<Partial<PlannedIncome & { source: string }> | null>;
   findAllPlanedIncomes(): Promise<Partial<PlannedIncome & { source: string }>[]>;
   markAsReceive(
     id: string,

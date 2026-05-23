@@ -96,6 +96,15 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
     return budgetPlannedIncomes.map((item) => PlannedIncomeMapper.toDomain(item));
   }
 
+  async findById(id: string): Promise<Partial<PlannedIncome & { source: string }> | null> {
+    const plannedIncome = await this.plannedIncomesRepository.findOne({
+      where: { id },
+      relations: { incomeSource: true },
+    });
+
+    return plannedIncome ? PlannedIncomeMapper.toDomain(plannedIncome) : null;
+  }
+
   async findAllPlanedIncomes(): Promise<Partial<PlannedIncome & { source: string }>[]> {
     const budgetPlannedIncomes = await this.plannedIncomesRepository.find({
       where: {},

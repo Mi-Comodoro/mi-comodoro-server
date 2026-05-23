@@ -38,6 +38,7 @@ export class TransactionController {
   @ApiOperation({ summary: 'Listar transacciones por presupuesto' })
   @ApiOkResponse({ description: 'Lista de transacciones con filtros y paginación' })
   async findByBudget(
+    @CurrentUser() user: JwtPayload,
     @Param('budgetId') budgetId: string,
     @Query('type') type?: 'income' | 'expense' | 'savings' | undefined,
     @Query('categoryId') categoryId?: string,
@@ -54,7 +55,11 @@ export class TransactionController {
       page: Number(page),
       limit: Number(limit),
     };
-    const { data, pagination } = await this.transactionService.findByBudget(budgetId, query);
+    const { data, pagination } = await this.transactionService.findByBudget(
+      budgetId,
+      user.userId,
+      query,
+    );
     return { transactions: data, pagination };
   }
 

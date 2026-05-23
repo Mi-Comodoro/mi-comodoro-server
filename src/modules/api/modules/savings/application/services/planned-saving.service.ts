@@ -44,7 +44,12 @@ export class PlannedSavingService {
     private readonly logger: LoggerProviderService,
   ) {}
 
-  async findByBudget(budgetId: string): Promise<PlannedSaving[]> {
+  async findByBudget(budgetId: string, userId: string): Promise<PlannedSaving[]> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
     return await this.plannedSavingRepository.findByBudget(budgetId);
   }
 
@@ -121,6 +126,11 @@ export class PlannedSavingService {
       throw new BadRequestException('Solo se puede asignar una meta a ahorros pendientes');
     }
 
+    const budget = await this.budgetRepository.findById(saving.budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Ahorro planificado no encontrado');
+    }
+
     const goal = await this.goalsRepository.findByIdAndUser(savingGoalId, userId);
     if (!goal) throw new NotFoundException('Meta de ahorro no encontrada');
     if (!goal.accountId) throw new BadRequestException('La meta no tiene cuenta asignada');
@@ -136,7 +146,10 @@ export class PlannedSavingService {
     return updated;
   }
 
-  async markAsDone(id: string): Promise<{
+  async markAsDone(
+    id: string,
+    userId: string,
+  ): Promise<{
     savingPlanned: PlannedSaving;
     interestTransaction: TransactionEntity | null;
   }> {
@@ -149,6 +162,7 @@ export class PlannedSavingService {
 
     const budget = await this.budgetRepository.findById(savingPlanned.budgetId);
     if (!budget) throw new NotFoundException('Budget not found');
+    if (budget.ownerId !== userId) throw new NotFoundException('Planned Savings not found');
 
     const category = await this.categoryRepository.findByType(CategoryType.SAVINGS);
     if (!category) throw new NotFoundException('Categoría de ahorro no encontrada');

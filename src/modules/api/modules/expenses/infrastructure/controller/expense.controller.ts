@@ -49,12 +49,13 @@ export class ExpenseController {
   @Post('/plan')
   @UseGuards(AuthGuard('jwt'))
   async plan(
+    @CurrentUser() user: JwtPayload,
     @Body()
     body: CreateExpensePlanDto,
   ) {
     this.logger.info(this.context, 'planning expense');
 
-    return await this.expenseService.addPlan(body);
+    return await this.expenseService.addPlan(body, user.userId);
   }
 
   @Post('/unplanned')
@@ -86,8 +87,8 @@ export class ExpenseController {
     status: 200,
     type: PlannedExpensesResponseDto,
   })
-  async findAll(@Query() query: GetPlannedExpensesQueryDto) {
-    return await this.expenseService.findAll(query);
+  async findAll(@CurrentUser() user: JwtPayload, @Query() query: GetPlannedExpensesQueryDto) {
+    return await this.expenseService.findAll(query, user.userId);
   }
 
   @Patch('/:id/complete')

@@ -41,8 +41,8 @@ export class PlannedSavingController {
   @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
   @ApiOkResponse({ description: 'Lista de ahorros planificados' })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
-  async findByBudget(@Param('budgetId') budgetId: string) {
-    return this.plannedSavingService.findByBudget(budgetId);
+  async findByBudget(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
+    return this.plannedSavingService.findByBudget(budgetId, user.userId);
   }
 
   @Patch(':id')
@@ -51,8 +51,8 @@ export class PlannedSavingController {
   @ApiOkResponse({ description: 'Ahorro marcado como completado' })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Ahorro planificado no encontrado')
-  async savingDone(@Param('id') id: string) {
-    return await this.plannedSavingService.markAsDone(id);
+  async savingDone(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return await this.plannedSavingService.markAsDone(id, user.userId);
   }
 
   @Patch(':id/goal')
