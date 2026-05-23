@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
-        
+
       - name: Configurar Node.js
         run: |
           export NVM_DIR="$HOME/.nvm"
@@ -48,10 +48,22 @@ jobs:
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           npm ci --omit=dev --ignore-scripts
 
-      - name: Reiniciar backend
+            - name: Reiniciar backend
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           cd /var/www/intranet/mi-comodoro-server
-          pm2 restart mi-comodoro-server || pm2 start dist/src/main.js --name "mi-comodoro-server"
+          
+          # 1. Intentar reiniciar si el proceso ya está registrado en PM2
+          pm2 restart mi-comodoro-server && pm2 save && exit 0
+          
+          # 2. Si no existe, verificar la ruta e iniciar de forma correcta
+          if [ -f "dist/src/main.js" ]; then
+            pm2 start dist/src/main.js --name "mi-comodoro-server"
+          elif [ -f "dist/main.js" ]; then
+            pm2 start dist/main.js --name "mi-comodoro-server"
+          else
+            echo "❌ Error: No se encontró el archivo main.js en dist/ ni en dist/src/"
+            exit 1
+          fi
           pm2 save
