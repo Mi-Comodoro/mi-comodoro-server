@@ -1,0 +1,48 @@
+name: Deploy Backend NestJS
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar backend
+        run: npm run build
+
+      - name: Crear carpeta destino
+        run: mkdir -p /var/www/intranet/mi-comodoro-server
+
+      - name: Limpiar deploy anterior
+        run: |
+          rm -rf /var/www/intranet/mi-comodoro-server/dist
+
+      - name: Copiar archivos necesarios
+        run: |
+          cp -r dist /var/www/intranet/mi-comodoro-server/
+          cp package.json /var/www/intranet/mi-comodoro-server/
+          cp package-lock.json /var/www/intranet/mi-comodoro-server/
+
+      - name: Instalar dependencias produccion
+        working-directory: /var/www/intranet/mi-comodoro-server
+        run: npm ci --omit=dev
+
+      - name: Reiniciar backend
+        run: |
+          cd /var/www/intranet/mi-comodoro-server
+          pm2 restart mi-comodoro-server || pm2 start ecosystem.config.js
+          pm2 save
