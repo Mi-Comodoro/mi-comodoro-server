@@ -1,29 +1,25 @@
 name: Deploy Backend NestJS
-
 on:
   push:
     branches: [ develop ]
-
 jobs:
   deploy:
     runs-on: [self-hosted, Linux, X64]
-
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
-
+        
       - name: Configurar Node.js
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           nvm use 22
-
-      # Este paso ahora funcionará porque ya subiste el package-lock.json a Git
+      # Corregido: Volvemos a npm ci para una instalación rápida y exacta
       - name: Instalar dependencias de desarrollo
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          npm install --no-audit --no-fund
+          npm ci
 
       - name: Compilar backend
         run: |
@@ -44,19 +40,18 @@ jobs:
           cp package.json /var/www/intranet/mi-comodoro-server/
           cp package-lock.json /var/www/intranet/mi-comodoro-server/
 
-      # Corregido: Cargamos NVM antes de ejecutar el comando en el directorio destino
+      # Corregido: Se añade --ignore-scripts para evitar el fallo de Husky en producción
       - name: Instalar dependencias produccion
         working-directory: /var/www/intranet/mi-comodoro-server
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          npm ci --omit=dev
+          npm ci --omit=dev --ignore-scripts
 
-      # Corregido: Cargamos NVM para que reconozca el comando pm2 en el entorno global
       - name: Reiniciar backend
         run: |
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           cd /var/www/intranet/mi-comodoro-server
-          pm2 restart mi-comodoro-server || pm2 start dist/main.js --name "mi-comodoro-server"
+          pm2 restart mi-comodoro-server || pm2 start dist/src/main.js --name "mi-comodoro-server"
           pm2 save
