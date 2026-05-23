@@ -18,11 +18,18 @@ jobs:
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           nvm use 22
 
-      - name: Instalar dependencias
-        run: npm ci
+      # Este paso ahora funcionará porque ya subiste el package-lock.json a Git
+      - name: Instalar dependencias de desarrollo
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm ci
 
       - name: Compilar backend
-        run: npm run build
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm run build
 
       - name: Crear carpeta destino
         run: mkdir -p /var/www/intranet/mi-comodoro-server
@@ -37,12 +44,19 @@ jobs:
           cp package.json /var/www/intranet/mi-comodoro-server/
           cp package-lock.json /var/www/intranet/mi-comodoro-server/
 
+      # Corregido: Cargamos NVM antes de ejecutar el comando en el directorio destino
       - name: Instalar dependencias produccion
         working-directory: /var/www/intranet/mi-comodoro-server
-        run: npm ci --omit=dev
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          npm ci --omit=dev
 
+      # Corregido: Cargamos NVM para que reconozca el comando pm2 en el entorno global
       - name: Reiniciar backend
         run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           cd /var/www/intranet/mi-comodoro-server
-          pm2 restart mi-comodoro-server || pm2 start ecosystem.config.js
+          pm2 restart mi-comodoro-server || pm2 start dist/main.js --name "mi-comodoro-server"
           pm2 save
