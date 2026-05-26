@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -20,6 +21,9 @@ import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/
 import { Transaction } from '../../../domain/transaction';
 
 @Entity('transactions')
+@Unique(['plannedIncomeId'])
+@Unique(['plannedExpenseId'])
+@Unique(['plannedSavingId'])
 export class TransactionEntity implements Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -99,6 +103,9 @@ export class TransactionEntity implements Transaction {
 
   @Column({ name: 'saving_goal_id', nullable: true })
   savingGoalId?: string;
+
+  @Column({ name: 'planned_saving_id', nullable: true })
+  plannedSavingId?: string;
 
   @ManyToOne(() => PlannedIncomeEntity, { nullable: true })
   @JoinColumn({ name: 'planned_income_id' })

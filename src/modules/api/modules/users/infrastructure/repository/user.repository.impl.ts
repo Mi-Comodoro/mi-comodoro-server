@@ -104,4 +104,8 @@ export class UserRepositoryImpl implements UserRepository {
       throw error;
     }
   }
+
+  async updatePassword(id: string, passwordHash: string): Promise<void> {
+    await this.userRepository.update(id, { password: passwordHash });
+  }
 }

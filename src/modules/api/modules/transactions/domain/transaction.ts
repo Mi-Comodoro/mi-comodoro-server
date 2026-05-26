@@ -11,6 +11,7 @@ export interface Transaction {
   billId?: string;
   plannedExpenseId?: string;
   plannedIncomeId?: string;
+  plannedSavingId?: string;
   accountId?: string; // ← faltaba, lo usás en savings
   savingGoalId?: string;
 
