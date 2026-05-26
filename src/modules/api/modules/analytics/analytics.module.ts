@@ -10,6 +10,7 @@ import { ExpensesModule } from '../expenses/expenses.module';
 import { FinancesModule } from '../finances/finances.module';
 import { IncomesModule } from '../incomes/incomes.module';
 import { SavingsModule } from '../savings/savings.module';
+import { TransactionModule } from '../transactions/transaction.module';
 import { AnalyticsCombinedService } from './application/analytics-combined.service';
 import { FinancialHealthService } from './application/financial-health.service';
 import { AnalyticsCombinedController } from './infrastructure/controller/analytics-combined.controller';
@@ -27,6 +28,7 @@ import { FinancialHealthScoreRepositoryImpl } from './infrastructure/repositorie
     SavingsModule,
     AccountsPayableModule,
     AccountsReceivableModule,
+    TransactionModule,
   ],
   providers: [
     LoggerProviderService,

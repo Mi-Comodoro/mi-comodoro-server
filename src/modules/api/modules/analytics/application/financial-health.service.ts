@@ -16,6 +16,7 @@ import { GoalsRepository } from '../../savings/domain/repositories/goals.reposit
 import { PlannedSavingRepository } from '../../savings/domain/repositories/planned.repository';
 import { GoalStatus } from '../../savings/domain/savings-goals';
 import { PlannedSavingStatus } from '../../savings/domain/savings-planned';
+import { TransactionRepository } from '../../transactions/domain/repositories/transaction.repository';
 import { FinancialHealthScore, HealthLevel } from '../domain/financial-health-score';
 import { FinancialHealthScoreRepository } from '../domain/repositories/financial-health-score.repository';
 
@@ -61,6 +62,8 @@ export class FinancialHealthService {
     private readonly plannedSavingRepository: PlannedSavingRepository,
     @Inject('GoalsRepository')
     private readonly goalsRepository: GoalsRepository,
+    @Inject('TransactionRepository')
+    private readonly transactionRepository: TransactionRepository,
     private readonly apService: AccountsPayableService,
   ) {}
 
@@ -118,15 +121,22 @@ export class FinancialHealthService {
     budget: Budget,
     goals: Awaited<ReturnType<GoalsRepository['find']>>,
   ): Promise<PillarScores> {
-    const [plannedIncomes, plannedExpenses, plannedSavings] = await Promise.all([
-      this.plannedIncomeRepository.findByBudgetId(budget.id as string),
-      this.plannedExpenseRepository.findByBudget(budget.id as string),
-      this.plannedSavingRepository.findByBudget(budget.id as string),
-    ]);
+    const [plannedIncomes, plannedExpenses, plannedSavings, expenseTransactions] =
+      await Promise.all([
+        this.plannedIncomeRepository.findByBudgetId(budget.id as string),
+        this.plannedExpenseRepository.findByBudget(budget.id as string),
+        this.plannedSavingRepository.findByBudget(budget.id as string),
+        this.transactionRepository.findByBudget(budget.id as string, {
+          type: 'expense',
+          limit: 1000,
+        }),
+      ]);
+
+    const realExpenseTotal = expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
 
     const cashFlowScore = this.calcCashFlow(plannedIncomes, plannedExpenses);
     const savingsScore = this.calcSavings(plannedSavings, goals);
-    const expenseScore = this.calcExpenses(plannedExpenses);
+    const expenseScore = this.calcExpenses(plannedExpenses, realExpenseTotal);
     const debtScore = 10;
 
     return { cashFlowScore, savingsScore, expenseScore, debtScore };
@@ -188,15 +198,15 @@ export class FinancialHealthService {
 
   private calcExpenses(
     expenses: Awaited<ReturnType<PlannedExpenseRepository['findByBudget']>>,
+    realExpenseTotal: number,
   ): number {
-    const gastosPlanificados = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
-    const gastosReales = expenses
-      .filter((e) => e.status === PlannedExpenseStatus.PAID)
+    const gastosPlanificados = expenses
+      .filter((e) => e.status !== PlannedExpenseStatus.CANCELED)
       .reduce((sum, e) => sum + Number(e.expectedAmount), 0);
 
-    const overrun = Math.max(0, gastosReales - gastosPlanificados);
+    const overrun = Math.max(0, realExpenseTotal - gastosPlanificados);
     const expenseCtrl =
-      gastosReales <= gastosPlanificados
+      realExpenseTotal <= gastosPlanificados
         ? 12
         : Math.max(0, 12 - (overrun / Math.max(gastosPlanificados, 1)) * 12);
 
