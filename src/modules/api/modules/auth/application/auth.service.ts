@@ -93,13 +93,28 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const { passwordIsValid } = usePassword();
+    const { passwordIsValid, passwordHash } = usePassword();
 
-    const validPassword = await passwordIsValid(user.password, credential.password);
+    let validPassword = await passwordIsValid(user.password, credential.password);
+    let needsRehash = false;
+
+    if (!validPassword) {
+      const legacyValid = await passwordIsValid(user.password, credential.password.toLowerCase());
+      if (legacyValid) {
+        validPassword = true;
+        needsRehash = true;
+      }
+    }
 
     if (!validPassword) {
       throw new UnauthorizedException('Wrong email or password');
     }
+
+    if (needsRehash) {
+      const newHash = await passwordHash(credential.password);
+      await this.userRepository.updatePassword(user.id!, newHash);
+    }
+
     const payload: JwtPayload = {
       userId: user.id,
       email: user.email,

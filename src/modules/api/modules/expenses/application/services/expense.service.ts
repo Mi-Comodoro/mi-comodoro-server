@@ -1,4 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -7,8 +9,10 @@ import { BudgetRepository } from '../../../budgets/domain/repositories/budget.re
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
 import { TransactionRepository } from '../../../transactions/domain/repositories/transaction.repository';
 import { Transaction } from '../../../transactions/domain/transaction';
-import { PlannedExpense } from '../../domain/expenses';
+import { TransactionEntity } from '../../../transactions/infrastructure/database/entities/transaction.entity';
+import { PlannedExpense, PlannedExpenseStatus } from '../../domain/expenses';
 import { PlannedExpenseRepository } from '../../domain/repositories/expense-planned.repository';
+import { PlannedExpenseEntity } from '../../infrastructure/database/expenses-planned.entity';
 import { CreateExpensePlanDto } from '../../infrastructure/dto/expense.dto';
 import { GetPlannedExpensesQueryDto } from '../../infrastructure/dto/expense.query.dto';
 
@@ -26,6 +30,7 @@ export class ExpenseService {
     @Inject('AccountRepository')
     private readonly accountRepository: AccountRepository,
     private readonly logger: LoggerProviderService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
   async addPlan(dto: CreateExpensePlanDto, userId: string) {
     this.logger.info(this.context, '');
@@ -145,25 +150,34 @@ export class ExpenseService {
 
     const primaryAccount = await this.accountRepository.findPrimaryByUserId(userId);
 
-    // Crear transaction con los campos reales del dominio
-    const transaction = await this.transactionRepository.save({
-      amount: plannedExpense.expectedAmount, // ← expectedAmount
-      source: plannedExpense.name, // ← name como source
-      type: 'expense',
-      userId,
-      budgetId: plannedExpense.budgetId,
-      categoryId: plannedExpense.categoryId,
-      plannedExpenseId: plannedExpense.id,
-      transactionDate: new Date(),
-      fromAccountId: primaryAccount?.id,
-      // accountId: undefined ← opcional, se agrega en el refactor de cuentas
-    });
+    const today = new Date();
+    const [savedTx, updatedExpense] = await this.dataSource.transaction(async (manager) => {
+      const tx = await manager.save(TransactionEntity, {
+        amount: plannedExpense.expectedAmount,
+        source: plannedExpense.name,
+        type: 'expense' as const,
+        userId,
+        budgetId: plannedExpense.budgetId,
+        categoryId: plannedExpense.categoryId,
+        plannedExpenseId: plannedExpense.id,
+        transactionDate: today,
+        fromAccountId: primaryAccount?.id,
+      });
 
-    const updated = await this.expensePlannedRepository.complete(id);
+      await manager.update(PlannedExpenseEntity, { id }, { status: PlannedExpenseStatus.PAID });
+
+      const updated = await manager.findOne(PlannedExpenseEntity, { where: { id } });
+      if (!updated) throw new NotFoundException('Planned expense not found after update');
+
+      return [tx, updated] as const;
+    });
 
     this.logger.info(this.context, `Planned expense completed: ${id}`);
 
-    return { plannedExpense: updated, transaction };
+    return {
+      plannedExpense: updatedExpense as PlannedExpense,
+      transaction: savedTx as Transaction,
+    };
   }
 
   async updatePlannedExpense(

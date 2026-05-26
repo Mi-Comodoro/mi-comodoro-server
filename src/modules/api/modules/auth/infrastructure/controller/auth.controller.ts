@@ -44,10 +44,8 @@ export class AuthController {
   @ApiErrorResponse(409, 'User already exists')
   async signup(@Body() body: SignUpDto) {
     this.logger.info(this.context, 'creating user user-profile');
-    const { passwordHash, passwordLowerCase } = usePassword();
-    const password = body.password;
-    const lowerPassword = passwordLowerCase(password);
-    const hash = await passwordHash(lowerPassword);
+    const { passwordHash } = usePassword();
+    const hash = await passwordHash(body.password);
 
     const data = {
       email: body.email,
@@ -72,15 +70,7 @@ export class AuthController {
   @ApiErrorResponse(404, 'User not found')
   async signin(@Body() body: SignInDto) {
     this.logger.info(this.context, 'Logging into the user user-profile');
-    const { passwordLowerCase } = usePassword();
-    const password = body.password;
-    const lowerPassword = passwordLowerCase(password);
-
-    const data = {
-      ...body,
-      password: lowerPassword,
-    };
-    return await this.authService.signin(data);
+    return await this.authService.signin(body);
   }
 
   @Post('/google')

@@ -228,6 +228,7 @@ export class PlannedSavingService {
         toAccountId: savingPlanned.accountId,
         transactionDate: today,
         savingGoalId: savingPlanned.savingGoalId ?? undefined,
+        plannedSavingId: savingPlanned.id,
       });
 
       let interestTx: TransactionEntity | null = null;

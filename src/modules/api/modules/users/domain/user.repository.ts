@@ -9,4 +9,5 @@ export interface UserRepository {
   findById(id: string): Promise<(Omit<User, 'password'> & { createdAt: Date }) | null>;
   completeOnboarding(userId: string): Promise<UpdateResult>;
   invalidateTokens(userId: string, currentVersion: number): Promise<UpdateResult>;
+  updatePassword(id: string, passwordHash: string): Promise<void>;
 }

@@ -171,7 +171,7 @@ export class BudgetController {
     if (!budget) {
       throw new NotFoundException('Budget not found');
     }
-    this.logger.info(this.context, `Budget found: ${JSON.stringify(budget)}`);
+    this.logger.info(this.context, `Budget found: ${budget?.id}`);
     return budget;
   }
 
@@ -216,7 +216,7 @@ export class BudgetController {
     if (!budget) {
       throw new NotFoundException('Budget not found');
     }
-    this.logger.info(this.context, `Budget found: ${JSON.stringify(budget)}`);
+    this.logger.info(this.context, `Budget found: ${budget?.id}`);
     return budget;
   }
 

@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -90,10 +96,9 @@ export class TransactionService {
       }
     }
 
-    // Validar account si se proporciona
     if (dto.accountId) {
-      // TODO: Implementar validación de account cuando esté disponible el método findById
-      // Por ahora, asumimos que si se proporciona accountId, es válido
+      const account = await this.accountRepository.findByIdAndUser(dto.accountId, userId);
+      if (!account) throw new ForbiddenException('Account does not belong to user');
     }
 
     // Validar que el amount sea positivo
