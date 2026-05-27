@@ -106,6 +106,13 @@ export class UsersService {
       throw error;
     }
   }
+  async checkPhoneAvailability(phone: string): Promise<{ available: boolean }> {
+    const normalized = phone.replace(/[\s\-().]/g, '');
+    this.logger.info(this.context, `Verificando disponibilidad de teléfono`);
+    const exists = await this.userProfileRepository.existsByPhone(normalized);
+    return { available: !exists };
+  }
+
   async updateMe(userId: string, dto: UpdateUserDto) {
     this.logger.info(this.context, `Updating profile for user ${userId}`);
     const profile = await this.userProfileRepository.findByUserId(userId);
