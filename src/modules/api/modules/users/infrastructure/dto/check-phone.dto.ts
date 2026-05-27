@@ -12,6 +12,6 @@ export class CheckPhoneQueryDto {
 }
 
 export class CheckPhoneResponseDto {
-  @ApiProperty({ example: true, description: 'true si el número está disponible' })
+  @ApiProperty({ example: true, description: 'true si el número está disponible', required: true })
   available: boolean;
 }

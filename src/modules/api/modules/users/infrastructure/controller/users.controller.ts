@@ -23,13 +23,15 @@ export class UsersController {
   ) {}
 
   @Get('/check-phone')
-  @HttpCode(200)
   @ApiOperation({ summary: 'Verificar disponibilidad de número de teléfono' })
   @ApiQuery({ name: 'phone', required: true, example: '+573001234567' })
-  @ApiOkResponse({ type: CheckPhoneResponseDto })
+  @ApiOkResponse({
+    type: CheckPhoneResponseDto,
+    description: 'Disponibilidad del número consultado',
+  })
   @ApiErrorResponse(400, 'Formato de teléfono inválido')
+  @ApiErrorResponse(500, 'Error interno del servidor')
   async checkPhone(@Query() query: CheckPhoneQueryDto) {
-    this.logger.info(this.context, `Verificando teléfono`);
     return await this.userService.checkPhoneAvailability(query.phone);
   }
 
