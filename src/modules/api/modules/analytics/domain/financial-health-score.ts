@@ -10,4 +10,5 @@ export interface FinancialHealthScore {
   debtScore: number;
   level: HealthLevel;
   calculatedAt?: Date;
+  totalTransactions?: number;
 }

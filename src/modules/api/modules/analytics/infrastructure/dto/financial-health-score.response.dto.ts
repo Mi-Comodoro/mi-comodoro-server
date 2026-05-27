@@ -30,4 +30,7 @@ export class FinancialHealthScoreResponseDto {
 
   @ApiProperty({ example: '2026-04-28T00:00:00.000Z' })
   calculatedAt: Date;
+
+  @ApiProperty({ example: 12, description: 'Total de transacciones en presupuestos evaluados' })
+  totalTransactions: number;
 }
