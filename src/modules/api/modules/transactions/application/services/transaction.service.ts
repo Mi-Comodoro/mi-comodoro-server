@@ -51,7 +51,7 @@ export class TransactionService {
     }
 
     const filters: TransactionFilters = {
-      type: ['income', 'expense', 'savings'].includes(query?.type as string)
+      type: ['income', 'expense', 'savings', 'interest'].includes(query?.type as string)
         ? (query?.type as TransactionFilters['type'])
         : undefined,
       categoryId: query?.categoryId || undefined,
