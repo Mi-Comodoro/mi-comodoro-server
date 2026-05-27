@@ -35,7 +35,7 @@ export class SavingAllocationController {
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Datos inválidos')
   async create(@Body() body: SavingsAllocationCreateDto) {
-    this.logger.info(this.context, 'creating savings goals');
+    this.logger.info(this.context, 'Creando asignación de ahorro');
     const data = { ...body };
     return await this.savingAllocationService.create(data);
   }
@@ -46,7 +46,7 @@ export class SavingAllocationController {
   @ApiOkResponse({ description: 'Lista de asignaciones de ahorro' })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
   async find(@Param('budgetId') budgetId: string) {
-    this.logger.info(this.context, 'getting savings goals');
+    this.logger.info(this.context, 'Obteniendo asignaciones de ahorro');
     return await this.savingAllocationService.find(budgetId);
   }
 

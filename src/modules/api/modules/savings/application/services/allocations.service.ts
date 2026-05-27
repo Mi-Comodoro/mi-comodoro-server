@@ -18,12 +18,12 @@ export class SavingAllocationService {
     private readonly budgetRepository: BudgetRepository,
   ) {}
   async create(data: SavingAllocation): Promise<SavingAllocation> {
-    this.logger.info(this.context, 'Creating saving allocation');
+    this.logger.info(this.context, 'Creando asignación de ahorro');
     return await this.allocationRepository.create(data);
   }
 
   async find(budgetId: string): Promise<SavingAllocation[]> {
-    this.logger.info(this.context, `getting saving allocation by budgetId: ${budgetId}`);
+    this.logger.info(this.context, `Obteniendo asignaciones de ahorro para budget ${budgetId}`);
     return await this.allocationRepository.find(budgetId);
   }
 
@@ -36,11 +36,19 @@ export class SavingAllocationService {
 
     const budget = await this.budgetRepository.findById(budgetId);
     if (!budget || budget.ownerId !== userId) {
+      this.logger.warn(
+        this.context,
+        `Presupuesto no encontrado o sin acceso: budgetId=${budgetId}, userId=${userId}`,
+      );
       throw new NotFoundException('Presupuesto no encontrado');
     }
 
     const totalPercentage = distributions.reduce((sum, d) => sum + d.percentage, 0);
     if (totalPercentage > 100) {
+      this.logger.warn(
+        this.context,
+        `Suma de porcentajes inválida: ${totalPercentage}% para budgetId=${budgetId}`,
+      );
       throw new BadRequestException(
         `La suma de porcentajes (${totalPercentage}%) no puede superar el 100%`,
       );
