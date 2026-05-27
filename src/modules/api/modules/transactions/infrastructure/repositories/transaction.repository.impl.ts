@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
   FindOptionsWhere,
+  In,
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
@@ -66,7 +67,7 @@ export class TransactionRepositoryImpl implements TransactionRepository {
 
     const where: FindOptionsWhere<TransactionEntity> = { budgetId, nulledAt: IsNull() };
 
-    if (type) where.type = type;
+    if (type) where.type = type === 'savings' ? In(['savings', 'interest']) : type;
     if (categoryId) where.categoryId = categoryId;
     if (dateFrom || dateTo) {
       where.transactionDate =

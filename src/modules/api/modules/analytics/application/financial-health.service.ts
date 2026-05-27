@@ -16,6 +16,7 @@ import { GoalsRepository } from '../../savings/domain/repositories/goals.reposit
 import { PlannedSavingRepository } from '../../savings/domain/repositories/planned.repository';
 import { GoalStatus } from '../../savings/domain/savings-goals';
 import { PlannedSavingStatus } from '../../savings/domain/savings-planned';
+import { TransactionRepository } from '../../transactions/domain/repositories/transaction.repository';
 import { FinancialHealthScore, HealthLevel } from '../domain/financial-health-score';
 import { FinancialHealthScoreRepository } from '../domain/repositories/financial-health-score.repository';
 
@@ -24,6 +25,7 @@ interface PillarScores {
   savingsScore: number;
   expenseScore: number;
   debtScore: number;
+  totalTransactions: number;
 }
 
 @Injectable()
@@ -61,6 +63,8 @@ export class FinancialHealthService {
     private readonly plannedSavingRepository: PlannedSavingRepository,
     @Inject('GoalsRepository')
     private readonly goalsRepository: GoalsRepository,
+    @Inject('TransactionRepository')
+    private readonly transactionRepository: TransactionRepository,
     private readonly apService: AccountsPayableService,
   ) {}
 
@@ -94,12 +98,15 @@ export class FinancialHealthService {
         this.context,
         `Usuario ${userId} no tiene presupuestos — retornando score base`,
       );
-      return this.persistScore(userId, {
+      const result = await this.persistScore(userId, {
         cashFlowScore: 0,
         savingsScore: 0,
         expenseScore: 0,
         debtScore,
+        totalTransactions: 0,
       });
+      result.totalTransactions = 0;
+      return result;
     }
 
     const goals = await this.goalsRepository.find(userId);
@@ -111,25 +118,47 @@ export class FinancialHealthService {
     const averaged = this.averagePillars(pillarsByMonth);
     averaged.debtScore = debtScore;
 
-    return this.persistScore(userId, averaged);
+    const totalTransactions = pillarsByMonth.reduce((sum, p) => sum + p.totalTransactions, 0);
+
+    const result = await this.persistScore(userId, averaged);
+    result.totalTransactions = totalTransactions;
+    return result;
   }
 
   private async calculatePillarsForBudget(
     budget: Budget,
     goals: Awaited<ReturnType<GoalsRepository['find']>>,
   ): Promise<PillarScores> {
-    const [plannedIncomes, plannedExpenses, plannedSavings] = await Promise.all([
+    const [
+      plannedIncomes,
+      plannedExpenses,
+      plannedSavings,
+      expenseTransactions,
+      incomeTransactions,
+    ] = await Promise.all([
       this.plannedIncomeRepository.findByBudgetId(budget.id as string),
       this.plannedExpenseRepository.findByBudget(budget.id as string),
       this.plannedSavingRepository.findByBudget(budget.id as string),
+      this.transactionRepository.findByBudget(budget.id as string, {
+        type: 'expense',
+        limit: 1000,
+      }),
+      this.transactionRepository.findByBudget(budget.id as string, {
+        type: 'income',
+        limit: 1,
+      }),
     ]);
+
+    const realExpenseTotal = expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
+    const totalTransactions =
+      expenseTransactions.pagination.total + incomeTransactions.pagination.total;
 
     const cashFlowScore = this.calcCashFlow(plannedIncomes, plannedExpenses);
     const savingsScore = this.calcSavings(plannedSavings, goals);
-    const expenseScore = this.calcExpenses(plannedExpenses);
+    const expenseScore = this.calcExpenses(plannedExpenses, realExpenseTotal);
     const debtScore = 10;
 
-    return { cashFlowScore, savingsScore, expenseScore, debtScore };
+    return { cashFlowScore, savingsScore, expenseScore, debtScore, totalTransactions };
   }
 
   private calcCashFlow(
@@ -188,21 +217,29 @@ export class FinancialHealthService {
 
   private calcExpenses(
     expenses: Awaited<ReturnType<PlannedExpenseRepository['findByBudget']>>,
+    realExpenseTotal: number,
   ): number {
-    const gastosPlanificados = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
-    const gastosReales = expenses
-      .filter((e) => e.status === PlannedExpenseStatus.PAID)
-      .reduce((sum, e) => sum + Number(e.expectedAmount), 0);
+    const nonCanceledExpenses = expenses.filter((e) => e.status !== PlannedExpenseStatus.CANCELED);
 
-    const overrun = Math.max(0, gastosReales - gastosPlanificados);
+    // No expense plan and no real spending: neutral — no data to evaluate
+    if (nonCanceledExpenses.length === 0 && realExpenseTotal === 0) {
+      return 0;
+    }
+
+    const gastosPlanificados = nonCanceledExpenses.reduce(
+      (sum, e) => sum + Number(e.expectedAmount),
+      0,
+    );
+
+    const overrun = Math.max(0, realExpenseTotal - gastosPlanificados);
     const expenseCtrl =
-      gastosReales <= gastosPlanificados
+      realExpenseTotal <= gastosPlanificados
         ? 12
         : Math.max(0, 12 - (overrun / Math.max(gastosPlanificados, 1)) * 12);
 
-    const nonCanceled = expenses.filter((e) => e.status !== PlannedExpenseStatus.CANCELED).length;
     const paid = expenses.filter((e) => e.status === PlannedExpenseStatus.PAID).length;
-    const distribution = nonCanceled > 0 ? (paid / nonCanceled) * 8 : 8;
+    const distribution =
+      nonCanceledExpenses.length > 0 ? (paid / nonCanceledExpenses.length) * 8 : 0;
 
     return Math.round(expenseCtrl + distribution);
   }
@@ -239,8 +276,9 @@ export class FinancialHealthService {
         savingsScore: acc.savingsScore + p.savingsScore,
         expenseScore: acc.expenseScore + p.expenseScore,
         debtScore: acc.debtScore + p.debtScore,
+        totalTransactions: acc.totalTransactions + p.totalTransactions,
       }),
-      { cashFlowScore: 0, savingsScore: 0, expenseScore: 0, debtScore: 0 },
+      { cashFlowScore: 0, savingsScore: 0, expenseScore: 0, debtScore: 0, totalTransactions: 0 },
     );
 
     return {
@@ -248,6 +286,7 @@ export class FinancialHealthService {
       savingsScore: Math.round(sum.savingsScore / count),
       expenseScore: Math.round(sum.expenseScore / count),
       debtScore: Math.round(sum.debtScore / count),
+      totalTransactions: sum.totalTransactions,
     };
   }
 

@@ -5,4 +5,5 @@ export interface UserProfileRepository {
   findById(id: string): Promise<UserProfile | null>;
   findByUserId(userId: string): Promise<UserProfile | null>;
   update(userId: string, userProfile: UserProfile): Promise<UserProfile>;
+  existsByPhone(phone: string): Promise<boolean>;
 }

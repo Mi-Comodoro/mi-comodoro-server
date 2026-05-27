@@ -59,4 +59,9 @@ export class UserProfileRepositoryImpl implements UserProfileRepository {
 
     return await this.userProfileRepository.save(data);
   }
+
+  async existsByPhone(phone: string): Promise<boolean> {
+    const count = await this.userProfileRepository.count({ where: { phone } });
+    return count > 0;
+  }
 }
