@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -10,10 +10,13 @@ import {
 } from '@nestjs/swagger';
 
 import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { CurrentUser } from '@/common/decorator/current-user.request';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { SavingAllocationService } from '../../application/services/allocations.service';
 import { SavingsAllocationCreateDto } from '../dto/savings-allocation.dto';
+import { UpdateSavingDistributionDto } from '../dto/update-saving-distribution.dto';
 
 @ApiTags('allocations')
 @ApiBearerAuth('bearerAuth')
@@ -45,5 +48,21 @@ export class SavingAllocationController {
   async find(@Param('budgetId') budgetId: string) {
     this.logger.info(this.context, 'getting savings goals');
     return await this.savingAllocationService.find(budgetId);
+  }
+
+  @Patch('/:budgetId')
+  @ApiOperation({ summary: 'Reemplazar la plantilla de distribución de ahorro de un presupuesto' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiOkResponse({ description: 'Distribución actualizada exitosamente' })
+  @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Presupuesto no encontrado')
+  @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'La suma de porcentajes supera el 100%')
+  async replace(
+    @CurrentUser() user: JwtPayload,
+    @Param('budgetId') budgetId: string,
+    @Body() body: UpdateSavingDistributionDto,
+  ) {
+    this.logger.info(this.context, `Reemplazando distribución de ahorro para budget ${budgetId}`);
+    return await this.savingAllocationService.replace(user.userId, budgetId, body.distributions);
   }
 }
