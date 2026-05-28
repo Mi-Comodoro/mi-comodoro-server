@@ -14,7 +14,6 @@ import { FinancesRepository } from '../../finances/domain/repositories/finances.
 import { PlannedIncomeRepository } from '../../incomes/domain/repositories/incomes-planned.repository';
 import { GoalsRepository } from '../../savings/domain/repositories/goals.repository';
 import { PlannedSavingRepository } from '../../savings/domain/repositories/planned.repository';
-import { GoalStatus } from '../../savings/domain/savings-goals';
 import { PlannedSavingStatus } from '../../savings/domain/savings-planned';
 import { TransactionRepository } from '../../transactions/domain/repositories/transaction.repository';
 import { FinancialHealthScore, HealthLevel } from '../domain/financial-health-score';
@@ -109,10 +108,8 @@ export class FinancialHealthService {
       return result;
     }
 
-    const goals = await this.goalsRepository.find(userId);
-
     const pillarsByMonth = await Promise.all(
-      budgets.map((budget) => this.calculatePillarsForBudget(budget, goals)),
+      budgets.map((budget) => this.calculatePillarsForBudget(budget)),
     );
 
     const averaged = this.averagePillars(pillarsByMonth);
@@ -125,16 +122,14 @@ export class FinancialHealthService {
     return result;
   }
 
-  private async calculatePillarsForBudget(
-    budget: Budget,
-    goals: Awaited<ReturnType<GoalsRepository['find']>>,
-  ): Promise<PillarScores> {
+  private async calculatePillarsForBudget(budget: Budget): Promise<PillarScores> {
     const [
       plannedIncomes,
       plannedExpenses,
       plannedSavings,
       expenseTransactions,
       incomeTransactions,
+      savingsTransactions,
     ] = await Promise.all([
       this.plannedIncomeRepository.findByBudgetId(budget.id as string),
       this.plannedExpenseRepository.findByBudget(budget.id as string),
@@ -147,15 +142,28 @@ export class FinancialHealthService {
         type: 'income',
         limit: 1,
       }),
+      this.transactionRepository.findByBudget(budget.id as string, {
+        type: 'savings',
+        limit: 1000,
+      }),
     ]);
 
     const realExpenseTotal = expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalTransactions =
       expenseTransactions.pagination.total + incomeTransactions.pagination.total;
 
+    const realSavingsTotal = savingsTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
+    const plannedSavingsAmount = plannedSavings
+      .filter((s) => s.status !== PlannedSavingStatus.SKIPPED)
+      .reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
+
+    const plannedExpenseTotal = plannedExpenses
+      .filter((e) => e.status !== PlannedExpenseStatus.CANCELED)
+      .reduce((sum, e) => sum + Number(e.expectedAmount), 0);
+
     const cashFlowScore = this.calcCashFlow(plannedIncomes, plannedExpenses);
-    const savingsScore = this.calcSavings(plannedSavings, goals);
-    const expenseScore = this.calcExpenses(plannedExpenses, realExpenseTotal);
+    const savingsScore = this.calcSavings(realSavingsTotal, plannedSavingsAmount);
+    const expenseScore = this.calcExpenses(realExpenseTotal, plannedExpenseTotal);
     const debtScore = 10;
 
     return { cashFlowScore, savingsScore, expenseScore, debtScore, totalTransactions };
@@ -186,86 +194,27 @@ export class FinancialHealthService {
     return Math.round(ingresoScore + ratioScore + bufferScore);
   }
 
-  private calcSavings(
-    plannedSavings: Awaited<ReturnType<PlannedSavingRepository['findByBudget']>>,
-    goals: Awaited<ReturnType<GoalsRepository['find']>>,
-  ): number {
-    const savingsPlanned = plannedSavings.length;
-    const savingsCompleted = plannedSavings.filter(
-      (s) => s.status === PlannedSavingStatus.COMPLETED,
-    ).length;
-
-    const savingsExec =
-      savingsPlanned > 0 ? Math.min(20, (savingsCompleted / savingsPlanned) * 20) : 0;
-
-    const activeGoals = goals.filter((g) => g.isActive);
-    let avgGoalProgress = 0;
-    if (activeGoals.length > 0) {
-      const progressSum = activeGoals.reduce((sum, goal) => {
-        if (goal.status === GoalStatus.COMPLETED) return sum + 1.0;
-        if (goal.status === GoalStatus.IN_PROGRESS) return sum + 0.5;
-        return sum;
-      }, 0);
-      avgGoalProgress = progressSum / activeGoals.length;
-    }
-    const goalsScore = Math.min(10, avgGoalProgress * 10);
-
-    const consistency = 0;
-
-    return Math.round(savingsExec + goalsScore + consistency);
+  private calcSavings(realSavingsTotal: number, plannedSavingsAmount: number): number {
+    if (plannedSavingsAmount <= 0) return 0;
+    const ratio = Math.min(1, realSavingsTotal / plannedSavingsAmount);
+    return Math.round(ratio * 25);
   }
 
-  private calcExpenses(
-    expenses: Awaited<ReturnType<PlannedExpenseRepository['findByBudget']>>,
-    realExpenseTotal: number,
-  ): number {
-    const nonCanceledExpenses = expenses.filter((e) => e.status !== PlannedExpenseStatus.CANCELED);
-
-    // No expense plan and no real spending: neutral — no data to evaluate
-    if (nonCanceledExpenses.length === 0 && realExpenseTotal === 0) {
-      return 0;
-    }
-
-    const gastosPlanificados = nonCanceledExpenses.reduce(
-      (sum, e) => sum + Number(e.expectedAmount),
-      0,
-    );
-
-    const overrun = Math.max(0, realExpenseTotal - gastosPlanificados);
-    const expenseCtrl =
-      realExpenseTotal <= gastosPlanificados
-        ? 12
-        : Math.max(0, 12 - (overrun / Math.max(gastosPlanificados, 1)) * 12);
-
-    const paid = expenses.filter((e) => e.status === PlannedExpenseStatus.PAID).length;
-    const distribution =
-      nonCanceledExpenses.length > 0 ? (paid / nonCanceledExpenses.length) * 8 : 0;
-
-    return Math.round(expenseCtrl + distribution);
+  private calcExpenses(realExpenseTotal: number, plannedExpenseTotal: number): number {
+    if (plannedExpenseTotal <= 0 && realExpenseTotal === 0) return 0;
+    if (plannedExpenseTotal <= 0) return 0;
+    const execRate = realExpenseTotal / plannedExpenseTotal;
+    if (execRate > 1) return 0;
+    return Math.round((1 - execRate) * 25);
   }
 
   private calcDebtScore(apSummary: AccountPayableSummary): number {
     if (apSummary.totalDebt === 0 && apSummary.monthlyCommitments === 0) {
-      return 10;
+      return 25;
     }
-
-    const ratio = apSummary.debtToIncomeRatio;
-    let score: number;
-    if (ratio < 0.3) {
-      score = 20;
-    } else if (ratio < 0.5) {
-      score = 15;
-    } else if (ratio < 1.0) {
-      score = 8;
-    } else {
-      score = 2;
-    }
-
-    if (apSummary.overdueCount > 0) {
-      score = Math.max(0, score - apSummary.overdueCount * 2);
-    }
-
-    return score;
+    const rawScore = Math.max(0, (1 - apSummary.debtToIncomeRatio) * 25);
+    const overduePenalty = apSummary.overdueCount > 0 ? apSummary.overdueCount * 3 : 0;
+    return Math.max(0, Math.round(rawScore - overduePenalty));
   }
 
   private averagePillars(pillars: PillarScores[]): PillarScores {

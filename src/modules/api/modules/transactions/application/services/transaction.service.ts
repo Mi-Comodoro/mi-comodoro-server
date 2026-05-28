@@ -85,6 +85,12 @@ export class TransactionService {
       throw new BadRequestException('Budget is not active');
     }
 
+    // TODO(bug-8): Validar que transactionDate cae dentro del período del presupuesto (budget.month/budget.year).
+    // El presupuesto almacena el mes como string (p.ej. "mayo") y el año como número, no como fechas ISO.
+    // Para implementar: convertir budget.month → número de mes, construir startDate/endDate del período y
+    // comparar con dto.transactionDate. No requiere migración de datos; sólo afecta transacciones nuevas.
+    // Referencia: BudgetRepository no expone findByDate — agregar lógica de validación aquí o un helper privado.
+
     // Validar categoría solo para gastos
     if (dto.type === 'expense') {
       if (!dto.categoryId) {
