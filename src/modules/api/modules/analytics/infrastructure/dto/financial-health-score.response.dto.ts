@@ -1,36 +1,130 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+class PillarCashFlowDto {
+  @ApiProperty({ example: 25 })
+  score: number;
+
+  @ApiProperty({ example: 25 })
+  max: number;
+
+  @ApiProperty({ example: 90.0, description: 'Tasa de flujo neto sobre ingresos (%)' })
+  rate: number;
+
+  @ApiProperty({ example: 'Óptimo' })
+  label: string;
+}
+
+class PillarSavingsDto {
+  @ApiProperty({ example: 25 })
+  score: number;
+
+  @ApiProperty({ example: 25 })
+  max: number;
+
+  @ApiProperty({ example: 100.0, description: 'Tasa de ahorro ejecutado vs planeado (%)' })
+  rate: number;
+
+  @ApiProperty({ example: 'Meta cumplida' })
+  label: string;
+}
+
+class PillarExpensesDto {
+  @ApiProperty({ example: 25 })
+  score: number;
+
+  @ApiProperty({ example: 25 })
+  max: number;
+
+  @ApiProperty({ example: 0.0, description: 'Porcentaje de exceso sobre lo planeado' })
+  excessPct: number;
+
+  @ApiProperty({ example: 'Dentro del plan' })
+  label: string;
+}
+
+class PillarDebtDto {
+  @ApiProperty({ example: 20 })
+  score: number;
+
+  @ApiProperty({ example: 25 })
+  max: number;
+
+  @ApiProperty({ example: 23.33, description: 'Debt-to-income ratio (%)' })
+  dti: number;
+
+  @ApiProperty({ example: 'Manejable' })
+  label: string;
+}
+
+class ScorePillarsDto {
+  @ApiProperty({ type: PillarCashFlowDto })
+  cashFlow: PillarCashFlowDto;
+
+  @ApiProperty({ type: PillarSavingsDto })
+  savings: PillarSavingsDto;
+
+  @ApiProperty({ type: PillarExpensesDto })
+  expenses: PillarExpensesDto;
+
+  @ApiProperty({ type: PillarDebtDto })
+  debt: PillarDebtDto;
+}
+
+class ScoreDto {
+  @ApiProperty({ example: 95 })
+  total: number;
+
+  @ApiProperty({ example: 'Óptimo' })
+  label: string;
+
+  @ApiProperty({ type: ScorePillarsDto })
+  pillars: ScorePillarsDto;
+
+  @ApiProperty({ example: 'Deudas es tu mayor área de mejora.' })
+  insight: string;
+
+  @ApiProperty({ example: 'Deudas' })
+  weakestPillar: string;
+}
+
+class DebtRatioDto {
+  @ApiProperty({ example: 23.33 })
+  ratio: number;
+
+  @ApiProperty({ example: 'Saludable' })
+  label: string;
+
+  @ApiProperty({ example: 'primary' })
+  badge: string;
+
+  @ApiProperty({ example: 28000000 })
+  totalDebt: number;
+
+  @ApiProperty({ example: 120000000 })
+  annualIncomeEstimate: number;
+}
+
+class TotalsDto {
+  @ApiProperty({ example: 10000000 })
+  income: number;
+
+  @ApiProperty({ example: 1000000 })
+  expenses: number;
+
+  @ApiProperty({ example: 2000000 })
+  savings: number;
+}
+
 export class FinancialHealthScoreResponseDto {
-  @ApiProperty({ example: 'uuid-v4' })
-  id: string;
+  @ApiProperty({ type: ScoreDto })
+  score: ScoreDto;
 
-  @ApiProperty({ example: 'uuid-v4' })
-  userId: string;
+  @ApiProperty({ type: DebtRatioDto })
+  debtRatio: DebtRatioDto;
 
-  @ApiProperty({ example: 72, description: 'Puntuación total (0-100)' })
-  totalScore: number;
-
-  @ApiProperty({ example: 20, description: 'Flujo de caja (máx 25)' })
-  cashFlowScore: number;
-
-  @ApiProperty({ example: 28, description: 'Ahorro y metas (máx 35)' })
-  savingsScore: number;
-
-  @ApiProperty({ example: 14, description: 'Control de gastos (máx 20)' })
-  expenseScore: number;
-
-  @ApiProperty({ example: 10, description: 'Deudas — neutro hasta módulo AP (máx 20)' })
-  debtScore: number;
-
-  @ApiProperty({
-    example: 'healthy',
-    enum: ['critical', 'at_risk', 'regular', 'healthy', 'optimal'],
-  })
-  level: string;
-
-  @ApiProperty({ example: '2026-04-28T00:00:00.000Z' })
-  calculatedAt: Date;
-
-  @ApiProperty({ example: 12, description: 'Total de transacciones en presupuestos evaluados' })
+  @ApiProperty({ example: 42 })
   totalTransactions: number;
+
+  @ApiProperty({ type: TotalsDto })
+  totals: TotalsDto;
 }

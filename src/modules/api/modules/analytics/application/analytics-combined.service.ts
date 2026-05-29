@@ -105,6 +105,10 @@ export class AnalyticsCombinedService {
       0,
     );
 
+    const hasPaymentHistory = apAccounts.some(
+      (a) => Number(a.currentBalance) < Number(a.originalAmount),
+    );
+
     const projection = Array.from({ length: 6 }, (_, i) => {
       const date = new Date();
       date.setMonth(date.getMonth() + i);
@@ -124,7 +128,7 @@ export class AnalyticsCombinedService {
       };
     });
 
-    return { projection, simplified: true };
+    return { projection, simplified: true, hasPaymentHistory };
   }
 
   async getSavingsTrend(userId: string): Promise<SavingsTrendDto> {
@@ -143,8 +147,7 @@ export class AnalyticsCombinedService {
     const targetYear = year ? Number(year) : new Date().getFullYear();
     const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
 
-    const [apSummary, arSummary, activeBudget] = await Promise.all([
-      this.apService.getSummary(userId),
+    const [arSummary, activeBudget] = await Promise.all([
       this.arService.getSummary(userId),
       this.getActiveBudget(userId),
     ]);
@@ -161,14 +164,13 @@ export class AnalyticsCombinedService {
       monthlyExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
     }
 
-    const monthlyDebtPayments = apSummary.monthlyCommitments;
     const monthlyReceivables = arSummary.expectedThisMonth;
 
     const months = Array.from({ length: 3 }, (_, i) => {
       const date = new Date(targetYear, targetMonth - 1 + i, 1);
       const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
       const projectedIncome = monthlyIncome + monthlyReceivables;
-      const projectedExpenses = monthlyExpenses + monthlyDebtPayments;
+      const projectedExpenses = monthlyExpenses;
       return {
         month,
         projectedIncome,

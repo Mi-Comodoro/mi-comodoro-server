@@ -27,7 +27,7 @@ export class FinancialHealthController {
     summary: 'Obtener el score de salud financiera del usuario',
     description:
       'Calcula y retorna el score financiero con 4 pilares (flujo de caja, ahorro, gastos, deudas). ' +
-      'Si ya fue calculado hoy, retorna el score existente sin recalcular.',
+      'Si ya fue calculado en la última hora, retorna el score en cache.',
   })
   @ApiOkResponse({ type: FinancialHealthScoreResponseDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')

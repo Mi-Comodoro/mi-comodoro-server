@@ -30,17 +30,15 @@ export class FinancialHealthScoreRepositoryImpl implements FinancialHealthScoreR
     return saved;
   }
 
-  async findTodayByUserId(userId: string): Promise<FinancialHealthScore | null> {
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  async findRecentByUserId(userId: string): Promise<FinancialHealthScore | null> {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     const entity = await this.repo
       .createQueryBuilder('fhs')
       .where('fhs.user_id = :userId', { userId })
-      .andWhere('fhs.calculated_at >= :start', { start })
-      .andWhere('fhs.calculated_at < :end', { end })
+      .andWhere('fhs.calculated_at > :oneHourAgo', { oneHourAgo })
       .orderBy('fhs.calculated_at', 'DESC')
+      .limit(1)
       .getOne();
 
     return entity ?? null;
