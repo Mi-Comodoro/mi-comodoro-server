@@ -10,7 +10,9 @@
     "format": "prettier --write src/**/*.ts",
     "build": "nest build && tsc-alias",
     "prepare": "husky",
-    "seed:categories": "ts-node -r tsconfig-paths/register src/scripts/seed-categories.ts"
+    "seed:categories": "ts-node -r tsconfig-paths/register src/scripts/seed-categories.ts",
+    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/core/config/database/typeorm.config.ts",
+    "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/core/config/database/typeorm.config.ts"
   },
   "repository": {
     "type": "git",

@@ -85,7 +85,6 @@ export class TransactionRepositoryImpl implements TransactionRepository {
       skip: (page - 1) * limit,
       take: limit,
     });
-
     return {
       data: entities.map(TransactionMapper.toDomain),
       pagination: {
