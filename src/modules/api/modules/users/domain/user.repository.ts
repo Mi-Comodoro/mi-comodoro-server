@@ -10,4 +10,7 @@ export interface UserRepository {
   completeOnboarding(userId: string): Promise<UpdateResult>;
   invalidateTokens(userId: string, currentVersion: number): Promise<UpdateResult>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
+  findByHandle(handle: string): Promise<User | null>;
+  searchByHandle(query: string, excludeUserId: string): Promise<Omit<User, 'password'>[]>;
+  updateHandle(userId: string, handle: string): Promise<void>;
 }

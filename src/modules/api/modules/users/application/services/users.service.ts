@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
@@ -9,6 +9,7 @@ import { extractDay } from '../../../shared/utils/dates';
 import { UserProfileRepository } from '../../../user-profile/domain/user-profile.repository';
 import { User } from '../../domain/user.entity';
 import { UserRepository } from '../../domain/user.repository';
+import { UpdateHandleDto } from '../../infrastructure/dto/update-handle.dto';
 import { UpdateUserDto } from '../../infrastructure/dto/update-user.dto';
 import { OnboardingData } from '../dto/create-user.dto';
 
@@ -136,12 +137,26 @@ export class UsersService {
   async getCurrentUser(payload: JwtPayload) {
     this.logger.info(this.context, `Fetching user details for user ${payload.userId}`);
     const user = await this.userRepository.findById(payload.userId);
-    console.log('User fetched from repository:', user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
   }
+  async updateHandle(userId: string, dto: UpdateHandleDto): Promise<{ handle: string }> {
+    this.logger.info(this.context, `Updating handle for user ${userId}`);
+    const existing = await this.userRepository.findByHandle(dto.handle);
+    if (existing && existing.id !== userId) {
+      throw new ConflictException('Este handle ya está en uso');
+    }
+    await this.userRepository.updateHandle(userId, dto.handle);
+    return { handle: dto.handle };
+  }
+
+  async searchUsers(query: string, requestingUserId: string) {
+    this.logger.info(this.context, `Searching users with query: ${query}`);
+    return await this.userRepository.searchByHandle(query, requestingUserId);
+  }
+
   private getIncomesData(data: OnboardingData, user: User): IncomeSource[] {
     const incomes: IncomeSource[] = [];
     const isMonthlyBudget = data.budget.budgetFrequency === 'monthly';

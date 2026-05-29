@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, UpdateResult } from 'typeorm';
+import { ILike, Repository, UpdateResult } from 'typeorm';
 
 import { getErrorMessage } from '@/common/helpers/error.helpers';
 import { LoggerProviderService } from '@/core/providers';
@@ -107,5 +107,45 @@ export class UserRepositoryImpl implements UserRepository {
 
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.userRepository.update(id, { password: passwordHash });
+  }
+
+  async findByHandle(handle: string): Promise<User | null> {
+    try {
+      return await this.userRepository.findOne({
+        where: { handle },
+        relations: { userProfile: true },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async searchByHandle(query: string, excludeUserId: string): Promise<Omit<User, 'password'>[]> {
+    try {
+      const results = await this.userRepository.find({
+        where: { handle: ILike(`%${query}%`) },
+        relations: { userProfile: true },
+        take: 20,
+      });
+      return results
+        .filter((u) => u.id !== excludeUserId && u.handle)
+        .map((u) => {
+          const result = { ...u } as Partial<typeof u>;
+          delete result.password;
+          return result as Omit<typeof u, 'password'>;
+        });
+    } catch (error) {
+      this.logger.error(this.context, `Error searching users by handle: ${query}`, String(error));
+      throw error;
+    }
+  }
+
+  async updateHandle(userId: string, handle: string): Promise<void> {
+    try {
+      await this.userRepository.update(userId, { handle });
+    } catch (error) {
+      this.logger.error(this.context, `Error updating handle for user ${userId}`, String(error));
+      throw error;
+    }
   }
 }
