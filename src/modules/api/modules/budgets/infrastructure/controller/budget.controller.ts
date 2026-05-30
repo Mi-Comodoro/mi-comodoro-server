@@ -24,8 +24,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
@@ -153,6 +153,7 @@ export class BudgetController {
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Invalid month value')
   async getCurrentBudget(
+    @CurrentUser() user: JwtPayload,
     @Param('financeId') financeId: string,
     @Query('month') month?: string,
     @Query('year') year?: string,
@@ -161,11 +162,16 @@ export class BudgetController {
       this.context,
       `Getting current budget for financeId: ${financeId}${month ? `, month: ${month}` : ''}${year ? `, year: ${year}` : ''}`,
     );
-    const budget = await this.budgetService.getCurrentBudgetByFinancesId(financeId, month, year);
+    const budget = await this.budgetService.getCurrentBudgetByFinancesId(
+      financeId,
+      month,
+      year,
+      user.userId,
+    );
     if (!budget) {
       throw new NotFoundException('Budget not found');
     }
-    this.logger.info(this.context, `Budget found: ${JSON.stringify(budget)}`);
+    this.logger.info(this.context, `Budget found: ${budget?.id}`);
     return budget;
   }
 
@@ -192,6 +198,7 @@ export class BudgetController {
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Invalid month value')
   async getCurrentBudgetByParams(
+    @CurrentUser() user: JwtPayload,
     @Param('financeId') financeId: string,
     @Param('year') year: string,
     @Param('month') month: string,
@@ -200,11 +207,16 @@ export class BudgetController {
       this.context,
       `Getting current budget for financeId: ${financeId}, month: ${month}, year: ${year}`,
     );
-    const budget = await this.budgetService.getCurrentBudgetByFinancesId(financeId, month, year);
+    const budget = await this.budgetService.getCurrentBudgetByFinancesId(
+      financeId,
+      month,
+      year,
+      user.userId,
+    );
     if (!budget) {
       throw new NotFoundException('Budget not found');
     }
-    this.logger.info(this.context, `Budget found: ${JSON.stringify(budget)}`);
+    this.logger.info(this.context, `Budget found: ${budget?.id}`);
     return budget;
   }
 
@@ -221,6 +233,7 @@ export class BudgetController {
   @ApiOkResponse({ type: BudgetListResponseDto })
   @ApiQuery({ name: 'year', required: false, type: Number, example: 2026 })
   async getAllBudgetsByFinanceId(
+    @CurrentUser() user: JwtPayload,
     @Param('financeId') financeId: string,
     @Query('year') year?: string,
   ) {
@@ -229,7 +242,7 @@ export class BudgetController {
       this.context,
       `Getting all budgets for financeId: ${financeId}${parsedYear ? `, year: ${parsedYear}` : ''}`,
     );
-    return await this.budgetService.getAllBudgetsByFinancesId(financeId, parsedYear);
+    return await this.budgetService.getAllBudgetsByFinancesId(financeId, parsedYear, user.userId);
   }
 
   @Get('/closed')
@@ -255,9 +268,9 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async getBudgetById(@Param('budgetId') budgetId: string) {
+  async getBudgetById(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    return await this.budgetService.getBudgetById(budgetId);
+    return await this.budgetService.getBudgetById(budgetId, user.userId);
   }
 
   @Patch('/:budgetId')
@@ -267,9 +280,13 @@ export class BudgetController {
   @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async updateBudget(@Param('budgetId') budgetId: string, @Body() dto: UpdateBudgetDto) {
+  async updateBudget(
+    @CurrentUser() user: JwtPayload,
+    @Param('budgetId') budgetId: string,
+    @Body() dto: UpdateBudgetDto,
+  ) {
     this.logger.info(this.context, `Updating budget ${budgetId}`);
-    return await this.budgetService.updateBudget(budgetId, dto);
+    return await this.budgetService.updateBudget(budgetId, dto, user.userId);
   }
 
   @Delete('/:budgetId')
@@ -279,9 +296,9 @@ export class BudgetController {
   @ApiOperation({ summary: 'Soft delete de un presupuesto (nulledAt)' })
   @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async deleteBudget(@Param('budgetId') budgetId: string) {
+  async deleteBudget(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
     this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
-    await this.budgetService.deleteBudget(budgetId);
+    await this.budgetService.deleteBudget(budgetId, user.userId);
   }
 
   @Patch('/:budgetId/active')
@@ -296,9 +313,9 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async active(@Param('budgetId') budgetId: string) {
+  async active(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    return await this.budgetService.active(budgetId);
+    return await this.budgetService.active(budgetId, user.userId);
   }
 
   @Patch('/:budgetId/close')
@@ -313,9 +330,13 @@ export class BudgetController {
   })
   @ApiOkResponse({ type: BudgetResponseDto })
   @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
-  async close(@Param('budgetId') budgetId: string, @Body() dto: CloseBudgetDto) {
+  async close(
+    @CurrentUser() user: JwtPayload,
+    @Param('budgetId') budgetId: string,
+    @Body() dto: CloseBudgetDto,
+  ) {
     this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
-    return await this.budgetService.close(budgetId, dto);
+    return await this.budgetService.close(budgetId, dto, user.userId);
   }
 
   @Post('/:budgetId/transfer-balance')

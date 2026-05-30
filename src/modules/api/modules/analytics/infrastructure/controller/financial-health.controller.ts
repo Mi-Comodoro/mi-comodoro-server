@@ -2,8 +2,8 @@ import { Controller, Get, HttpStatus, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
@@ -27,7 +27,7 @@ export class FinancialHealthController {
     summary: 'Obtener el score de salud financiera del usuario',
     description:
       'Calcula y retorna el score financiero con 4 pilares (flujo de caja, ahorro, gastos, deudas). ' +
-      'Si ya fue calculado hoy, retorna el score existente sin recalcular.',
+      'Si ya fue calculado en la última hora, retorna el score en cache.',
   })
   @ApiOkResponse({ type: FinancialHealthScoreResponseDto })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'Token inválido o expirado')

@@ -20,7 +20,8 @@ export class TransactionMapper {
       billId: entity.billId,
       plannedExpenseId: entity.plannedExpenseId,
       plannedIncomeId: entity.plannedIncomeId,
-      accountId: entity.accountId, // ← campo directo
+      accountId: entity.accountId,
+      savingGoalId: entity.savingGoalId,
       fromAccountId: entity.fromAccountId,
       toAccountId: entity.toAccountId,
       type: entity.type,
@@ -69,6 +70,10 @@ export class TransactionMapper {
 
     if (domain.accountId) {
       entity.accountId = domain.accountId;
+    }
+
+    if (domain.savingGoalId) {
+      entity.savingGoalId = domain.savingGoalId;
     }
 
     if (domain.fromAccountId) {

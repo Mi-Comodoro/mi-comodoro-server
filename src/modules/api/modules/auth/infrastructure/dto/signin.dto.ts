@@ -64,19 +64,18 @@ export class GoogleSignInDto {
 }
 
 export class SignInResponseDataDto {
-  @ApiProperty({
-    example:
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3ZTI1YmRjOS0wZGFmLTQ5MzgtYWNjZC04MWZlNWJjNWEwZGMiLCJlbWFpbCI6InVzZXIzQGVtYWlsLmNvbSIsInVzZXJQcm9maWxlSWQiOiI5NGExYTdiZC1kZjExLTRjZjAtYjA4Yy1lYWE3YmQ1MzExMTciLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTc2OTM2MzkxNywiZXhwIjoxNzY5MzY3NTE3fQ.VwtqZeTRFho4rg05EG1wab8lB22muZ2ch0OrZX4P6Ug',
-    description: 'JWT generado para autenticacion',
-  })
+  @ApiProperty({ description: 'Access token JWT (15 min)' })
   token: string;
+
+  @ApiProperty({ description: 'Refresh token opaco (7 dias)' })
+  refreshToken: string;
 
   @ApiProperty({ example: 'TRIAL', description: 'Tipo de cuenta del usuario' })
   accountType: string;
 
   @ApiProperty({
     example: 1775097600,
-    description: 'Fecha de expiracion del token en unix timestamp (segundos)',
+    description: 'Fecha de expiracion del access token en unix timestamp (segundos)',
   })
   expiresAt: number;
 }
@@ -113,17 +112,23 @@ export class LogoutResponseDataDto {
   message: string;
 }
 
+export class RefreshDto {
+  @ApiProperty({ description: 'Refresh token opaco para renovar la sesion' })
+  @IsString()
+  @IsNotEmpty()
+  refreshToken: string;
+}
+
 export class RefreshResponseDataDto {
-  @ApiProperty({
-    example:
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3ZTI1YmRjOS0wZGFmLTQ5MzgtYWNjZC04MWZlNWJjNWEwZGMiLCJlbWFpbCI6InVzZXIzQGVtYWlsLmNvbSIsInVzZXJQcm9maWxlSWQiOiI5NGExYTdiZC1kZjExLTRjZjAtYjA4Yy1lYWE3YmQ1MzExMTciLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTc2OTM2MzkxNywiZXhwIjoxNzY5MzY3NTE3fQ.VwtqZeTRFho4rg05EG1wab8lB22muZ2ch0OrZX4P6Ug',
-    description: 'JWT renovado para autenticacion',
-  })
+  @ApiProperty({ description: 'Nuevo access token JWT (15 min)' })
   token: string;
+
+  @ApiProperty({ description: 'Nuevo refresh token opaco (7 dias)' })
+  refreshToken: string;
 
   @ApiProperty({
     example: 1775097600,
-    description: 'Fecha de expiracion del token en unix timestamp (segundos)',
+    description: 'Fecha de expiracion del access token en unix timestamp (segundos)',
   })
   expiresAt: number;
 }

@@ -2,8 +2,8 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Patch, UseGuards } from '@
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 

@@ -137,7 +137,9 @@ export class AccountsPayableService {
         : null;
 
     const annualIncome = avgMonthlyIncome * 12;
-    const debtToIncomeRatio = annualIncome > 0 ? totalDebt / annualIncome : 0;
+    // Sin presupuestos cerrados, avgMonthlyIncome = 0. Si hay deuda, el ratio
+    // debe ser alto (riesgo máximo), no 0 (riesgo mínimo).
+    const debtToIncomeRatio = annualIncome > 0 ? totalDebt / annualIncome : totalDebt > 0 ? 2 : 0;
 
     const byType: Record<string, number> = {};
     for (const account of accounts) {

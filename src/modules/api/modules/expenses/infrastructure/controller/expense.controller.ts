@@ -20,8 +20,8 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
@@ -49,12 +49,13 @@ export class ExpenseController {
   @Post('/plan')
   @UseGuards(AuthGuard('jwt'))
   async plan(
+    @CurrentUser() user: JwtPayload,
     @Body()
     body: CreateExpensePlanDto,
   ) {
     this.logger.info(this.context, 'planning expense');
 
-    return await this.expenseService.addPlan(body);
+    return await this.expenseService.addPlan(body, user.userId);
   }
 
   @Post('/unplanned')
@@ -86,8 +87,8 @@ export class ExpenseController {
     status: 200,
     type: PlannedExpensesResponseDto,
   })
-  async findAll(@Query() query: GetPlannedExpensesQueryDto) {
-    return await this.expenseService.findAll(query);
+  async findAll(@CurrentUser() user: JwtPayload, @Query() query: GetPlannedExpensesQueryDto) {
+    return await this.expenseService.findAll(query, user.userId);
   }
 
   @Patch('/:id/complete')
@@ -131,7 +132,11 @@ export class ExpenseController {
     @CurrentUser() user: JwtPayload,
   ) {
     this.logger.info(this.context, 'Update planned expense');
-    return await this.expenseService.updatePlannedExpense(id, user.userId, updateData);
+    const { dueDate, ...rest } = updateData;
+    return await this.expenseService.updatePlannedExpense(id, user.userId, {
+      ...rest,
+      ...(dueDate ? { dueDate: new Date(dueDate) } : {}),
+    });
   }
 
   @Delete('/:id')

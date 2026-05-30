@@ -13,6 +13,7 @@ export class SavingsGoalsMapper {
       isActive: entity.isActive,
       status: entity.status ?? GoalStatus.SCHEDULED,
       accountId: entity.accountId,
+      account: entity.account ?? undefined,
       accountName: entity.account ? entity.account.name : '',
       lastInterestDate: entity.lastInterestDate ?? null,
       updatedAt: entity.updatedAt,

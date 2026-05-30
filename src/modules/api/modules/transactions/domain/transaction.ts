@@ -7,11 +7,13 @@ export interface Transaction {
   // IDs directos
   userId: string;
   budgetId: string;
-  categoryId: string;
+  categoryId?: string;
   billId?: string;
   plannedExpenseId?: string;
   plannedIncomeId?: string;
+  plannedSavingId?: string;
   accountId?: string; // ← faltaba, lo usás en savings
+  savingGoalId?: string;
 
   // Trazabilidad de movimiento entre cuentas
   fromAccountId?: string; // Cuenta origen del movimiento

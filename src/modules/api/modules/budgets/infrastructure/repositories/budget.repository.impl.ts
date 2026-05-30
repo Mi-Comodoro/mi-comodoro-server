@@ -189,7 +189,6 @@ export class BudgetRepositoryImpl implements BudgetRepository {
   async findById(budgetId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
     const budget = await this.budgetRepository.findOne({ where: { id: budgetId } });
-
     return budget ?? null;
   }
 
@@ -211,7 +210,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
       return updated;
     } catch (error) {
-      this.logger.error(this.context, JSON.stringify(error));
+      this.logger.error(this.context, (error as Error).message);
       throw error;
     }
   }
@@ -236,7 +235,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
       return updated;
     } catch (error) {
-      this.logger.error(this.context, JSON.stringify(error));
+      this.logger.error(this.context, (error as Error).message);
       throw error;
     }
   }

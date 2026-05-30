@@ -5,6 +5,11 @@ export interface SavingsTrendPoint {
   amount: number;
 }
 
+export interface GoalSavedTotal {
+  goalId: string;
+  total: number;
+}
+
 export interface PlannedSavingRepository {
   save(domain: Partial<PlannedSaving>): Promise<PlannedSaving>;
   saveMany(domain: Partial<PlannedSaving>[]): Promise<PlannedSaving[]>;
@@ -13,4 +18,5 @@ export interface PlannedSavingRepository {
   findByGoalId(goalId: string): Promise<PlannedSaving[]>;
   update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null>;
   findCompletedLast6MonthsByUserId(userId: string): Promise<SavingsTrendPoint[]>;
+  sumCompletedByGoalIds(goalIds: string[]): Promise<GoalSavedTotal[]>;
 }

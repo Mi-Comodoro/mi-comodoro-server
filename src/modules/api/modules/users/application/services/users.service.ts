@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
@@ -9,6 +9,7 @@ import { extractDay } from '../../../shared/utils/dates';
 import { UserProfileRepository } from '../../../user-profile/domain/user-profile.repository';
 import { User } from '../../domain/user.entity';
 import { UserRepository } from '../../domain/user.repository';
+import { UpdateHandleDto } from '../../infrastructure/dto/update-handle.dto';
 import { UpdateUserDto } from '../../infrastructure/dto/update-user.dto';
 import { OnboardingData } from '../dto/create-user.dto';
 
@@ -29,7 +30,7 @@ export class UsersService {
 
       const user = await this.userRepository.findByEmail(data.userInfo.email);
       if (!user) {
-        this.logger.warn(this.context, `User not found during onboarding: ${data.userInfo.email}`);
+        this.logger.warn(this.context, 'User not found during onboarding');
         throw new NotFoundException('User not found');
       }
 
@@ -106,6 +107,23 @@ export class UsersService {
       throw error;
     }
   }
+  async checkPhoneAvailability(phone: string): Promise<{ available: boolean }> {
+    const normalized = phone.replace(/[\s\-().]/g, '');
+    try {
+      const exists = await this.userProfileRepository.existsByPhone(normalized);
+      const available = !exists;
+      this.logger.info(
+        this.context,
+        `Verificación de teléfono completada — disponible: ${available}`,
+      );
+      return { available };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(this.context, `Error al verificar disponibilidad de teléfono: ${msg}`);
+      throw error;
+    }
+  }
+
   async updateMe(userId: string, dto: UpdateUserDto) {
     this.logger.info(this.context, `Updating profile for user ${userId}`);
     const profile = await this.userProfileRepository.findByUserId(userId);
@@ -119,12 +137,26 @@ export class UsersService {
   async getCurrentUser(payload: JwtPayload) {
     this.logger.info(this.context, `Fetching user details for user ${payload.userId}`);
     const user = await this.userRepository.findById(payload.userId);
-    console.log('User fetched from repository:', user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
   }
+  async updateHandle(userId: string, dto: UpdateHandleDto): Promise<{ handle: string }> {
+    this.logger.info(this.context, `Updating handle for user ${userId}`);
+    const existing = await this.userRepository.findByHandle(dto.handle);
+    if (existing && existing.id !== userId) {
+      throw new ConflictException('Este handle ya está en uso');
+    }
+    await this.userRepository.updateHandle(userId, dto.handle);
+    return { handle: dto.handle };
+  }
+
+  async searchUsers(query: string, requestingUserId: string) {
+    this.logger.info(this.context, `Searching users with query: ${query}`);
+    return await this.userRepository.searchByHandle(query, requestingUserId);
+  }
+
   private getIncomesData(data: OnboardingData, user: User): IncomeSource[] {
     const incomes: IncomeSource[] = [];
     const isMonthlyBudget = data.budget.budgetFrequency === 'monthly';
@@ -145,10 +177,7 @@ export class UsersService {
       throw new NotFoundException('Two biweekly payment dates are required for biweekly budget');
     }
     if (isMonthlyBudget) {
-      this.logger.info(
-        this.context,
-        `Processing monthly budget for user ${user.id} with payment date ${data.finances.monthPayment}`,
-      );
+      this.logger.info(this.context, `Processing monthly budget for user ${user.id}`);
 
       for (const income of data.incomes.incomes) {
         const securePaymentIncome = {

@@ -1,10 +1,10 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 
 import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
 
 import { GoalsRepository } from '../../domain/repositories/goals.repository';
-import { SavingGoal } from '../../domain/savings-goals';
+import { GoalStatus, SavingGoal } from '../../domain/savings-goals';
 import { SavingGoalEntity } from '../database/entities/saving-goals.entity';
 import { SavingsGoalsMapper } from '../mapper/goals.mapper';
 
@@ -75,6 +75,23 @@ export class GoalsRepositoryImpl implements GoalsRepository {
     if (result.affected === 0) return null;
 
     return this.findByIdAndUser(id, userId);
+  }
+
+  async findActiveWithInterest(): Promise<SavingGoal[]> {
+    const result = await this.savingsGoalsRepository.find({
+      where: {
+        status: GoalStatus.IN_PROGRESS,
+        isActive: true,
+        nulledAt: IsNull(),
+        account: { interestRate: MoreThan(0) },
+      },
+      relations: { account: true },
+    });
+    return result.map((item) => SavingsGoalsMapper.toDomain(item));
+  }
+
+  async updateLastInterestDate(id: string, date: Date): Promise<void> {
+    await this.savingsGoalsRepository.update(id, { lastInterestDate: date });
   }
 
   async delete(id: string): Promise<void> {

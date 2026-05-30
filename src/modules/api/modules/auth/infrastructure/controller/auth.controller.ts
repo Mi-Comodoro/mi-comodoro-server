@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -9,8 +9,8 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
@@ -20,6 +20,7 @@ import {
   GoogleSignInDto,
   GoogleSignInResponseDto,
   LogoutResponseDto,
+  RefreshDto,
   RefreshResponseDto,
   SignInDto,
   SignInResponseDto,
@@ -44,10 +45,8 @@ export class AuthController {
   @ApiErrorResponse(409, 'User already exists')
   async signup(@Body() body: SignUpDto) {
     this.logger.info(this.context, 'creating user user-profile');
-    const { passwordHash, passwordLowerCase } = usePassword();
-    const password = body.password;
-    const lowerPassword = passwordLowerCase(password);
-    const hash = await passwordHash(lowerPassword);
+    const { passwordHash } = usePassword();
+    const hash = await passwordHash(body.password);
 
     const data = {
       email: body.email,
@@ -57,6 +56,7 @@ export class AuthController {
       country: body.country,
       usageType: body.usageType,
       financialProfile: body.financialProfile,
+      plan: body.plan,
       passwordHash: hash,
     };
     return await this.authService.signup(data);
@@ -69,17 +69,9 @@ export class AuthController {
   @ApiOkResponse({ type: SignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(404, 'User not found')
-  async signin(@Body() body: SignInDto) {
+  async signin(@Body() body: SignInDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Logging into the user user-profile');
-    const { passwordLowerCase } = usePassword();
-    const password = body.password;
-    const lowerPassword = passwordLowerCase(password);
-
-    const data = {
-      ...body,
-      password: lowerPassword,
-    };
-    return await this.authService.signin(data);
+    return await this.authService.signin(body, userAgent);
   }
 
   @Post('/google')
@@ -87,20 +79,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
-  async loginWithGoogle(@Body() body: GoogleSignInDto) {
-    return await this.authService.loginWithGoogle(body.data);
+  async loginWithGoogle(@Body() body: GoogleSignInDto, @Headers('user-agent') userAgent?: string) {
+    return await this.authService.loginWithGoogle(body.data, userAgent);
   }
 
   @Post('/refresh')
-  @UseGuards(AuthGuard('jwt'))
   @HttpCode(200)
-  @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Renovar el JWT de la sesion autenticada' })
+  @ApiOperation({ summary: 'Renovar la sesion usando un refresh token opaco' })
   @ApiOkResponse({ type: RefreshResponseDto })
-  @ApiErrorResponse(401, 'Unauthorized')
-  async refresh(@CurrentUser() user: JwtPayload) {
+  @ApiErrorResponse(401, 'Refresh token inválido o expirado')
+  async refresh(@Body() body: RefreshDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Refreshing authenticated session');
-    return await this.authService.refresh(user);
+    return await this.authService.refresh(body.refreshToken, userAgent);
   }
 
   @Post('/logout')

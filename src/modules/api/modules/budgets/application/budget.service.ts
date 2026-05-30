@@ -7,12 +7,16 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 
+import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
+import { CategoryType } from '@/modules/api/modules/categories/domain/category';
+import { CategoryEntity } from '@/modules/api/modules/categories/infrastructure/database/category.entity';
 import { GoalsRepository } from '@/modules/api/modules/savings/domain/repositories/goals.repository';
-import { PlannedSavingRepository } from '@/modules/api/modules/savings/domain/repositories/planned.repository';
 import { PlannedSavingStatus } from '@/modules/api/modules/savings/domain/savings-planned';
+import { PlannedSavingEntity } from '@/modules/api/modules/savings/infrastructure/database/entities/saving-planned.entity';
+import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
@@ -65,9 +69,8 @@ export class BudgetService {
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
-    @Inject('PlannedSavingRepository')
-    private readonly plannedSavingRepository: PlannedSavingRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   async createMonthlyBudget(input: CreateBudgetInput): Promise<Budget> {
@@ -96,7 +99,7 @@ export class BudgetService {
 
     const budgetToCreate = sourceBudget
       ? this.buildBudgetFromSource(sourceBudget, input.userId, finances.id, month, year, input.name)
-      : this.buildEmptyBudget(input.userId, finances.id, month, year, input.name);
+      : await this.buildEmptyBudget(input.userId, finances.id, month, year, input.name);
 
     const createdBudget = await this.budgetRepository.save(budgetToCreate);
 
@@ -116,7 +119,12 @@ export class BudgetService {
     financesId: string,
     month?: string,
     year?: string | number,
+    userId?: string,
   ): Promise<Budget | null> {
+    if (userId) {
+      await this.assertFinancesOwner(financesId, userId);
+    }
+
     const currentDate = new Date();
     const resolvedMonth = this.resolveMonth(month, currentDate);
     const resolvedYear = this.resolveYear(year, currentDate);
@@ -133,7 +141,15 @@ export class BudgetService {
     );
   }
 
-  async getAllBudgetsByFinancesId(financesId: string, year?: number): Promise<Budget[]> {
+  async getAllBudgetsByFinancesId(
+    financesId: string,
+    year?: number,
+    userId?: string,
+  ): Promise<Budget[]> {
+    if (userId) {
+      await this.assertFinancesOwner(financesId, userId);
+    }
+
     this.logger.info(
       this.context,
       `Getting all budgets for financesId: ${financesId}${year ? `, year: ${year}` : ''}`,
@@ -192,20 +208,22 @@ export class BudgetService {
           : 0,
     }));
   }
-  async getBudgetById(budgetId: string): Promise<Budget> {
+  async getBudgetById(budgetId: string, userId?: string): Promise<Budget> {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget) {
-      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
-    }
-    return budget;
+    return userId
+      ? await this.assertBudgetOwner(budgetId, userId)
+      : await this.getBudgetOrThrow(budgetId);
   }
 
   async updateBudget(
     budgetId: string,
     data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+    userId?: string,
   ): Promise<Budget> {
     this.logger.info(this.context, `Updating budget ${budgetId}`);
+    if (userId) {
+      await this.assertBudgetOwner(budgetId, userId);
+    }
     const updated = await this.budgetRepository.update(budgetId, data);
     if (!updated) {
       throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
@@ -213,30 +231,31 @@ export class BudgetService {
     return updated;
   }
 
-  async deleteBudget(budgetId: string): Promise<void> {
+  async deleteBudget(budgetId: string, userId?: string): Promise<void> {
     this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget) {
-      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    if (userId) {
+      await this.assertBudgetOwner(budgetId, userId);
+    } else {
+      await this.getBudgetOrThrow(budgetId);
     }
     await this.budgetRepository.softDelete(budgetId);
   }
 
-  async active(budgetId: string) {
+  async active(budgetId: string, userId?: string) {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
-    const budget = (await this.budgetRepository.findById(budgetId)) as Required<Budget>;
-    if (!budget) {
-      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    if (userId) {
+      await this.assertBudgetOwner(budgetId, userId);
+    } else {
+      await this.getBudgetOrThrow(budgetId);
     }
 
-    return await this.budgetRepository.active(budget.id);
+    return await this.budgetRepository.active(budgetId);
   }
-  async close(budgetId: string, dto: CloseBudgetDto = {}): Promise<Budget> {
+  async close(budgetId: string, dto: CloseBudgetDto = {}, userId?: string): Promise<Budget> {
     this.logger.info(this.context, `Closing budget by ID: ${budgetId}`);
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget) {
-      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
-    }
+    const budget = userId
+      ? await this.assertBudgetOwner(budgetId, userId)
+      : await this.getBudgetOrThrow(budgetId);
 
     const surplus = await this.calculateSurplus(budgetId);
 
@@ -253,7 +272,13 @@ export class BudgetService {
 
     try {
       if (dto.surplusAction === 'transfer_to_goal' && dto.targetGoalId) {
-        await this.transferSurplusToGoal(budgetId, dto.targetGoalId, surplus, budget.ownerId);
+        await this.transferSurplusToGoal(
+          budgetId,
+          dto.targetGoalId,
+          surplus,
+          budget.ownerId,
+          queryRunner.manager,
+        );
       }
 
       const updates: Record<string, unknown> = { status: 'CLOSED' };
@@ -271,7 +296,10 @@ export class BudgetService {
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(this.context, `Error closing budget ${budgetId}: ${JSON.stringify(err)}`);
+      this.logger.error(
+        this.context,
+        `Error closing budget ${budgetId}: ${(err as Error).message}`,
+      );
       throw err;
     } finally {
       await queryRunner.release();
@@ -302,7 +330,7 @@ export class BudgetService {
       } catch (err) {
         this.logger.error(
           this.context,
-          `Error cerrando presupuesto ${budget.id}: ${JSON.stringify(err)}`,
+          `Error cerrando presupuesto ${budget.id}: ${(err as Error).message}`,
         );
       }
     }
@@ -324,12 +352,13 @@ export class BudgetService {
       throw new BadRequestException('Se requiere targetBudgetId o goalId');
     }
 
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget) {
-      throw new NotFoundException(`Presupuesto ${budgetId} no encontrado`);
-    }
+    const budget = await this.assertBudgetOwner(budgetId, userId);
     if (budget.status !== 'CLOSED') {
       throw new BadRequestException('Solo se puede transferir desde presupuestos cerrados');
+    }
+
+    if (dto.targetBudgetId) {
+      await this.assertBudgetOwner(dto.targetBudgetId, userId);
     }
 
     const surplus = await this.calculateSurplus(budgetId);
@@ -352,7 +381,13 @@ export class BudgetService {
       }
 
       if (dto.goalId) {
-        await this.transferSurplusToGoal(budgetId, dto.goalId, dto.amount, userId);
+        await this.transferSurplusToGoal(
+          budgetId,
+          dto.goalId,
+          dto.amount,
+          userId,
+          queryRunner.manager,
+        );
       }
 
       await queryRunner.commitTransaction();
@@ -360,7 +395,7 @@ export class BudgetService {
       await queryRunner.rollbackTransaction();
       this.logger.error(
         this.context,
-        `Error en transferencia desde presupuesto ${budgetId}: ${JSON.stringify(err)}`,
+        `Error en transferencia desde presupuesto ${budgetId}: ${(err as Error).message}`,
       );
       throw err;
     } finally {
@@ -387,6 +422,7 @@ export class BudgetService {
     goalId: string,
     amount: number,
     userId: string,
+    manager: EntityManager,
   ): Promise<void> {
     this.logger.info(
       this.context,
@@ -396,15 +432,38 @@ export class BudgetService {
     if (!goal) {
       throw new NotFoundException(`Goal with ID: ${goalId} not found`);
     }
+    if (goal.userId !== userId) {
+      throw new NotFoundException(`Goal with ID: ${goalId} not found`);
+    }
 
-    await this.plannedSavingRepository.save({
-      savingGoalId: goalId,
-      accountId: goal.accountId,
-      budgetId,
+    const category = await manager.findOne(CategoryEntity, {
+      where: { type: CategoryType.SAVINGS, nulledAt: IsNull() },
+    });
+    if (!category) {
+      throw new NotFoundException('Categoría de ahorro no encontrada');
+    }
+
+    await manager.save(PlannedSavingEntity, {
+      savingGoal: { id: goalId },
+      account: { id: goal.accountId },
+      budget: { id: budgetId },
       amount,
       date: new Date(),
       status: PlannedSavingStatus.COMPLETED,
       completedAt: new Date(),
+    });
+
+    await manager.save(TransactionEntity, {
+      type: 'savings' as const,
+      amount,
+      source: goal.name,
+      userId,
+      budgetId,
+      categoryId: category.id,
+      accountId: goal.accountId,
+      toAccountId: goal.accountId,
+      transactionDate: new Date(),
+      savingGoalId: goalId,
     });
   }
   private async resolveSourceBudget(
@@ -432,13 +491,37 @@ export class BudgetService {
     return await this.budgetRepository.findPreviousByFinancesId(financesId, month, year);
   }
 
-  private buildEmptyBudget(
+  private async getBudgetOrThrow(budgetId: string): Promise<Budget> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget) {
+      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    }
+    return budget;
+  }
+
+  private async assertBudgetOwner(budgetId: string, userId: string): Promise<Budget> {
+    const budget = await this.getBudgetOrThrow(budgetId);
+    if (budget.ownerId !== userId) {
+      throw new NotFoundException(`Budget with ID: ${budgetId} not found`);
+    }
+    return budget;
+  }
+
+  private async assertFinancesOwner(financesId: string, userId: string): Promise<void> {
+    const finances = await this.financesRepository.findByUserId(userId);
+    if (!finances?.id || finances.id !== financesId) {
+      throw new NotFoundException('Finances not found for user');
+    }
+  }
+
+  private async buildEmptyBudget(
     userId: string,
     financesId: string,
     month: string,
     year: number,
     name?: string,
-  ): Partial<Budget> {
+  ): Promise<Partial<Budget>> {
+    const savingsLimit = await this.systemConfigService.getNumber('savings_default_pct', 20);
     return {
       name: this.resolveBudgetName(month, year, name),
       month,
@@ -446,7 +529,7 @@ export class BudgetService {
       isShared: false,
       needsLimit: 50,
       wantsLimit: 30,
-      savingsLimit: 20,
+      savingsLimit,
       financesId,
       ownerId: userId,
       strategy: 'BALANCED',

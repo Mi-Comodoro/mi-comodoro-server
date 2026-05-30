@@ -4,7 +4,8 @@ import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 import { DataSource } from 'typeorm';
 
-dotenv.config({ path: resolve('src/common/environment/.env') });
+// Cargar .env desde la raíz
+dotenv.config({ path: resolve(process.cwd(), '.env') });
 
 export default new DataSource({
   type: 'postgres',
@@ -15,4 +16,5 @@ export default new DataSource({
   database: process.env.DB_NAME,
   entities: ['src/**/*.entity.ts'],
   migrations: ['src/database/migrations/*.ts'],
+  synchronize: true,
 });

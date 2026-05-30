@@ -40,6 +40,8 @@ export class UserEntity {
   tokenVersion: number;
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
+  @Column({ type: 'varchar', unique: true, nullable: true, length: 20 })
+  handle?: string | null;
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true })
   nulledAt?: Date | null;
 

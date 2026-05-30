@@ -66,8 +66,10 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       message = this.extractMessage(exception);
       error = this.getExceptionName(exception);
     } else {
-      console.log(exception);
-      this.logger.error(this.context, `Unhandled exception: ${JSON.stringify(exception)}`);
+      this.logger.error(
+        this.context,
+        `Unhandled exception: ${(exception as Error)?.message ?? String(exception)}`,
+      );
     }
 
     const json: ErrorResponse = {

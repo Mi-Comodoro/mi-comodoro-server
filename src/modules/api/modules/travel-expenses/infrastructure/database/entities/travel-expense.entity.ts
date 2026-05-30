@@ -29,6 +29,7 @@ export class TravelExpenseEntity implements TravelExpense {
   expenseDate: Date;
 
   @Column({
+    name: 'split_type',
     type: 'enum',
     enum: ['EQUAL', 'CUSTOM', 'PERCENTAGE'],
     default: 'EQUAL',

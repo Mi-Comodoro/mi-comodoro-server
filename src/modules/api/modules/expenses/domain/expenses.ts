@@ -11,9 +11,9 @@ export interface PlannedExpense {
   budgetId: string;
   categoryId: string;
   name: string;
-  expectedAmount: number; // ← tu campo real, no 'amount'
-  dueDate: Date; // ← tu campo real, no 'date'
-  status: PlannedExpenseStatus; // ← tipado estricto, no string
+  expectedAmount: number;
+  dueDate: Date;
+  status: PlannedExpenseStatus;
   isEssential: boolean;
   notes?: string;
   billsId?: string | null;

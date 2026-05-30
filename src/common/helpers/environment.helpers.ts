@@ -1,13 +1,6 @@
 import { resolve } from 'path';
 
-export enum Environment {
-  Development = 'development',
-  Production = 'production',
-  Staging = 'staging',
-  Test = 'test',
-}
-
-export function getEnvironmentPath(dest: string): string {
-  const filename: string = resolve(`${dest}/.env`);
-  return filename;
+export function getEnvironmentPath(): string {
+  // Ahora siempre resuelve el .env en la raíz del proyecto
+  return resolve(process.cwd(), '.env');
 }

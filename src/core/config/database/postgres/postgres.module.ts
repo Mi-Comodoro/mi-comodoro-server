@@ -2,11 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import Joi from 'joi';
 
-import { ENVIRONMENT_PATH } from '@/common/constants';
 import { getEnvironmentPath } from '@/common/helpers/environment.helpers';
 
 import dbRegister from './registers';
-const envFilePath: string = getEnvironmentPath(ENVIRONMENT_PATH);
+const envFilePath: string = getEnvironmentPath();
 @Module({
   imports: [
     ConfigModule.forRoot({

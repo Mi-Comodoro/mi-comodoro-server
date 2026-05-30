@@ -12,7 +12,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
@@ -115,6 +115,43 @@ export class GoalsController {
   async getHistory(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, 'getting savings goal history');
     return await this.goalsService.getHistory(id, user.userId);
+  }
+
+  @Get(':id/contributions')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Get all contributions (transactions) for a saving goal' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Contributions retrieved successfully' })
+  async getGoalContributions(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'getting contributions for saving goal');
+    return await this.goalsService.getGoalContributions(id, user.userId);
+  }
+
+  @Get(':id/summary')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Get savings and interest totals for a goal' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Summary retrieved successfully' })
+  async getGoalSummary(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, 'getting summary for saving goal');
+    return await this.goalsService.getGoalSummary(id, user.userId);
+  }
+
+  @Post(':id/interest')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Registrar interés acumulado para una meta de ahorro' })
+  @ApiParam({ name: 'id', type: String, description: 'UUID de la meta' })
+  @ApiOkResponse({ description: 'Interés registrado exitosamente' })
+  async registerGoalInterest(
+    @Param('id') id: string,
+    @Body() body: { amount: number; date: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, 'registering interest for saving goal');
+    return await this.goalsService.registerGoalInterest(id, user.userId, body.amount, body.date);
   }
 
   @Post(':id/contributions')

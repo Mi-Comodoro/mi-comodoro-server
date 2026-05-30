@@ -29,12 +29,12 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, SuccessRespons
           data: data as object,
         }),
       ),
-      tap((response: SuccessResponse) => {
+      tap(() => {
         const duration = Date.now() - start;
         const status = res.statusCode;
         const message = `Request completed - Status: ${status} [${duration}ms]`;
 
-        this.logger.debug(ctx, message, method, url, response.data);
+        this.logger.debug(ctx, message, method, url);
       }),
     );
   }

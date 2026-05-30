@@ -4,13 +4,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
   FindOptionsWhere,
+  In,
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
 
-import { TransactionRepository } from '../../domain/repositories/transaction.repository';
+import {
+  GoalSummary,
+  TransactionRepository,
+} from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters, TransactionPagination } from '../../domain/transaction';
 import { TransactionEntity } from '../database/entities/transaction.entity';
 import { TransactionMapper } from '../mapper/transaction.mapper';
@@ -63,7 +67,7 @@ export class TransactionRepositoryImpl implements TransactionRepository {
 
     const where: FindOptionsWhere<TransactionEntity> = { budgetId, nulledAt: IsNull() };
 
-    if (type) where.type = type;
+    if (type) where.type = type === 'savings' ? In(['savings', 'interest']) : type;
     if (categoryId) where.categoryId = categoryId;
     if (dateFrom || dateTo) {
       where.transactionDate =
@@ -81,7 +85,6 @@ export class TransactionRepositoryImpl implements TransactionRepository {
       skip: (page - 1) * limit,
       take: limit,
     });
-
     return {
       data: entities.map(TransactionMapper.toDomain),
       pagination: {
@@ -96,5 +99,52 @@ export class TransactionRepositoryImpl implements TransactionRepository {
   async softDelete(id: string): Promise<boolean> {
     const result = await this.transactionRepository.update(id, { nulledAt: new Date() });
     return (result.affected ?? 0) > 0;
+  }
+
+  async findByGoalId(goalId: string): Promise<Transaction[]> {
+    const entities = await this.transactionRepository.find({
+      where: { savingGoalId: goalId, nulledAt: IsNull() },
+      order: { transactionDate: 'DESC' },
+    });
+    return entities.map(TransactionMapper.toDomain);
+  }
+
+  async getGoalSummary(
+    goalId: string,
+    userId: string,
+    accountId: string,
+    goalName: string,
+  ): Promise<GoalSummary> {
+    // Interest from completePlannedSaving was historically saved without savingGoalId.
+    // Include those orphaned transactions by matching on user + account + source pattern.
+    const orphanedInterestSource = `Interés: ${goalName}`;
+
+    const rows = await this.transactionRepository
+      .createQueryBuilder('t')
+      .select('t.type', 'type')
+      .addSelect('SUM(t.amount)', 'total')
+      .where('t.nulled_at IS NULL')
+      .andWhere("t.type IN ('savings', 'interest')")
+      .andWhere(
+        `(
+          t.saving_goal_id = :goalId
+          OR (
+            t.type = 'interest'
+            AND t.user_id = :userId
+            AND t.account_id = :accountId
+            AND t.saving_goal_id IS NULL
+            AND t.source = :orphanedSource
+          )
+        )`,
+        { goalId, userId, accountId, orphanedSource: orphanedInterestSource },
+      )
+      .groupBy('t.type')
+      .getRawMany<{ type: string; total: string }>();
+
+    const map = new Map(rows.map((r) => [r.type, Number(r.total) || 0]));
+    return {
+      totalSavings: map.get('savings') ?? 0,
+      totalInterest: map.get('interest') ?? 0,
+    };
   }
 }

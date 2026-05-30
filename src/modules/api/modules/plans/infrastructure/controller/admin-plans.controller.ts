@@ -22,7 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { AdminGuard } from '@/common/guards/admin.guard';
 import { LoggerProviderService } from '@/core/providers';
 

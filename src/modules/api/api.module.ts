@@ -11,9 +11,11 @@ import { BudgetModule } from './modules/budgets/budget.module';
 import { CategoryModule } from './modules/categories/category.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { FinancesModule } from './modules/finances/finances.module';
+import { FriendshipsModule } from './modules/friendships/friendships.module';
 import { GroupsModule } from './modules/groups/groups.module';
 import { HealthModule } from './modules/health/health.module';
 import { IncomesModule } from './modules/incomes/incomes.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PlansModule } from './modules/plans/plan.module';
 import { SavingsModule } from './modules/savings/savings.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -45,6 +47,8 @@ import { UsersModule } from './modules/users/users.module';
     TravelExpenseModule,
     SettingsModule,
     PlansModule,
+    FriendshipsModule,
+    NotificationsModule,
   ],
 })
 export class ApiModule {}

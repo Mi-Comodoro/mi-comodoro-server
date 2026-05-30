@@ -2,11 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { AccountEntity } from '@/modules/api/modules/accounts/infrastructure/database/account.entity';
+
 import {
+  GoalSavedTotal,
   PlannedSavingRepository,
   SavingsTrendPoint,
 } from '../../domain/repositories/planned.repository';
 import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
+import { SavingGoalEntity } from '../database/entities/saving-goals.entity';
 import { PlannedSavingEntity } from '../database/entities/saving-planned.entity';
 import { PlannedSavingMapper } from '../mapper/planned.mapper';
 
@@ -61,20 +65,60 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
   }
 
   async update(id: string, domain: Partial<PlannedSaving>): Promise<PlannedSaving | null> {
-    const updateData: Partial<PlannedSavingEntity> = {};
+    const scalarData: Partial<PlannedSavingEntity> = {};
+    let hasScalarChanges = false;
+    let hasRelationChanges = false;
 
     if (domain.status !== undefined) {
-      updateData.status = domain.status as PlannedSavingStatus;
+      scalarData.status = domain.status as PlannedSavingStatus;
+      hasScalarChanges = true;
     }
     if (domain.completedAt !== undefined) {
-      updateData.completedAt = domain.completedAt;
+      scalarData.completedAt = domain.completedAt;
+      hasScalarChanges = true;
     }
 
-    const result = await this.plannedSavingRepository.update(id, updateData);
+    if (hasScalarChanges) {
+      const result = await this.plannedSavingRepository.update(id, scalarData);
+      if (result.affected === 0) return null;
+    }
 
-    if (result.affected === 0) return null;
+    if (domain.savingGoalId !== undefined || domain.accountId !== undefined) {
+      hasRelationChanges = true;
+      const entity = await this.plannedSavingRepository.findOne({ where: { id } });
+      if (!entity) return null;
+
+      if (domain.savingGoalId !== undefined) {
+        const goal = new SavingGoalEntity();
+        goal.id = domain.savingGoalId;
+        entity.savingGoal = goal;
+      }
+      if (domain.accountId !== undefined) {
+        const account = new AccountEntity();
+        account.id = domain.accountId;
+        entity.account = account;
+      }
+
+      await this.plannedSavingRepository.save(entity);
+    }
+
+    if (!hasScalarChanges && !hasRelationChanges) return null;
 
     return this.findById(id);
+  }
+
+  async sumCompletedByGoalIds(goalIds: string[]): Promise<GoalSavedTotal[]> {
+    if (!goalIds.length) return [];
+    const rows = await this.plannedSavingRepository
+      .createQueryBuilder('ps')
+      .innerJoin('ps.savingGoal', 'goal')
+      .where('goal.id IN (:...goalIds)', { goalIds })
+      .andWhere('ps.status = :status', { status: PlannedSavingStatus.COMPLETED })
+      .select('goal.id', 'goalId')
+      .addSelect('SUM(ps.amount)', 'total')
+      .groupBy('goal.id')
+      .getRawMany();
+    return rows.map((r) => ({ goalId: r.goalId, total: Number(r.total) || 0 }));
   }
 
   async findCompletedLast6MonthsByUserId(userId: string): Promise<SavingsTrendPoint[]> {

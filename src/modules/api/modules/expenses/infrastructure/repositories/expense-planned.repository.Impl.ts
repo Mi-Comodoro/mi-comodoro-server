@@ -55,10 +55,11 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
         'expense.expectedAmount AS "expectedAmount"',
         'expense.dueDate AS "dueDate"',
         'expense.status AS status',
+        'expense.isEssential AS "isEssential"',
         'category.name AS category',
         'category.bucket AS bucket',
         `
-      CASE 
+      CASE
         WHEN bill.id IS NOT NULL THEN true
         ELSE false
       END AS "isFromBill"

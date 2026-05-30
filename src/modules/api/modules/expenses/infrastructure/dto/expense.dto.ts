@@ -35,7 +35,7 @@ export class CreateExpensePlanDto {
   @ApiProperty({ example: '2026-05-01' })
   @IsDateString()
   @IsNotEmpty()
-  dueDate: Date;
+  dueDate: string;
 
   @ApiProperty({ enum: PlannedExpenseStatus, example: PlannedExpenseStatus.PLANNED })
   @IsEnum(PlannedExpenseStatus)
@@ -111,7 +111,7 @@ export class UpdateExpenseDto {
   @ApiProperty({ example: '2026-05-15', required: false })
   @IsDateString()
   @IsOptional()
-  dueDate?: Date;
+  dueDate?: string;
 
   @ApiProperty({ example: 'Pago mensual actualizado', required: false })
   @IsString()

@@ -12,6 +12,7 @@ export interface User {
   readonly role?: UserRole;
   readonly userProfile?: UserProfile;
   readonly finances?: Finances;
+  readonly handle?: string | null;
   readonly nulledAt?: Date | null;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;

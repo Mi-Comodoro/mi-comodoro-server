@@ -1,4 +1,6 @@
-import { GenderType, UserProfileType } from './user-profile.types';
+import { AccountType } from '@/common/enums/account-type.enum';
+
+import { GenderType } from './user-profile.types';
 
 export interface UserProfile {
   id?: string;
@@ -9,8 +11,8 @@ export interface UserProfile {
   displayName?: string;
   gender?: GenderType;
   country?: string; // ISO-2 (ej: 'CO')}
-  type: UserProfileType;
-  trialEndsAt?: Date | undefined;
+  accountType: AccountType;
+  trialEndsAt?: Date | null;
   isPhoneVerified: boolean;
   phoneVerifiedAt: Date | null;
   isActive: boolean;

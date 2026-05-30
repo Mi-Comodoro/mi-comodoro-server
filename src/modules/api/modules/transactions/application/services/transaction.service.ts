@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -27,6 +33,7 @@ export class TransactionService {
 
   async findByBudget(
     budgetId: string,
+    userId: string,
     query: {
       type?: string;
       categoryId?: string;
@@ -44,8 +51,13 @@ export class TransactionService {
       totalPages: number;
     };
   }> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      throw new NotFoundException('Budget not found');
+    }
+
     const filters: TransactionFilters = {
-      type: ['income', 'expense', 'savings'].includes(query?.type as string)
+      type: ['income', 'expense', 'savings', 'interest'].includes(query?.type as string)
         ? (query?.type as TransactionFilters['type'])
         : undefined,
       categoryId: query?.categoryId || undefined,
@@ -73,16 +85,26 @@ export class TransactionService {
       throw new BadRequestException('Budget is not active');
     }
 
-    // Validar que la categoría existe
-    const category = await this.categoryRepository.findById(dto.categoryId);
-    if (!category) {
-      throw new NotFoundException('Category not found');
+    // TODO(bug-8): Validar que transactionDate cae dentro del período del presupuesto (budget.month/budget.year).
+    // El presupuesto almacena el mes como string (p.ej. "mayo") y el año como número, no como fechas ISO.
+    // Para implementar: convertir budget.month → número de mes, construir startDate/endDate del período y
+    // comparar con dto.transactionDate. No requiere migración de datos; sólo afecta transacciones nuevas.
+    // Referencia: BudgetRepository no expone findByDate — agregar lógica de validación aquí o un helper privado.
+
+    // Validar categoría solo para gastos
+    if (dto.type === 'expense') {
+      if (!dto.categoryId) {
+        throw new BadRequestException('Category is required for expense transactions');
+      }
+      const category = await this.categoryRepository.findById(dto.categoryId);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
     }
 
-    // Validar account si se proporciona
     if (dto.accountId) {
-      // TODO: Implementar validación de account cuando esté disponible el método findById
-      // Por ahora, asumimos que si se proporciona accountId, es válido
+      const account = await this.accountRepository.findByIdAndUser(dto.accountId, userId);
+      if (!account) throw new ForbiddenException('Account does not belong to user');
     }
 
     // Validar que el amount sea positivo

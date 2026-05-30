@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateIf,
+} from 'class-validator';
 
 export type TransactionType = 'income' | 'expense' | 'savings';
 
@@ -19,10 +27,14 @@ export class CreateManualTransactionDto {
   @IsNotEmpty()
   source: string;
 
-  @ApiProperty({ example: 'uuid-categoria', description: 'UUID de la categoría' })
+  @ApiPropertyOptional({
+    example: 'uuid-categoria',
+    description: 'UUID de la categoría (requerido para gastos)',
+  })
+  @ValidateIf((o) => o.type === 'expense')
   @IsUUID()
   @IsNotEmpty()
-  categoryId: string;
+  categoryId?: string;
 
   @ApiProperty({ example: 'uuid-presupuesto', description: 'UUID del presupuesto' })
   @IsUUID()

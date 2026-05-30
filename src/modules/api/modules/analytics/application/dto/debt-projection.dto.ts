@@ -20,4 +20,10 @@ export class DebtProjectionDto {
     description: 'Proyección simplificada sin interés compuesto',
   })
   simplified: boolean;
+
+  @ApiProperty({
+    example: false,
+    description: 'Indica si el usuario tiene historial de pagos registrados (balance < original)',
+  })
+  hasPaymentHistory: boolean;
 }
