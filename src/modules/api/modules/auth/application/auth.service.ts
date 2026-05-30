@@ -6,13 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import * as admin from 'firebase-admin';
 
 import { AccountType } from '@/common/enums/account-type.enum';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
+import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
 import { UserProfile } from '../../user-profile/domain/user-profile.entity';
@@ -20,8 +21,11 @@ import { UserProfileRepository } from '../../user-profile/domain/user-profile.re
 import { User } from '../../users/domain/user.entity';
 import { UserRepository } from '../../users/domain/user.repository';
 import { UserRole } from '../../users/domain/user-role.enum';
+import type { RefreshTokenRepository } from '../domain/refresh-token.repository';
 import { CreateUserProfile, LoginUserProfile } from './interface';
 import { signUpToClient } from './mapper/signup.mapper';
+
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 @Injectable()
 export class AuthService {
@@ -29,9 +33,12 @@ export class AuthService {
   constructor(
     @Inject('UserRepository') private readonly userRepository: UserRepository,
     @Inject('UserProfileRepository') private readonly accountRepository: UserProfileRepository,
+    @Inject('RefreshTokenRepository')
+    private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly logger: LoggerProviderService,
     private readonly jwtProvider: JwtProvider,
     private readonly jwtService: JwtService,
+    private readonly systemConfigService: SystemConfigService,
   ) {
     if (!admin.apps.length) {
       admin.initializeApp({
@@ -43,6 +50,7 @@ export class AuthService {
       });
     }
   }
+
   async signup(data: CreateUserProfile) {
     this.logger.info(this.context, 'Creating user user-profile');
     const existingUser = await this.userRepository.findByEmail(data.email);
@@ -64,8 +72,11 @@ export class AuthService {
         partner: AccountType.PARTNER,
       };
       const accountType = planMap[data.plan?.toLowerCase() ?? ''] ?? AccountType.TRIAL;
+      const trialDays = await this.systemConfigService.getNumber('trial_duration_days', 14);
       const trialEndsAt =
-        accountType === AccountType.TRIAL ? new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) : null;
+        accountType === AccountType.TRIAL
+          ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+          : null;
 
       const userCreated: User = await this.userRepository.save(user);
       const newUserProfile: UserProfile = {
@@ -87,8 +98,8 @@ export class AuthService {
     }
   }
 
-  async signin(credential: LoginUserProfile) {
-    this.logger.info(this.context, `Login attempt processed for user ${credential.email}`);
+  async signin(credential: LoginUserProfile, userAgent?: string | null) {
+    this.logger.info(this.context, 'Login attempt processed');
     const user = await this.userRepository.findByEmail(credential.email);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -123,26 +134,22 @@ export class AuthService {
       userProfileId: user.userProfile?.id ?? '',
       tokenVersion: user.tokenVersion ?? 0,
     };
-    const token = this.jwtProvider.generateToken(payload);
-    const decoded = this.jwtService.decode(token) as { exp: number };
 
-    return {
-      token,
-      accountType: user.userProfile?.accountType,
-      expiresAt: decoded.exp,
-    };
+    return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
-  async loginWithGoogle(data: { idToken: string; name: string }) {
-    this.logger.info(this.context, `Google login attempt processed for user ${data.name}`);
+  async loginWithGoogle(data: { idToken: string; name: string }, userAgent?: string | null) {
+    this.logger.info(this.context, 'Google login attempt processed');
     let payload: JwtPayload;
     const response: {
       token: string;
+      refreshToken: string;
       accountType: string;
       onboarding: string;
       expiresAt?: number;
     } = {
       token: '',
+      refreshToken: '',
       accountType: '',
       onboarding: '',
     };
@@ -150,10 +157,7 @@ export class AuthService {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const user = (await this.userRepository.findByEmail(decodedToken.email!)) as User;
     if (!user) {
-      this.logger.info(
-        this.context,
-        `No user found for email ${decodedToken.email}, creating new user-profile`,
-      );
+      this.logger.info(this.context, 'No user found for email, creating new user-profile');
       const userCreated = await this.userRepository.save({
         email: decodedToken.email!,
         password: '',
@@ -174,10 +178,6 @@ export class AuthService {
         phoneVerifiedAt: null,
         isActive: true,
       };
-      this.logger.info(
-        this.context,
-        `UserProfile created for user ${userCreated.id} with email ${decodedToken.email}`,
-      );
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
       response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;
@@ -203,42 +203,49 @@ export class AuthService {
       response.onboarding = user.onboarding as string;
     }
 
-    const token = this.jwtProvider.generateToken(payload);
-    const decoded = this.jwtService.decode(token) as { exp: number };
+    const { token, refreshToken, expiresAt } = await this.generateTokenPair(
+      payload,
+      undefined,
+      userAgent,
+    );
 
     response.token = token;
-    response.expiresAt = decoded.exp;
+    response.refreshToken = refreshToken;
+    response.expiresAt = expiresAt;
     return response;
   }
 
-  async refresh(payload: JwtPayload) {
-    this.logger.info(this.context, 'Refreshing authenticated session');
-    const user = await this.userRepository.findAuthById(payload.userId);
+  async refresh(rawRefreshToken: string, userAgent?: string | null) {
+    this.logger.info(this.context, 'Refreshing session via refresh token');
 
+    const tokenHash = createHash('sha256').update(rawRefreshToken).digest('hex');
+    const stored = await this.refreshTokenRepository.findByHash(tokenHash);
+
+    if (!stored || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh token inválido o expirado');
+    }
+
+    await this.refreshTokenRepository.revokeById(stored.id);
+
+    const user = await this.userRepository.findAuthById(stored.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    if (payload.tokenVersion !== user.tokenVersion) {
-      throw new UnauthorizedException('Session invalidated');
+    if (stored.userId !== user.id) {
+      throw new UnauthorizedException('Token mismatch');
     }
 
-    const newPayload: JwtPayload = {
+    const payload: JwtPayload = {
       userId: user.id,
       email: user.email,
       role: user.role ?? UserRole.USER,
       accountType: user.userProfile?.accountType,
-      userProfileId: payload.userProfileId,
-      tokenVersion: user.tokenVersion,
+      userProfileId: user.userProfile?.id ?? '',
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
-    const token = this.jwtProvider.generateToken(newPayload);
-    const decoded = this.jwtService.decode(token) as { exp: number };
-
-    return {
-      token,
-      expiresAt: decoded.exp,
-    };
+    return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
   async logout(payload: JwtPayload) {
@@ -250,9 +257,36 @@ export class AuthService {
     }
 
     await this.userRepository.invalidateTokens(user.id, user.tokenVersion ?? 0);
+    await this.refreshTokenRepository.revokeAllForUser(user.id!);
 
     return {
       message: 'Logout successful',
+    };
+  }
+
+  private async generateTokenPair(
+    payload: JwtPayload,
+    accountType?: string,
+    userAgent?: string | null,
+  ) {
+    const token = this.jwtProvider.generateToken(payload);
+    const decoded = this.jwtService.decode(token) as { exp: number };
+
+    const rawRefreshToken = randomBytes(64).toString('hex');
+    const tokenHash = createHash('sha256').update(rawRefreshToken).digest('hex');
+
+    await this.refreshTokenRepository.save({
+      userId: payload.userId!,
+      tokenHash,
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+      userAgent: userAgent ?? null,
+    });
+
+    return {
+      token,
+      refreshToken: rawRefreshToken,
+      accountType,
+      expiresAt: decoded.exp,
     };
   }
 }

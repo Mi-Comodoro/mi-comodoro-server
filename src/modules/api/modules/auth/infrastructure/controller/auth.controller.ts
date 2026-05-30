@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -20,6 +20,7 @@ import {
   GoogleSignInDto,
   GoogleSignInResponseDto,
   LogoutResponseDto,
+  RefreshDto,
   RefreshResponseDto,
   SignInDto,
   SignInResponseDto,
@@ -68,9 +69,9 @@ export class AuthController {
   @ApiOkResponse({ type: SignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(404, 'User not found')
-  async signin(@Body() body: SignInDto) {
+  async signin(@Body() body: SignInDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Logging into the user user-profile');
-    return await this.authService.signin(body);
+    return await this.authService.signin(body, userAgent);
   }
 
   @Post('/google')
@@ -78,20 +79,18 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
-  async loginWithGoogle(@Body() body: GoogleSignInDto) {
-    return await this.authService.loginWithGoogle(body.data);
+  async loginWithGoogle(@Body() body: GoogleSignInDto, @Headers('user-agent') userAgent?: string) {
+    return await this.authService.loginWithGoogle(body.data, userAgent);
   }
 
   @Post('/refresh')
-  @UseGuards(AuthGuard('jwt'))
   @HttpCode(200)
-  @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Renovar el JWT de la sesion autenticada' })
+  @ApiOperation({ summary: 'Renovar la sesion usando un refresh token opaco' })
   @ApiOkResponse({ type: RefreshResponseDto })
-  @ApiErrorResponse(401, 'Unauthorized')
-  async refresh(@CurrentUser() user: JwtPayload) {
+  @ApiErrorResponse(401, 'Refresh token inválido o expirado')
+  async refresh(@Body() body: RefreshDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Refreshing authenticated session');
-    return await this.authService.refresh(user);
+    return await this.authService.refresh(body.refreshToken, userAgent);
   }
 
   @Post('/logout')

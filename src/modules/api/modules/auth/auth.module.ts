@@ -9,9 +9,14 @@ import { UserEntity } from '../users/infrastructure/database/user.entity';
 import { UserRepositoryImpl } from '../users/infrastructure/repository/user.repository.impl';
 import { AuthService } from './application/auth.service';
 import { AuthController } from './infrastructure/controller/auth.controller';
+import { RefreshTokenEntity } from './infrastructure/database/entities/refresh-token.entity';
+import { RefreshTokenRepositoryImpl } from './infrastructure/repositories/refresh-token.repository.impl';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, UserProfileEntity]), SecurityJwtModule],
+  imports: [
+    TypeOrmModule.forFeature([UserEntity, UserProfileEntity, RefreshTokenEntity]),
+    SecurityJwtModule,
+  ],
   providers: [
     AuthService,
     {
@@ -21,6 +26,10 @@ import { AuthController } from './infrastructure/controller/auth.controller';
     {
       provide: 'UserProfileRepository',
       useClass: UserProfileRepositoryImpl,
+    },
+    {
+      provide: 'RefreshTokenRepository',
+      useClass: RefreshTokenRepositoryImpl,
     },
   ],
   controllers: [AuthController],
