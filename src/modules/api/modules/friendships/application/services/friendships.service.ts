@@ -8,6 +8,9 @@ import {
 
 import { LoggerProviderService } from '@/core/providers';
 
+import { NotificationsService } from '../../../notifications/application/services/notifications.service';
+import { NotificationType } from '../../../notifications/domain/enums/notification-type.enum';
+import { NotificationsGateway } from '../../../notifications/infrastructure/gateway/notifications.gateway';
 import { UserRepository } from '../../../users/domain/user.repository';
 import { FriendshipStatus } from '../../domain/enums/friendship-status.enum';
 import { FriendshipRepository } from '../../domain/repositories/friendship.repository';
@@ -22,6 +25,8 @@ export class FriendshipsService {
     @Inject('UserRepository')
     private readonly userRepository: UserRepository,
     private readonly logger: LoggerProviderService,
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async sendRequest(requesterId: string, handle: string) {
@@ -42,11 +47,25 @@ export class FriendshipsService {
       throw new ConflictException('Ya existe una relación de amistad o solicitud pendiente');
     }
 
-    return await this.friendshipRepository.save({
+    const result = await this.friendshipRepository.save({
       requesterId,
       addresseeId: addressee.id,
       status: FriendshipStatus.PENDING,
     });
+
+    const requester = await this.userRepository.findById(requesterId);
+    const notification = await this.notificationsService.createNotification(
+      addressee.id,
+      NotificationType.FRIEND_REQUEST,
+      {
+        senderId: requesterId,
+        senderHandle: requester?.handle ?? undefined,
+        senderDisplayName: requester?.userProfile?.displayName ?? undefined,
+      },
+    );
+    this.notificationsGateway.sendToUser(addressee.id, 'notification', notification);
+
+    return result;
   }
 
   async acceptRequest(addresseeId: string, requesterId: string) {
@@ -61,6 +80,19 @@ export class FriendshipsService {
     }
 
     await this.friendshipRepository.updateStatus(friendship.id, FriendshipStatus.ACCEPTED);
+
+    const accepter = await this.userRepository.findById(addresseeId);
+    const notification = await this.notificationsService.createNotification(
+      requesterId,
+      NotificationType.FRIEND_ACCEPTED,
+      {
+        senderId: addresseeId,
+        senderHandle: accepter?.handle ?? undefined,
+        senderDisplayName: accepter?.userProfile?.displayName ?? undefined,
+      },
+    );
+    this.notificationsGateway.sendToUser(requesterId, 'notification', notification);
+
     return { success: true };
   }
 
@@ -76,6 +108,19 @@ export class FriendshipsService {
     }
 
     await this.friendshipRepository.delete(friendship.id);
+
+    const rejecter = await this.userRepository.findById(addresseeId);
+    const notification = await this.notificationsService.createNotification(
+      requesterId,
+      NotificationType.FRIEND_REJECTED,
+      {
+        senderId: addresseeId,
+        senderHandle: rejecter?.handle ?? undefined,
+        senderDisplayName: rejecter?.userProfile?.displayName ?? undefined,
+      },
+    );
+    this.notificationsGateway.sendToUser(requesterId, 'notification', notification);
+
     return { success: true };
   }
 

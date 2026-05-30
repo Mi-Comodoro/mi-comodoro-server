@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
+import { NotificationsModule } from '../notifications/notifications.module';
 import { UserEntity } from '../users/infrastructure/database/user.entity';
 import { UserRepositoryImpl } from '../users/infrastructure/repository/user.repository.impl';
 import { FriendshipsService } from './application/services/friendships.service';
@@ -11,7 +12,7 @@ import { FriendshipEntity } from './infrastructure/database/entities/friendship.
 import { FriendshipRepositoryImpl } from './infrastructure/repositories/friendship.repository.impl';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FriendshipEntity, UserEntity])],
+  imports: [TypeOrmModule.forFeature([FriendshipEntity, UserEntity]), NotificationsModule],
   controllers: [FriendshipsController],
   providers: [
     FriendshipsService,

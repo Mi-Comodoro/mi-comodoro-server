@@ -19,7 +19,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 
 import { TransactionService } from '../../application/services/transaction.service';

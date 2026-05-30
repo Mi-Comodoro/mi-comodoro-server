@@ -10,7 +10,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { CurrentUser } from '@/common/decorator/current-user.request';
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { GroupRoles } from '@/common/decorators/group-roles.decorator';
 import type { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';

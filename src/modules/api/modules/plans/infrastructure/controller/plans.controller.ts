@@ -1,7 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { ApiErrorResponse } from '@/common/decorator/api-error.response';
+import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { LoggerProviderService } from '@/core/providers';
 
 import { PlansService } from '../../application/services/plans.service';
