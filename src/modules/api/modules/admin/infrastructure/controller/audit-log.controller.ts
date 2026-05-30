@@ -8,17 +8,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { Roles } from '@/common/decorators/roles.decorator';
+import { SuperAdminGuard } from '@/common/guards/super-admin.guard';
 import { LoggerProviderService } from '@/core/providers';
-import { UserRole } from '@/modules/api/modules/users/domain/user-role.enum';
 
 import { AuditLogService } from '../../application/audit-log.service';
 import { AuditLogItemDto, AuditLogQueryDto } from '../dto/audit-log.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('bearerAuth')
-@UseGuards(AuthGuard('jwt'))
-@Roles(UserRole.SUPER_ADMIN)
+@UseGuards(AuthGuard('jwt'), SuperAdminGuard)
 @Controller('admin/audit-logs')
 export class AuditLogController {
   private readonly context = AuditLogController.name;

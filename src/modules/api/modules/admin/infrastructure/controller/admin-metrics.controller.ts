@@ -9,17 +9,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { Roles } from '@/common/decorators/roles.decorator';
+import { AdminGuard } from '@/common/guards/admin.guard';
 import { LoggerProviderService } from '@/core/providers';
-import { UserRole } from '@/modules/api/modules/users/domain/user-role.enum';
 
 import { AdminMetricsService } from '../../application/admin-metrics.service';
 import { AdminMetricsSummaryDto, UserGrowthResponseDto } from '../dto/admin-metrics.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('bearerAuth')
-@UseGuards(AuthGuard('jwt'))
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@UseGuards(AuthGuard('jwt'), AdminGuard)
 @Controller('admin/metrics')
 export class AdminMetricsController {
   private readonly context = AdminMetricsController.name;

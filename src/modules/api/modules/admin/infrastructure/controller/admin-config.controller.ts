@@ -10,19 +10,17 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '@/common/decorators/current-user.request';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { AdminGuard } from '@/common/guards/admin.guard';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
-import { UserRole } from '@/modules/api/modules/users/domain/user-role.enum';
 
 import { AuditLogService } from '../../application/audit-log.service';
 import { SystemConfigItemDto, UpdateSystemConfigDto } from '../dto/system-config.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('bearerAuth')
-@UseGuards(AuthGuard('jwt'))
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@UseGuards(AuthGuard('jwt'), AdminGuard)
 @Controller('admin/config')
 export class AdminConfigController {
   private readonly context = AdminConfigController.name;
