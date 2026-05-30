@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { addDays } from 'date-fns';
 import { Repository } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
@@ -18,14 +17,11 @@ export class UserProfileRepositoryImpl implements UserProfileRepository {
     private readonly userProfileRepository: Repository<UserProfileEntity>,
   ) {}
   async save(userProfile: UserProfile): Promise<UserProfile> {
-    const TRIAL_DAYS = 14;
-    const trialEndsAt = addDays(new Date(), TRIAL_DAYS);
     this.logger.info(this.context, 'Creating user-profile');
     try {
       const accountData = {
         ...userProfile,
         gender: userProfile.gender as unknown as GenderEnum,
-        trialEndsAt,
       };
       const newUserProfile = this.userProfileRepository.create(accountData);
       const saved = (await this.userProfileRepository.save(newUserProfile)) as UserProfile;

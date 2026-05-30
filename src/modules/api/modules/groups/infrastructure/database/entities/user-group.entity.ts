@@ -28,13 +28,22 @@ export class UserGroupEntity implements UserGroup {
 
   @Column({
     type: 'enum',
-    enum: ['active', 'inactive'],
-    default: 'active',
+    enum: ['Planificando', 'Activo', 'Cerrado'],
+    default: 'Activo',
   })
   status: GroupStatus;
 
   @Column({ name: 'max_members', default: 5 })
   maxMembers: number;
+
+  @Column({ type: 'decimal', precision: 14, scale: 2, nullable: true })
+  goal?: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  destination?: string | null;
+
+  @Column({ name: 'estimated_date', type: 'date', nullable: true })
+  estimatedDate?: Date | null;
 
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true })
   nulledAt?: Date | null;

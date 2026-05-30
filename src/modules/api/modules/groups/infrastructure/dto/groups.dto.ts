@@ -30,7 +30,7 @@ export class AddMemberDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ enum: ['EDITOR', 'VIEWER'], example: 'VIEWER' })
-  @IsEnum(['EDITOR', 'VIEWER'])
-  role: Exclude<MemberRole, 'OWNER'>;
+  @ApiProperty({ enum: ['CO_ORGANIZER', 'MEMBER', 'VIEWER'], example: 'MEMBER' })
+  @IsEnum(['CO_ORGANIZER', 'MEMBER', 'VIEWER'])
+  role: Exclude<MemberRole, 'ORGANIZER'>;
 }

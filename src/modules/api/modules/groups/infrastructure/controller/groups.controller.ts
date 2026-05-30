@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -16,6 +26,7 @@ import type { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GroupsService } from '../../application/groups.service';
+import { CreateGroupExpenseDto } from '../dto/group-expense.dto';
 import { AddMemberDto, CreateGroupDto, UpdateGroupDto } from '../dto/groups.dto';
 import { GroupRolesGuard } from '../guards/group-roles.guard';
 
@@ -42,7 +53,7 @@ export class GroupsController {
   @Get('/')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Listar grupos del usuario autenticado (owner o miembro)' })
+  @ApiOperation({ summary: 'Listar grupos del usuario autenticado' })
   @ApiOkResponse({ description: 'Lista de grupos' })
   async getGroups(@CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, `Getting groups for user ${user.userId}`);
@@ -53,25 +64,100 @@ export class GroupsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Obtener detalle de un grupo con sus miembros' })
-  @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
+  @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Detalle del grupo' })
   @ApiNotFoundResponse({ description: 'Grupo no encontrado' })
   @ApiForbiddenResponse({ description: 'Sin acceso al grupo' })
-  async getGroupById(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+  async getGroupById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, `Getting group ${id}`);
     return this.groupsService.getGroupById(id, user.userId);
   }
 
+  @Get(':id/contributions')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Obtener aportes por miembro del grupo' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ description: 'Aportes por miembro con % y progreso del objetivo' })
+  @ApiNotFoundResponse({ description: 'Grupo no encontrado' })
+  @ApiForbiddenResponse({ description: 'Sin acceso al grupo' })
+  async getContributions(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Getting contributions for group ${id}`);
+    return this.groupsService.getContributions(id, user.userId);
+  }
+
+  @Get(':id/expenses')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Listar gastos del plan del grupo' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ description: 'Lista de gastos del grupo' })
+  @ApiNotFoundResponse({ description: 'Grupo no encontrado' })
+  @ApiForbiddenResponse({ description: 'Sin acceso al grupo' })
+  async getExpenses(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    this.logger.info(this.context, `Getting expenses for group ${id}`);
+    return this.groupsService.getExpenses(id, user.userId);
+  }
+
+  @Post(':id/expenses')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Agregar un gasto al plan del grupo (organizadores)' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ description: 'Gasto creado exitosamente' })
+  @ApiForbiddenResponse({ description: 'Se requiere rol de organizador' })
+  async createExpense(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateGroupExpenseDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, `Creating expense for group ${id}`);
+    return this.groupsService.createExpense(id, user.userId, dto);
+  }
+
+  @Patch(':id/expenses/:expenseId/pay')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Marcar un gasto como pagado' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'expenseId', type: String })
+  @ApiOkResponse({ description: 'Gasto marcado como pagado' })
+  @ApiForbiddenResponse({ description: 'Sin permisos para pagar este gasto' })
+  async payExpense(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('expenseId', ParseUUIDPipe) expenseId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, `Paying expense ${expenseId} in group ${id}`);
+    return this.groupsService.payExpense(id, expenseId, user.userId);
+  }
+
+  @Patch(':id/expenses/:expenseId/pending')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({ summary: 'Crear cuenta por pagar (CxP) para un gasto' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'expenseId', type: String })
+  @ApiOkResponse({ description: 'Gasto marcado como CxP creada' })
+  @ApiForbiddenResponse({ description: 'Sin permisos para crear CxP' })
+  async markCxp(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('expenseId', ParseUUIDPipe) expenseId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.logger.info(this.context, `Marking expense ${expenseId} as CxP in group ${id}`);
+    return this.groupsService.markExpenseCxp(id, expenseId, user.userId);
+  }
+
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'), GroupRolesGuard)
-  @GroupRoles('OWNER')
+  @GroupRoles('ORGANIZER')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Editar nombre, tipo o maxMembers del grupo (solo owner)' })
-  @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
+  @ApiOperation({ summary: 'Editar grupo (solo organizador)' })
+  @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Grupo actualizado' })
-  @ApiForbiddenResponse({ description: 'Solo el owner puede editar el grupo' })
   async updateGroup(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateGroupDto,
     @CurrentUser() user: JwtPayload,
   ) {
@@ -82,25 +168,23 @@ export class GroupsController {
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Eliminar grupo (soft delete, solo owner)' })
-  @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
+  @ApiOperation({ summary: 'Eliminar grupo (soft delete, solo organizador)' })
+  @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Grupo eliminado' })
-  @ApiForbiddenResponse({ description: 'Solo el owner puede eliminar el grupo' })
-  async deleteGroup(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+  async deleteGroup(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, `Deleting group ${id}`);
     return this.groupsService.deleteGroup(id, user.userId);
   }
 
   @Post(':id/members')
   @UseGuards(AuthGuard('jwt'), GroupRolesGuard)
-  @GroupRoles('OWNER', 'EDITOR')
+  @GroupRoles('ORGANIZER', 'CO_ORGANIZER')
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Invitar un miembro al grupo (solo owner)' })
-  @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
-  @ApiOkResponse({ description: 'Miembro agregado' })
-  @ApiForbiddenResponse({ description: 'Solo el owner puede invitar miembros' })
+  @ApiOperation({ summary: 'Invitar miembro al grupo' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ description: 'Miembro invitado' })
   async addMember(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddMemberDto,
     @CurrentUser() user: JwtPayload,
   ) {
@@ -111,14 +195,13 @@ export class GroupsController {
   @Delete(':id/members/:userId')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
-  @ApiOperation({ summary: 'Remover miembro del grupo (owner o el propio usuario)' })
-  @ApiParam({ name: 'id', type: String, description: 'UUID del grupo' })
-  @ApiParam({ name: 'userId', type: String, description: 'UUID del usuario a remover' })
+  @ApiOperation({ summary: 'Remover miembro del grupo' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'userId', type: String })
   @ApiOkResponse({ description: 'Miembro removido' })
-  @ApiForbiddenResponse({ description: 'Sin permisos para remover este miembro' })
   async removeMember(
-    @Param('id') id: string,
-    @Param('userId') targetUserId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) targetUserId: string,
     @CurrentUser() user: JwtPayload,
   ) {
     this.logger.info(this.context, `Removing member ${targetUserId} from group ${id}`);
