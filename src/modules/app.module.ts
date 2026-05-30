@@ -11,6 +11,7 @@ import { IdempotencyKey } from '@/common/idempotency/idempotency-key.entity';
 import { InitialConfigModule } from '@/core/config/index';
 import { RolesGuard } from '@/core/config/security/guards/roles.guard';
 import { DatabaseModule } from '@/core/modules/database/postgres.module';
+import { SystemConfigModule } from '@/core/modules/system-config/system-config.module';
 import { LoggerProviderModule } from '@/core/providers/logs';
 
 import { ApiModule } from './api/api.module';
@@ -36,6 +37,7 @@ import { ApiModule } from './api/api.module';
     }),
     TypeOrmModule.forFeature([IdempotencyKey]),
     InitialConfigModule,
+    SystemConfigModule,
     ApiModule,
     LoggerProviderModule,
     DatabaseModule,

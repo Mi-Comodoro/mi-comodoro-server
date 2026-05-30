@@ -4,6 +4,8 @@ export interface NotificationPayload {
   senderHandle?: string;
   senderDisplayName?: string;
   senderId?: string;
+  title?: string;
+  body?: string;
 }
 
 export interface Notification {

@@ -37,6 +37,16 @@ export class NotificationRepositoryImpl implements NotificationRepository {
     await this.repo.update({ id: notificationId, userId }, { isRead: true });
   }
 
+  async saveBulk(
+    userIds: string[],
+    type: NotificationType,
+    payload: NotificationPayload,
+  ): Promise<void> {
+    if (!userIds.length) return;
+    const rows = userIds.map((userId) => ({ userId, type, payload }));
+    await this.repo.insert(rows);
+  }
+
   async markAllAsRead(userId: string): Promise<void> {
     await this.repo.update({ userId, isRead: false }, { isRead: true });
   }
