@@ -9,6 +9,7 @@ import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 
+import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 import { CategoryType } from '@/modules/api/modules/categories/domain/category';
 import { CategoryEntity } from '@/modules/api/modules/categories/infrastructure/database/category.entity';
@@ -69,6 +70,7 @@ export class BudgetService {
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   async createMonthlyBudget(input: CreateBudgetInput): Promise<Budget> {
@@ -97,7 +99,7 @@ export class BudgetService {
 
     const budgetToCreate = sourceBudget
       ? this.buildBudgetFromSource(sourceBudget, input.userId, finances.id, month, year, input.name)
-      : this.buildEmptyBudget(input.userId, finances.id, month, year, input.name);
+      : await this.buildEmptyBudget(input.userId, finances.id, month, year, input.name);
 
     const createdBudget = await this.budgetRepository.save(budgetToCreate);
 
@@ -294,7 +296,10 @@ export class BudgetService {
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(this.context, `Error closing budget ${budgetId}: ${JSON.stringify(err)}`);
+      this.logger.error(
+        this.context,
+        `Error closing budget ${budgetId}: ${(err as Error).message}`,
+      );
       throw err;
     } finally {
       await queryRunner.release();
@@ -325,7 +330,7 @@ export class BudgetService {
       } catch (err) {
         this.logger.error(
           this.context,
-          `Error cerrando presupuesto ${budget.id}: ${JSON.stringify(err)}`,
+          `Error cerrando presupuesto ${budget.id}: ${(err as Error).message}`,
         );
       }
     }
@@ -390,7 +395,7 @@ export class BudgetService {
       await queryRunner.rollbackTransaction();
       this.logger.error(
         this.context,
-        `Error en transferencia desde presupuesto ${budgetId}: ${JSON.stringify(err)}`,
+        `Error en transferencia desde presupuesto ${budgetId}: ${(err as Error).message}`,
       );
       throw err;
     } finally {
@@ -509,13 +514,14 @@ export class BudgetService {
     }
   }
 
-  private buildEmptyBudget(
+  private async buildEmptyBudget(
     userId: string,
     financesId: string,
     month: string,
     year: number,
     name?: string,
-  ): Partial<Budget> {
+  ): Promise<Partial<Budget>> {
+    const savingsLimit = await this.systemConfigService.getNumber('savings_default_pct', 20);
     return {
       name: this.resolveBudgetName(month, year, name),
       month,
@@ -523,7 +529,7 @@ export class BudgetService {
       isShared: false,
       needsLimit: 50,
       wantsLimit: 30,
-      savingsLimit: 20,
+      savingsLimit,
       financesId,
       ownerId: userId,
       strategy: 'BALANCED',

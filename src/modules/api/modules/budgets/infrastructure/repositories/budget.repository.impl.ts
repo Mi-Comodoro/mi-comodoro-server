@@ -210,7 +210,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
       return updated;
     } catch (error) {
-      this.logger.error(this.context, JSON.stringify(error));
+      this.logger.error(this.context, (error as Error).message);
       throw error;
     }
   }
@@ -235,7 +235,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
       return updated;
     } catch (error) {
-      this.logger.error(this.context, JSON.stringify(error));
+      this.logger.error(this.context, (error as Error).message);
       throw error;
     }
   }

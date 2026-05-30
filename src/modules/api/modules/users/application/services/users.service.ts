@@ -30,7 +30,7 @@ export class UsersService {
 
       const user = await this.userRepository.findByEmail(data.userInfo.email);
       if (!user) {
-        this.logger.warn(this.context, `User not found during onboarding: ${data.userInfo.email}`);
+        this.logger.warn(this.context, 'User not found during onboarding');
         throw new NotFoundException('User not found');
       }
 
@@ -177,10 +177,7 @@ export class UsersService {
       throw new NotFoundException('Two biweekly payment dates are required for biweekly budget');
     }
     if (isMonthlyBudget) {
-      this.logger.info(
-        this.context,
-        `Processing monthly budget for user ${user.id} with payment date ${data.finances.monthPayment}`,
-      );
+      this.logger.info(this.context, `Processing monthly budget for user ${user.id}`);
 
       for (const income of data.incomes.incomes) {
         const securePaymentIncome = {

@@ -144,10 +144,7 @@ export class InterestCronService {
           await manager.update(SavingGoalEntity, { id: goal.id }, { lastInterestDate: today });
         });
 
-        this.logger.info(
-          this.context,
-          `Interés registrado para meta ${goal.id}: ${interestAmount.toFixed(2)}`,
-        );
+        this.logger.info(this.context, `Interés registrado para meta ${goal.id}`);
         registered++;
       } catch (err) {
         this.logger.error(
