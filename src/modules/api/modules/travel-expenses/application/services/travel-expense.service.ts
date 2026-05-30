@@ -86,7 +86,7 @@ export class TravelExpenseService {
         const perMember = Number(dto.amount) / members.length;
         assignments = members.map((m) => ({
           expenseId: savedExpense.id,
-          userId: m.userId,
+          userId: m.userId ?? undefined,
           assignedAmount: perMember,
           settled: false,
         }));
@@ -167,7 +167,7 @@ export class TravelExpenseService {
       await this.assignmentRepo.saveMany(
         members.map((m) => ({
           expenseId: id,
-          userId: m.userId,
+          userId: m.userId ?? undefined,
           assignedAmount: perMember,
           settled: false,
         })),

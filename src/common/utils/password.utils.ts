@@ -8,11 +8,8 @@ export const usePassword = () => {
       parallelism: 1,
     });
 
-  const passwordLowerCase = (password: string) => {
-    return password.toLocaleLowerCase();
-  };
   const passwordIsValid = async (storagePassword: string, inputPassword: string) => {
     return await argon2.verify(storagePassword, inputPassword);
   };
-  return { passwordHash, passwordLowerCase, passwordIsValid };
+  return { passwordHash, passwordIsValid };
 };

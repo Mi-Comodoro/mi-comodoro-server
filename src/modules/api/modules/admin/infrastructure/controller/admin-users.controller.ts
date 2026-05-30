@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Ip, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -11,7 +11,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { CurrentUser } from '@/common/decorators/current-user.request';
 import { AdminGuard } from '@/common/guards/admin.guard';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AdminUsersService } from '../../application/admin-users.service';
@@ -66,9 +68,14 @@ export class AdminUsersController {
   @ApiOkResponse({ description: 'Usuario actualizado' })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
   @ApiForbiddenResponse({ description: 'Requiere rol admin' })
-  async update(@Param('id') id: string, @Body() dto: UpdateUserAdminDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserAdminDto,
+    @CurrentUser() admin: JwtPayload,
+    @Ip() ip: string,
+  ) {
     this.logger.info(this.context, `Admin updating user ${id}`);
-    return this.adminUsersService.update(id, dto);
+    return this.adminUsersService.update(id, dto, admin.userId, admin.email, ip);
   }
 
   @Delete(':id')
@@ -77,8 +84,8 @@ export class AdminUsersController {
   @ApiOkResponse({ description: 'Usuario eliminado (soft delete)' })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
   @ApiForbiddenResponse({ description: 'Requiere rol admin' })
-  async softDelete(@Param('id') id: string) {
+  async softDelete(@Param('id') id: string, @CurrentUser() admin: JwtPayload, @Ip() ip: string) {
     this.logger.info(this.context, `Admin soft deleting user ${id}`);
-    return this.adminUsersService.softDelete(id);
+    return this.adminUsersService.softDelete(id, admin.userId, admin.email, ip);
   }
 }

@@ -5,6 +5,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { NotificationType } from '../../domain/enums/notification-type.enum';
 import { Notification, NotificationPayload } from '../../domain/notification';
 import { NotificationRepository } from '../../domain/repositories/notification.repository';
+import { NotificationsGateway } from '../../infrastructure/gateway/notifications.gateway';
 
 @Injectable()
 export class NotificationsService {
@@ -14,6 +15,7 @@ export class NotificationsService {
     @Inject('NotificationRepository')
     private readonly notificationRepository: NotificationRepository,
     private readonly logger: LoggerProviderService,
+    private readonly gateway: NotificationsGateway,
   ) {}
 
   async createNotification(
@@ -23,6 +25,21 @@ export class NotificationsService {
   ): Promise<Notification> {
     this.logger.info(this.context, `Creating notification type=${type} for user=${userId}`);
     return this.notificationRepository.save(userId, type, payload);
+  }
+
+  async createBulk(userIds: string[], payload: NotificationPayload): Promise<void> {
+    if (!userIds.length) return;
+    this.logger.info(
+      this.context,
+      `Creating bulk announcement notifications for ${userIds.length} users`,
+    );
+    await this.notificationRepository.saveBulk(userIds, NotificationType.ANNOUNCEMENT, payload);
+    for (const userId of userIds) {
+      this.gateway.sendToUser(userId, 'notification', {
+        type: NotificationType.ANNOUNCEMENT,
+        payload,
+      });
+    }
   }
 
   async getUserNotifications(userId: string): Promise<Notification[]> {

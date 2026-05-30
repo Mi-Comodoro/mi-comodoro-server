@@ -14,6 +14,7 @@ import type {
   PaginationDto,
   UpdateUserAdminDto,
 } from '../infrastructure/dto/admin.dto';
+import { AuditLogService } from './audit-log.service';
 
 @Injectable()
 export class AdminUsersService {
@@ -29,6 +30,7 @@ export class AdminUsersService {
     @InjectRepository(TransactionEntity)
     private readonly transactionRepo: Repository<TransactionEntity>,
     private readonly logger: LoggerProviderService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async findAll(dto: PaginationDto) {
@@ -63,7 +65,13 @@ export class AdminUsersService {
     return user;
   }
 
-  async update(id: string, dto: UpdateUserAdminDto) {
+  async update(
+    id: string,
+    dto: UpdateUserAdminDto,
+    adminId: string,
+    adminHandle: string,
+    ip?: string | null,
+  ) {
     this.logger.info(this.context, `Updating user ${id}`);
     const user = await this.userRepo.findOne({
       where: { id, nulledAt: IsNull() },
@@ -71,22 +79,57 @@ export class AdminUsersService {
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+
     if (dto.role !== undefined) {
+      before.role = user.role;
+      after.role = dto.role;
       await this.userRepo.update(id, { role: dto.role });
     }
 
     if (dto.isActive !== undefined && user.userProfile) {
+      before.isActive = user.userProfile.isActive;
+      after.isActive = dto.isActive;
       await this.profileRepo.update(user.userProfile.id, { isActive: dto.isActive });
+    }
+
+    if (Object.keys(after).length > 0) {
+      await this.auditLogService.log({
+        adminId,
+        adminHandle,
+        action: dto.role !== undefined ? 'USER_ROLE_CHANGED' : 'PLAN_CHANGED',
+        targetId: id,
+        targetType: 'user',
+        before,
+        after,
+        ip: ip ?? null,
+      });
     }
 
     return this.findById(id);
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(
+    id: string,
+    adminId: string,
+    adminHandle: string,
+    ip?: string | null,
+  ): Promise<void> {
     this.logger.info(this.context, `Soft deleting user ${id}`);
     const user = await this.userRepo.findOne({ where: { id, nulledAt: IsNull() } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     await this.userRepo.update(id, { nulledAt: new Date() });
+    await this.auditLogService.log({
+      adminId,
+      adminHandle,
+      action: 'USER_DELETED',
+      targetId: id,
+      targetType: 'user',
+      before: { email: user.email, role: user.role },
+      after: { nulledAt: new Date().toISOString() },
+      ip: ip ?? null,
+    });
   }
 
   async getStats(): Promise<AdminStatsDto> {
