@@ -15,8 +15,6 @@ import { DatabaseProvider } from '@/core/providers';
         type: 'postgres',
         autoLoadEntities: true,
         synchronize: true,
-        migrationsRun: true,
-        migrations: ['dist/database/migrations/*.js'],
         host: configService.host,
         port: Number(configService.port),
         username: configService.username,
