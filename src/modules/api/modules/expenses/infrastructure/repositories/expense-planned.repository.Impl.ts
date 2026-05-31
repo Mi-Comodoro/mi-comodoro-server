@@ -56,6 +56,7 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
         'expense.dueDate AS "dueDate"',
         'expense.status AS status',
         'expense.isEssential AS "isEssential"',
+        'expense.billsId AS "billsId"',
         'category.name AS category',
         'category.bucket AS bucket',
         `
