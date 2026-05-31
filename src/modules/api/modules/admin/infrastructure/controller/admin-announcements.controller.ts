@@ -10,10 +10,9 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '@/common/decorators/current-user.request';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { AdminGuard } from '@/common/guards/admin.guard';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { LoggerProviderService } from '@/core/providers';
-import { UserRole } from '@/modules/api/modules/users/domain/user-role.enum';
 
 import { AdminAnnouncementsService } from '../../application/admin-announcements.service';
 import {
@@ -26,8 +25,7 @@ import {
 
 @ApiTags('admin')
 @ApiBearerAuth('bearerAuth')
-@UseGuards(AuthGuard('jwt'))
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@UseGuards(AuthGuard('jwt'), AdminGuard)
 @Controller('admin/announcements')
 export class AdminAnnouncementsController {
   private readonly context = AdminAnnouncementsController.name;

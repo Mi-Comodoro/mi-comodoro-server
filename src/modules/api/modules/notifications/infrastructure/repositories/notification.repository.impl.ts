@@ -24,13 +24,18 @@ export class NotificationRepositoryImpl implements NotificationRepository {
     return this.toDomain(saved);
   }
 
-  async findByUserId(userId: string): Promise<Notification[]> {
-    const entities = await this.repo.find({
+  async findByUserId(
+    userId: string,
+    skip = 0,
+    take = 50,
+  ): Promise<{ items: Notification[]; total: number }> {
+    const [entities, total] = await this.repo.findAndCount({
       where: { userId },
       order: { createdAt: 'DESC' },
-      take: 50,
+      skip,
+      take,
     });
-    return entities.map((e) => this.toDomain(e));
+    return { items: entities.map((e) => this.toDomain(e)), total };
   }
 
   async markAsRead(notificationId: string, userId: string): Promise<void> {
@@ -49,6 +54,14 @@ export class NotificationRepositoryImpl implements NotificationRepository {
 
   async markAllAsRead(userId: string): Promise<void> {
     await this.repo.update({ userId, isRead: false }, { isRead: true });
+  }
+
+  async deleteOne(id: string, userId: string): Promise<void> {
+    await this.repo.delete({ id, userId });
+  }
+
+  async deleteAll(userId: string): Promise<void> {
+    await this.repo.delete({ userId });
   }
 
   private toDomain(entity: NotificationEntity): Notification {
