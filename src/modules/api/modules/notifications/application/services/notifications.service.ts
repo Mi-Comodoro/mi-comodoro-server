@@ -23,7 +23,7 @@ export class NotificationsService {
     type: NotificationType,
     payload: NotificationPayload,
   ): Promise<Notification> {
-    this.logger.info(this.context, `Creating notification type=${type} for user=${userId}`);
+    this.logger.info(this.context, `Creando notificación type=${type} para user=${userId}`);
     return this.notificationRepository.save(userId, type, payload);
   }
 
@@ -31,7 +31,7 @@ export class NotificationsService {
     if (!userIds.length) return;
     this.logger.info(
       this.context,
-      `Creating bulk announcement notifications for ${userIds.length} users`,
+      `Creando notificaciones de anuncio en bulk para ${userIds.length} usuarios`,
     );
     await this.notificationRepository.saveBulk(userIds, NotificationType.ANNOUNCEMENT, payload);
     for (const userId of userIds) {
@@ -42,18 +42,36 @@ export class NotificationsService {
     }
   }
 
-  async getUserNotifications(userId: string): Promise<Notification[]> {
-    this.logger.info(this.context, `Fetching notifications for user=${userId}`);
-    return this.notificationRepository.findByUserId(userId);
+  async getUserNotifications(
+    userId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<{ items: Notification[]; total: number }> {
+    this.logger.info(
+      this.context,
+      `Obteniendo notificaciones user=${userId} page=${page} limit=${limit}`,
+    );
+    const skip = (page - 1) * limit;
+    return this.notificationRepository.findByUserId(userId, skip, limit);
   }
 
   async markAsRead(notificationId: string, userId: string): Promise<void> {
-    this.logger.info(this.context, `Marking notification ${notificationId} as read`);
+    this.logger.info(this.context, `Marcando notificación ${notificationId} como leída`);
     await this.notificationRepository.markAsRead(notificationId, userId);
   }
 
   async markAllAsRead(userId: string): Promise<void> {
-    this.logger.info(this.context, `Marking all notifications as read for user=${userId}`);
+    this.logger.info(this.context, `Marcando todas las notificaciones como leídas user=${userId}`);
     await this.notificationRepository.markAllAsRead(userId);
+  }
+
+  async deleteNotification(id: string, userId: string): Promise<void> {
+    this.logger.info(this.context, `Eliminando notificación ${id} de user=${userId}`);
+    await this.notificationRepository.deleteOne(id, userId);
+  }
+
+  async deleteAllNotifications(userId: string): Promise<void> {
+    this.logger.info(this.context, `Eliminando todas las notificaciones de user=${userId}`);
+    await this.notificationRepository.deleteAll(userId);
   }
 }
