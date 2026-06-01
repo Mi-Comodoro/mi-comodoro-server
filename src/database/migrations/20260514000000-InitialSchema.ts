@@ -32,7 +32,7 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       DO $$ BEGIN
-        CREATE TYPE bills_frequency_enum AS ENUM ('monthly', 'weekly', 'yearly', 'biweekly');
+        CREATE TYPE bills_frequency_enum AS ENUM ('monthly', 'yearly');
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
     await queryRunner.query(`
@@ -77,40 +77,79 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       DO $$ BEGIN
-        CREATE TYPE transactions_type_enum AS ENUM ('income', 'expense', 'savings');
+        CREATE TYPE transactions_type_enum AS ENUM ('income', 'expense', 'savings', 'interest');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE account_type_enum AS ENUM ('TRIAL', 'FREE', 'PLUS', 'PRO', 'PARTNER');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE group_type AS ENUM ('SHARED', 'FAMILIAR', 'TRAVEL');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE group_status AS ENUM ('active', 'inactive');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE member_role AS ENUM ('OWNER', 'EDITOR', 'VIEWER');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE travel_expenses_split_type_enum AS ENUM ('EQUAL', 'CUSTOM', 'PERCENTAGE');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE friendship_status_enum AS ENUM ('pending', 'accepted', 'blocked');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE notification_type_enum AS ENUM ('friend_request', 'friend_accepted', 'friend_rejected');
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
 
     // ── Tables (dependency order) ──────────────────────────────────────────
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        email        VARCHAR NOT NULL,
-        password     VARCHAR,
-        provider     VARCHAR NOT NULL DEFAULT 'LOCAL',
-        onboarding   VARCHAR NOT NULL DEFAULT 'PENDING',
+        id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        email         VARCHAR NOT NULL,
+        password      VARCHAR,
+        provider      VARCHAR NOT NULL DEFAULT 'LOCAL',
+        onboarding    VARCHAR NOT NULL DEFAULT 'PENDING',
         token_version INTEGER NOT NULL DEFAULT 0,
-        created_at   TIMESTAMP NOT NULL DEFAULT now(),
-        updated_at   TIMESTAMP NOT NULL DEFAULT now(),
-        role         users_role_enum NOT NULL DEFAULT 'user'::users_role_enum
+        handle        VARCHAR(20) UNIQUE,
+        nulled_at     TIMESTAMPTZ,
+        created_at    TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at    TIMESTAMP NOT NULL DEFAULT now(),
+        role          users_role_enum NOT NULL DEFAULT 'user'::users_role_enum
       )
     `);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS user_profile (
-        id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id        UUID NOT NULL,
-        name           VARCHAR NOT NULL,
-        display_name   VARCHAR,
-        phone          VARCHAR,
-        photo          VARCHAR,
-        gender         VARCHAR DEFAULT 'prefer_not_to_say',
-        country        CHAR(2),
-        type           VARCHAR NOT NULL,
-        trial_ends_at  TIMESTAMP,
-        is_active      BOOLEAN NOT NULL DEFAULT true,
-        created_at     TIMESTAMP NOT NULL DEFAULT now(),
-        updated_at     TIMESTAMP NOT NULL DEFAULT now()
+        id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id            UUID NOT NULL,
+        name               VARCHAR NOT NULL,
+        display_name       VARCHAR,
+        phone              VARCHAR,
+        photo              VARCHAR,
+        gender             VARCHAR DEFAULT 'prefer_not_to_say',
+        country            CHAR(2),
+        type               account_type_enum NOT NULL DEFAULT 'TRIAL',
+        trial_ends_at      TIMESTAMP,
+        is_active          BOOLEAN NOT NULL DEFAULT true,
+        is_phone_verified  BOOLEAN NOT NULL DEFAULT false,
+        phone_verified_at  TIMESTAMPTZ,
+        created_at         TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at         TIMESTAMP NOT NULL DEFAULT now()
       )
     `);
 
@@ -133,6 +172,7 @@ export class InitialSchema20260514000000 implements MigrationInterface {
         bucket          categories_bucket_enum,
         parent_id       UUID,
         "isSelectable"  BOOLEAN NOT NULL DEFAULT true,
+        nulled_at       TIMESTAMPTZ,
         created_at      TIMESTAMP NOT NULL DEFAULT now(),
         updated_at      TIMESTAMP NOT NULL DEFAULT now()
       )
@@ -183,6 +223,8 @@ export class InitialSchema20260514000000 implements MigrationInterface {
         "partnerId"          UUID,
         "updatedBy"          VARCHAR,
         carry_forward_amount NUMERIC(12,2) DEFAULT '0',
+        currency             VARCHAR(3) NOT NULL DEFAULT 'COP',
+        nulled_at            TIMESTAMPTZ,
         closed_at            TIMESTAMP,
         created_at           TIMESTAMP NOT NULL DEFAULT now(),
         updated_at           TIMESTAMP NOT NULL DEFAULT now()
@@ -192,16 +234,16 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS bills (
         id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id          UUID NOT NULL,
+        category_id      UUID NOT NULL,
         name             VARCHAR NOT NULL,
-        "expectedAmount" NUMERIC(12,2) NOT NULL,
-        "dueDate"        TIMESTAMP NOT NULL,
+        expected_amount  NUMERIC(12,2) NOT NULL,
+        billing_day      INTEGER NOT NULL,
         frequency        bills_frequency_enum NOT NULL,
         is_active        BOOLEAN NOT NULL DEFAULT true,
-        is_paid          BOOLEAN NOT NULL DEFAULT true,
+        is_paid          BOOLEAN NOT NULL DEFAULT false,
         created_at       TIMESTAMP NOT NULL DEFAULT now(),
-        updated_at       TIMESTAMP NOT NULL DEFAULT now(),
-        "userId"         UUID,
-        "categoryId"     UUID
+        updated_at       TIMESTAMP NOT NULL DEFAULT now()
       )
     `);
 
@@ -259,13 +301,15 @@ export class InitialSchema20260514000000 implements MigrationInterface {
         user_id            VARCHAR NOT NULL,
         budget_id          VARCHAR NOT NULL,
         bill_id            UUID,
-        category_id        VARCHAR NOT NULL,
+        category_id        VARCHAR,
         type               transactions_type_enum NOT NULL,
         account_id         UUID,
         from_account_id    UUID,
         to_account_id      UUID,
         planned_expense_id UUID,
         planned_income_id  UUID,
+        planned_saving_id  VARCHAR,
+        saving_goal_id     UUID,
         transaction_date   DATE NOT NULL,
         nulled_at          DATE,
         created_at         TIMESTAMP NOT NULL DEFAULT now(),
@@ -279,17 +323,19 @@ export class InitialSchema20260514000000 implements MigrationInterface {
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS saving_goals (
-        id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        name           VARCHAR NOT NULL,
-        reason         VARCHAR,
-        "targetAmount" NUMERIC(12,2),
-        "targetDate"   DATE,
-        user_id        UUID NOT NULL,
-        account_id     UUID NOT NULL,
-        "isActive"     BOOLEAN NOT NULL DEFAULT true,
-        created_at     TIMESTAMP NOT NULL DEFAULT now(),
-        updated_at     TIMESTAMP NOT NULL DEFAULT now(),
-        status         saving_goals_status_enum NOT NULL DEFAULT 'SCHEDULED'::saving_goals_status_enum
+        id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name                VARCHAR NOT NULL,
+        reason              VARCHAR,
+        "targetAmount"      NUMERIC(12,2),
+        "targetDate"        DATE,
+        user_id             UUID NOT NULL,
+        account_id          UUID NOT NULL,
+        "isActive"          BOOLEAN NOT NULL DEFAULT true,
+        nulled_at           TIMESTAMPTZ,
+        last_interest_date  DATE,
+        created_at          TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at          TIMESTAMP NOT NULL DEFAULT now(),
+        status              saving_goals_status_enum NOT NULL DEFAULT 'SCHEDULED'::saving_goals_status_enum
       )
     `);
 
@@ -416,11 +462,143 @@ export class InitialSchema20260514000000 implements MigrationInterface {
       )
     `);
 
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS user_groups (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name        VARCHAR NOT NULL,
+        type        group_type NOT NULL DEFAULT 'SHARED',
+        owner_id    UUID NOT NULL,
+        status      group_status NOT NULL DEFAULT 'active',
+        max_members INTEGER NOT NULL DEFAULT 5,
+        nulled_at   TIMESTAMPTZ,
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS group_members (
+        id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        group_id  UUID NOT NULL REFERENCES user_groups(id),
+        user_id   UUID NOT NULL,
+        role      member_role NOT NULL DEFAULT 'VIEWER',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        nulled_at TIMESTAMPTZ,
+        joined_at TIMESTAMPTZ DEFAULT NOW(),
+        CONSTRAINT uq_group_user UNIQUE (group_id, user_id)
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS travel_expenses (
+        id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        group_id      UUID          NOT NULL,
+        paid_by       UUID          NOT NULL,
+        description   VARCHAR       NOT NULL,
+        amount        DECIMAL(15,2) NOT NULL,
+        expense_date  DATE          NOT NULL,
+        split_type    travel_expenses_split_type_enum NOT NULL DEFAULT 'EQUAL',
+        nulled_at     TIMESTAMPTZ   DEFAULT NULL,
+        created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS travel_expense_assignments (
+        id              UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        expense_id      UUID          NOT NULL REFERENCES travel_expenses(id) ON DELETE CASCADE,
+        user_id         UUID          NOT NULL,
+        assigned_amount DECIMAL(15,2) NOT NULL,
+        settled         BOOLEAN       NOT NULL DEFAULT FALSE,
+        nulled_at       TIMESTAMPTZ   DEFAULT NULL
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id                     UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id                UUID         UNIQUE NOT NULL,
+        currency               VARCHAR      NOT NULL DEFAULT 'COP',
+        language               VARCHAR      NOT NULL DEFAULT 'es',
+        notifications_enabled  BOOLEAN      NOT NULL DEFAULT TRUE,
+        budget_alert_threshold INTEGER      NOT NULL DEFAULT 80,
+        savings_percentage     DECIMAL(5,2) NOT NULL DEFAULT 20,
+        created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS plans (
+        id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        name       VARCHAR      NOT NULL,
+        price      DECIMAL(10,2) DEFAULT 0,
+        currency   VARCHAR      DEFAULT 'COP',
+        features   JSONB        DEFAULT '[]',
+        is_active  BOOLEAN      DEFAULT TRUE,
+        is_public  BOOLEAN      DEFAULT TRUE,
+        nulled_at  TIMESTAMPTZ,
+        created_at TIMESTAMPTZ  DEFAULT NOW(),
+        updated_at TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+
+    await queryRunner.query(`
+      INSERT INTO plans (name, price, currency, features, is_active, is_public) VALUES
+        ('Free', 0, 'COP',
+          '["1 presupuesto activo","Transacciones ilimitadas","Metas de ahorro","3 cuentas de referencia","Categorías predefinidas","Proyecciones 1 año","Reportes básicos","Histórico 6 meses"]',
+          true, true),
+        ('Plus', 0, 'COP',
+          '["3 presupuestos activos","Transacciones ilimitadas","Metas de ahorro","Cuentas de referencia ilimitadas","Categorías personalizadas","Proyecciones 3 años","Reportes mensual + anual","Compartido con 2 personas","Histórico 18 meses","Exportar CSV"]',
+          true, true),
+        ('Pro', 0, 'COP',
+          '["Presupuestos ilimitados","Transacciones ilimitadas","Metas de ahorro","Cuentas de referencia ilimitadas","Categorías personalizadas","Proyecciones 10+ años","Reportes completos","Compartido con 6 personas","Histórico ilimitado","Exportar CSV · PDF · Excel","Mi Despensa"]',
+          true, true)
+      ON CONFLICT DO NOTHING
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS friendships (
+        id           UUID NOT NULL DEFAULT uuid_generate_v4(),
+        requester_id UUID NOT NULL,
+        addressee_id UUID NOT NULL,
+        status       friendship_status_enum NOT NULL DEFAULT 'pending',
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_friendships"     PRIMARY KEY (id),
+        CONSTRAINT "UQ_friendship_pair" UNIQUE (requester_id, addressee_id),
+        CONSTRAINT "FK_friendship_requester" FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT "FK_friendship_addressee" FOREIGN KEY (addressee_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id         UUID NOT NULL DEFAULT uuid_generate_v4(),
+        user_id    UUID NOT NULL,
+        type       notification_type_enum NOT NULL,
+        payload    jsonb NOT NULL DEFAULT '{}',
+        is_read    boolean NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_notifications"   PRIMARY KEY (id),
+        CONSTRAINT "FK_notification_user" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    VARCHAR NOT NULL,
+        token_hash VARCHAR NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ DEFAULT NULL,
+        user_agent VARCHAR DEFAULT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
     // ── Unique constraints ─────────────────────────────────────────────────
-    // Unique constraints back a backing index (relation), so PostgreSQL raises
-    // SQLSTATE 42P07 (duplicate_table) — not 42710 (duplicate_object) — when
-    // the name already exists. CREATE UNIQUE INDEX IF NOT EXISTS is natively
-    // idempotent and avoids that mismatch entirely.
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_97672ac88f789774dd47f7c8be3" ON users (email)
     `);
@@ -429,6 +607,20 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_eee360f3bff24af1b6890765201" ON user_profile (user_id)
+    `);
+
+    // Transactions unique constraints
+    await queryRunner.query(`
+      ALTER TABLE transactions ADD CONSTRAINT "UQ_transactions_planned_saving_id"
+        UNIQUE (planned_saving_id)
+    `);
+    await queryRunner.query(`
+      ALTER TABLE transactions ADD CONSTRAINT "UQ_transactions_planned_expense_id"
+        UNIQUE (planned_expense_id)
+    `);
+    await queryRunner.query(`
+      ALTER TABLE transactions ADD CONSTRAINT "UQ_transactions_planned_income_id"
+        UNIQUE (planned_income_id)
     `);
 
     // ── Foreign keys ───────────────────────────────────────────────────────
@@ -476,14 +668,14 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       DO $$ BEGIN
-        ALTER TABLE bills ADD CONSTRAINT "FK_dd941796f5112bc83a7bf499f86"
-          FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE NO ACTION;
+        ALTER TABLE bills ADD CONSTRAINT "FK_bills_user"
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
     await queryRunner.query(`
       DO $$ BEGIN
-        ALTER TABLE bills ADD CONSTRAINT "FK_467bc46addf91881ec707f84601"
-          FOREIGN KEY ("categoryId") REFERENCES categories(id) ON DELETE NO ACTION;
+        ALTER TABLE bills ADD CONSTRAINT "FK_bills_category"
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT;
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
     await queryRunner.query(`
@@ -494,7 +686,7 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       DO $$ BEGIN
-        ALTER TABLE expenses_planned ADD CONSTRAINT "FK_3feb7571bd78fdcd8e9730ceaac"
+        ALTER TABLE expenses_planned ADD CONSTRAINT "FK_expenses_planned_bill"
           FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE SET NULL;
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
@@ -655,13 +847,86 @@ export class InitialSchema20260514000000 implements MigrationInterface {
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `);
 
-    // ── Idempotency keys index (complementary to CreateIdempotencyKeys migration) ──
+    // ── Indexes ────────────────────────────────────────────────────────────
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS idx_idempotency_keys_expires ON idempotency_keys (expires_at)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_budget_date_type
+        ON transactions (budget_id, transaction_date, type)
+        WHERE nulled_at IS NULL
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_user_date
+        ON transactions (user_id, transaction_date)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_expenses_planned_budget_status
+        ON expenses_planned (budget_id, status)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_planned_savings_goal_status_date
+        ON planned_savings ("savingGoalId", status, date)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_saving_goals_user_active
+        ON saving_goals (user_id, "isActive")
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_incomes_planned_budget_status
+        ON incomes_planned (budget_id, status)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_groups_owner_id ON user_groups (owner_id)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_groups_status ON user_groups (status)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members (group_id)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members (user_id)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS "IDX_notification_user_read" ON notifications (user_id, is_read)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash)
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id)
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Indexes
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_refresh_tokens_user_id`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_refresh_tokens_hash`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_notification_user_read"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_group_members_user_id`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_group_members_group_id`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_user_groups_status`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_user_groups_owner_id`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_incomes_planned_budget_status`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_saving_goals_user_active`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_planned_savings_goal_status_date`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_expenses_planned_budget_status`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_transactions_user_date`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_transactions_budget_date_type`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_idempotency_keys_expires`);
+
+    // Tables (reverse dependency order)
+    await queryRunner.query(`DROP TABLE IF EXISTS refresh_tokens CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS notifications CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS friendships CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS plans CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS user_settings CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS travel_expense_assignments CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS travel_expenses CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS group_members CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS user_groups CASCADE`);
+    await queryRunner.query(`DROP TABLE IF EXISTS idempotency_keys CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS account_receivable_collections CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS accounts_receivable CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS account_payable_payments CASCADE`);
@@ -682,9 +947,16 @@ export class InitialSchema20260514000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS categories CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS finances CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS user_profile CASCADE`);
-    await queryRunner.query(`DROP TABLE IF EXISTS idempotency_keys CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS users CASCADE`);
 
+    // Enums
+    await queryRunner.query(`DROP TYPE IF EXISTS notification_type_enum`);
+    await queryRunner.query(`DROP TYPE IF EXISTS friendship_status_enum`);
+    await queryRunner.query(`DROP TYPE IF EXISTS travel_expenses_split_type_enum`);
+    await queryRunner.query(`DROP TYPE IF EXISTS member_role`);
+    await queryRunner.query(`DROP TYPE IF EXISTS group_status`);
+    await queryRunner.query(`DROP TYPE IF EXISTS group_type`);
+    await queryRunner.query(`DROP TYPE IF EXISTS account_type_enum`);
     await queryRunner.query(`DROP TYPE IF EXISTS transactions_type_enum`);
     await queryRunner.query(`DROP TYPE IF EXISTS saving_goals_status_enum`);
     await queryRunner.query(`DROP TYPE IF EXISTS planned_savings_status_enum`);
