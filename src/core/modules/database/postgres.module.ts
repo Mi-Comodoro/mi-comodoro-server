@@ -11,18 +11,21 @@ import { DatabaseProvider } from '@/core/providers';
     TypeOrmModule.forRootAsync({
       imports: [DatabaseConfigModule],
       inject: [DatabaseConfigService],
-      useFactory: async (configService: DatabaseConfigService) => ({
-        type: 'postgres',
-        autoLoadEntities: true,
-        synchronize: false,
-        migrationsRun: true,
-        migrations: [`${__dirname}/../../database/migrations/*{.ts,.js}`],
-        host: configService.host,
-        port: Number(configService.port),
-        username: configService.username,
-        password: configService.password,
-        database: configService.database,
-      }),
+      useFactory: async (configService: DatabaseConfigService) => {
+        const isProd = process.env.NODE_ENV === 'production';
+        return {
+          type: 'postgres',
+          autoLoadEntities: true,
+          synchronize: !isProd,
+          migrationsRun: isProd,
+          migrations: isProd ? [`${__dirname}/../../database/migrations/*{.ts,.js}`] : [],
+          host: configService.host,
+          port: Number(configService.port),
+          username: configService.username,
+          password: configService.password,
+          database: configService.database,
+        };
+      },
     }),
   ],
   providers: [DatabaseProvider],
