@@ -35,14 +35,14 @@ export class DatabaseProvider implements OnModuleInit, OnApplicationBootstrap {
   async onApplicationBootstrap() {
     const qr = this.dataSource.createQueryRunner();
     try {
-      const [result] = await qr.query<[{ exists: boolean }]>(`
+      const rows = await qr.query(`
         SELECT EXISTS (
           SELECT 1 FROM information_schema.tables
           WHERE table_schema = 'public' AND table_name = 'categories'
         ) AS exists
       `);
 
-      if (!result.exists) {
+      if (!rows[0]?.exists) {
         this.logger.warn(
           this.context,
           '⚠️ Tabla categories no existe — ejecutar migration:run primero',
