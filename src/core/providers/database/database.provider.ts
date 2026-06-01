@@ -33,14 +33,30 @@ export class DatabaseProvider implements OnModuleInit, OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    const qr = this.dataSource.createQueryRunner();
     try {
-      const qr = this.dataSource.createQueryRunner();
+      const rows = await qr.query(`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'categories'
+        ) AS exists
+      `);
+
+      if (!rows[0]?.exists) {
+        this.logger.warn(
+          this.context,
+          '⚠️ Tabla categories no existe — ejecutar migration:run primero',
+        );
+        return;
+      }
+
       await new SeedCategoriesData20260527000000().up(qr);
-      await qr.release();
       this.logger.info(this.context, '🌱 Seed de categorías ejecutado correctamente');
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       this.logger.error(this.context, `❌ Error en seed de categorías: ${message}`);
+    } finally {
+      await qr.release();
     }
   }
 }
