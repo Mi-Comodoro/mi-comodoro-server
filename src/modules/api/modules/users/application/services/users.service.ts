@@ -81,6 +81,18 @@ export class UsersService {
         `Onboarding bound to authenticated user ${user.id} with persisted email ${user.email}`,
       );
 
+      if (normalizedData.userInfo.handle) {
+        const existing = await this.userRepository.findByHandle(normalizedData.userInfo.handle);
+        if (existing && existing.id !== userId) {
+          throw new ConflictException('Este handle ya está en uso');
+        }
+        await this.userRepository.updateHandle(userId, normalizedData.userInfo.handle);
+        this.logger.info(
+          this.context,
+          `Handle @${normalizedData.userInfo.handle} asignado al usuario ${userId}`,
+        );
+      }
+
       const incomes: IncomeSource[] = this.getIncomesData(normalizedData, user);
 
       const newData = {
