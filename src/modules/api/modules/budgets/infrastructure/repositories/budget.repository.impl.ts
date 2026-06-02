@@ -188,7 +188,10 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async findById(budgetId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
-    const budget = await this.budgetRepository.findOne({ where: { id: budgetId } });
+    const budget = await this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.id = CAST(:id AS uuid)', { id: budgetId })
+      .getOne();
     return budget ?? null;
   }
 
@@ -196,7 +199,12 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     this.logger.info(this.context, `Enabled budget with ID: ${budgetId}`);
 
     try {
-      const result = await this.budgetRepository.update({ id: budgetId }, { status: 'ACTIVE' });
+      const result = await this.budgetRepository
+        .createQueryBuilder()
+        .update(BudgetEntity)
+        .set({ status: 'ACTIVE' })
+        .where('id = CAST(:id AS uuid)', { id: budgetId })
+        .execute();
 
       if (!result.affected) {
         throw new NotFoundException(`Budget not found: ${budgetId}`);
@@ -214,14 +222,17 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       throw error;
     }
   }
+
   async close(budgetId: string): Promise<Budget> {
     this.logger.info(this.context, `Closing budget with ID: ${budgetId}`);
 
     try {
-      const result = await this.budgetRepository.update(
-        { id: budgetId },
-        { status: 'CLOSED', closedAt: new Date() },
-      );
+      const result = await this.budgetRepository
+        .createQueryBuilder()
+        .update(BudgetEntity)
+        .set({ status: 'CLOSED', closedAt: new Date() })
+        .where('id = CAST(:id AS uuid)', { id: budgetId })
+        .execute();
 
       if (!result.affected) {
         throw new NotFoundException(`Budget not found: ${budgetId}`);
@@ -288,28 +299,52 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
   ): Promise<Budget | null> {
     this.logger.info(this.context, `Updating budget ${budgetId}`);
-    const result = await this.budgetRepository.update({ id: budgetId }, data);
+    const result = await this.budgetRepository
+      .createQueryBuilder()
+      .update(BudgetEntity)
+      .set(data)
+      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .execute();
     if (!result.affected) return null;
     return this.findById(budgetId);
   }
 
   async softDelete(budgetId: string): Promise<void> {
     this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
-    await this.budgetRepository.update({ id: budgetId }, { nulledAt: new Date() });
+    await this.budgetRepository
+      .createQueryBuilder()
+      .update(BudgetEntity)
+      .set({ nulledAt: new Date() })
+      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .execute();
   }
 
   async findDefaultActiveByOwnerId(ownerId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding default active budget for owner: ${ownerId}`);
-    const budget = await this.budgetRepository.findOne({
-      where: { ownerId, status: 'ACTIVE', isDefault: true },
-    });
+    const budget = await this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.ownerId = CAST(:ownerId AS uuid)', { ownerId })
+      .andWhere("budget.status = 'ACTIVE'")
+      .andWhere('budget.isDefault = true')
+      .getOne();
     return budget ?? null;
   }
 
   async setDefault(budgetId: string, ownerId: string): Promise<Budget> {
     this.logger.info(this.context, `Setting budget ${budgetId} as default for owner ${ownerId}`);
-    await this.budgetRepository.update({ ownerId, isDefault: true }, { isDefault: false });
-    await this.budgetRepository.update({ id: budgetId }, { isDefault: true });
+    await this.budgetRepository
+      .createQueryBuilder()
+      .update(BudgetEntity)
+      .set({ isDefault: false })
+      .where('ownerId = CAST(:ownerId AS uuid)', { ownerId })
+      .andWhere('isDefault = true')
+      .execute();
+    await this.budgetRepository
+      .createQueryBuilder()
+      .update(BudgetEntity)
+      .set({ isDefault: true })
+      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .execute();
     const updated = await this.findById(budgetId);
     if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
     return updated;
