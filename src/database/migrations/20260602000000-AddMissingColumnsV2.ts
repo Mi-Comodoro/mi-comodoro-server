@@ -52,6 +52,10 @@ export class AddMissingColumnsV220260602000000 implements MigrationInterface {
     await queryRunner.query(`ALTER TYPE group_status ADD VALUE IF NOT EXISTS 'Activo'`);
     await queryRunner.query(`ALTER TYPE group_status ADD VALUE IF NOT EXISTS 'Cerrado'`);
 
+    // PostgreSQL requires enum ADD VALUE to be committed before the new value can be used
+    await queryRunner.commitTransaction();
+    await queryRunner.startTransaction();
+
     await queryRunner.query(`
       UPDATE user_groups SET status = 'Activo'  WHERE status = 'active'
     `);
