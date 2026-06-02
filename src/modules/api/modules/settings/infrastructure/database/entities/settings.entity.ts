@@ -11,7 +11,7 @@ export class SettingsEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', unique: true })
+  @Column({ name: 'user_id', type: 'uuid', unique: true })
   userId: string;
 
   @Column({ default: 'COP' })

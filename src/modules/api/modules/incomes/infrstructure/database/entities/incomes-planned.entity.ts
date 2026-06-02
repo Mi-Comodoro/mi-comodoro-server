@@ -18,7 +18,7 @@ export class PlannedIncomeEntity implements PlannedIncome {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'income_source_id', nullable: true })
+  @Column({ name: 'income_source_id', type: 'uuid', nullable: true })
   incomeSourceId?: string;
   @Column({ name: 'budget_id', type: 'uuid' })
   budgetId: string;
@@ -47,9 +47,9 @@ export class PlannedIncomeEntity implements PlannedIncome {
   @JoinColumn({ name: 'income_source_id' })
   incomeSource?: IncomesEntity;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

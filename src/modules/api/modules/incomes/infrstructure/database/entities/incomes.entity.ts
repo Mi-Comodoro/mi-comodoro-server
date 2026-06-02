@@ -36,7 +36,7 @@ export class IncomesEntity implements IncomeSource {
   })
   frequency: IncomeFrequency;
 
-  @Column({ default: true })
+  @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
   @Column({ name: 'user_id', type: 'uuid', nullable: false })

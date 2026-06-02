@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -49,13 +50,13 @@ export class BudgetEntity implements Budget {
   wantsLimit: number;
   @Column({ name: 'savings', nullable: false })
   savingsLimit: number;
-  @Column({ name: 'finances_id', nullable: false })
+  @Column({ name: 'finances_id', type: 'uuid', nullable: false })
   financesId: string;
-  @Column({ name: 'ownerId', type: 'uuid', nullable: false })
+  @Column({ name: 'owner_id', type: 'uuid', nullable: false })
   ownerId: string;
-  @Column({ name: 'partnerId', type: 'uuid', nullable: true })
+  @Column({ name: 'partner_id', type: 'uuid', nullable: true })
   partnerId?: string;
-  @Column({ name: 'updatedBy', nullable: true })
+  @Column({ name: 'updated_by', nullable: true })
   updatedBy?: string;
   @Column({
     name: 'carry_forward_amount',
@@ -67,10 +68,12 @@ export class BudgetEntity implements Budget {
   })
   carryForwardAmount?: number;
   @ManyToOne(() => UserEntity, (user) => user.budgets, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
   owner: UserEntity;
   @OneToMany(() => PlannedExpenseEntity, (expense) => expense.budget)
   plannedExpenses: PlannedExpenseEntity[];
   @ManyToOne(() => UserEntity, { nullable: true })
+  @JoinColumn({ name: 'partner_id' })
   partner?: UserEntity;
   @OneToMany(() => TransactionEntity, (transaction) => transaction.budget)
   transactions: TransactionEntity[];

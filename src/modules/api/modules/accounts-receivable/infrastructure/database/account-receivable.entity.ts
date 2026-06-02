@@ -16,7 +16,7 @@ export class AccountReceivableEntity implements AccountReceivable {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })

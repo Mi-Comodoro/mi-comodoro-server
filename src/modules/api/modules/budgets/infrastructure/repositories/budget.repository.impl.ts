@@ -51,12 +51,9 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       this.context,
       `Finding budget for financesId: ${financesId}, month: ${month}, year: ${year}`,
     );
-    const budget = await this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.financesId = :financesId::uuid', { financesId })
-      .andWhere('budget.month = :month', { month })
-      .andWhere('budget.year = :year', { year })
-      .getOne();
+    const budget = await this.budgetRepository.findOne({
+      where: { financesId, month, year },
+    });
     return budget ?? null;
   }
 
@@ -70,27 +67,18 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       `Finding previous budget for financesId: ${financesId}, month: ${month}, year: ${year}`,
     );
 
-    const budgets = await this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.financesId = :financesId::uuid', { financesId })
-      .getMany();
+    const budgets = await this.budgetRepository.find({ where: { financesId } });
     const currentMonthNumber = this.getMonthNumber(month);
 
     const candidates = budgets.filter((budget) => {
       const budgetMonthNumber = this.getMonthNumber(budget.month);
-
       return budget.year < year || (budget.year === year && budgetMonthNumber < currentMonthNumber);
     });
 
-    if (!candidates.length) {
-      return null;
-    }
+    if (!candidates.length) return null;
 
     candidates.sort((left, right) => {
-      if (left.year !== right.year) {
-        return right.year - left.year;
-      }
-
+      if (left.year !== right.year) return right.year - left.year;
       return this.getMonthNumber(right.month) - this.getMonthNumber(left.month);
     });
 
@@ -102,15 +90,9 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       this.context,
       `Finding all budgets for financesId: ${financesId}${year ? `, year: ${year}` : ''}`,
     );
-    const qb = this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.financesId = :financesId::uuid', { financesId });
-
-    if (year !== undefined) {
-      qb.andWhere('budget.year = :year', { year });
-    }
-
-    return qb.getMany();
+    const where: Record<string, unknown> = { financesId };
+    if (year !== undefined) where.year = year;
+    return this.budgetRepository.find({ where });
   }
 
   async findHistoricalSummaryByFinancesId(
@@ -131,28 +113,28 @@ export class BudgetRepositoryImpl implements BudgetRepository {
           (
             SELECT COALESCE(SUM(planned_income.amount), 0)
             FROM incomes_planned planned_income
-            WHERE CAST(planned_income.budget_id AS text) = CAST(budget.id AS text)
+            WHERE planned_income.budget_id = budget.id
           ) AS "expectedIncome",
           (
             SELECT COALESCE(SUM(transaction.amount), 0)
             FROM transactions transaction
-            WHERE CAST(transaction.budget_id AS text) = CAST(budget.id AS text)
+            WHERE transaction.budget_id = budget.id
               AND transaction.type = $1
           ) AS "receivedIncome",
           (
             SELECT COALESCE(SUM(transaction.amount), 0)
             FROM transactions transaction
-            WHERE CAST(transaction.budget_id AS text) = CAST(budget.id AS text)
+            WHERE transaction.budget_id = budget.id
               AND transaction.type = $2
           ) AS "totalExpenses",
           (
             SELECT COALESCE(SUM(planned_saving.amount), 0)
             FROM planned_savings planned_saving
-            WHERE CAST(planned_saving."budgetId" AS text) = CAST(budget.id AS text)
+            WHERE planned_saving.budget_id = budget.id
               AND planned_saving.status = $3
           ) AS "totalSavings"
         FROM budgets budget
-        WHERE CAST(budget.finances_id AS text) = CAST($4 AS text)
+        WHERE budget.finances_id = $4::uuid
           AND budget.year = $5
         ORDER BY
           budget.year ASC,
@@ -196,34 +178,17 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async findById(budgetId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
-    const budget = await this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.id = :id::uuid', { id: budgetId })
-      .getOne();
+    const budget = await this.budgetRepository.findOne({ where: { id: budgetId } });
     return budget ?? null;
   }
 
   async active(budgetId: string): Promise<Budget> {
     this.logger.info(this.context, `Enabled budget with ID: ${budgetId}`);
-
     try {
-      const result = await this.budgetRepository
-        .createQueryBuilder()
-        .update(BudgetEntity)
-        .set({ status: 'ACTIVE' })
-        .where('id = :id::uuid', { id: budgetId })
-        .execute();
-
-      if (!result.affected) {
-        throw new NotFoundException(`Budget not found: ${budgetId}`);
-      }
-
+      const result = await this.budgetRepository.update({ id: budgetId }, { status: 'ACTIVE' });
+      if (!result.affected) throw new NotFoundException(`Budget not found: ${budgetId}`);
       const updated = await this.findById(budgetId);
-
-      if (!updated) {
-        throw new NotFoundException(`Budget not found after update: ${budgetId}`);
-      }
-
+      if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
       return updated;
     } catch (error) {
       this.logger.error(this.context, (error as Error).message);
@@ -233,25 +198,14 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async close(budgetId: string): Promise<Budget> {
     this.logger.info(this.context, `Closing budget with ID: ${budgetId}`);
-
     try {
-      const result = await this.budgetRepository
-        .createQueryBuilder()
-        .update(BudgetEntity)
-        .set({ status: 'CLOSED', closedAt: new Date() })
-        .where('id = :id::uuid', { id: budgetId })
-        .execute();
-
-      if (!result.affected) {
-        throw new NotFoundException(`Budget not found: ${budgetId}`);
-      }
-
+      const result = await this.budgetRepository.update(
+        { id: budgetId },
+        { status: 'CLOSED', closedAt: new Date() },
+      );
+      if (!result.affected) throw new NotFoundException(`Budget not found: ${budgetId}`);
       const updated = await this.findById(budgetId);
-
-      if (!updated) {
-        throw new NotFoundException(`Budget not found after update: ${budgetId}`);
-      }
-
+      if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
       return updated;
     } catch (error) {
       this.logger.error(this.context, (error as Error).message);
@@ -299,11 +253,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async findClosedByFinancesId(financesId: string): Promise<Budget[]> {
     this.logger.info(this.context, `Finding closed budgets for financesId: ${financesId}`);
-    return this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.financesId = :financesId::uuid', { financesId })
-      .andWhere("budget.status = 'CLOSED'")
-      .getMany();
+    return this.budgetRepository.find({ where: { financesId, status: 'CLOSED' } });
   }
 
   async update(
@@ -311,52 +261,28 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
   ): Promise<Budget | null> {
     this.logger.info(this.context, `Updating budget ${budgetId}`);
-    const result = await this.budgetRepository
-      .createQueryBuilder()
-      .update(BudgetEntity)
-      .set(data)
-      .where('id = :id::uuid', { id: budgetId })
-      .execute();
+    const result = await this.budgetRepository.update({ id: budgetId }, data);
     if (!result.affected) return null;
     return this.findById(budgetId);
   }
 
   async softDelete(budgetId: string): Promise<void> {
     this.logger.info(this.context, `Soft deleting budget ${budgetId}`);
-    await this.budgetRepository
-      .createQueryBuilder()
-      .update(BudgetEntity)
-      .set({ nulledAt: new Date() })
-      .where('id = :id::uuid', { id: budgetId })
-      .execute();
+    await this.budgetRepository.update({ id: budgetId }, { nulledAt: new Date() });
   }
 
   async findDefaultActiveByOwnerId(ownerId: string): Promise<Budget | null> {
     this.logger.info(this.context, `Finding default active budget for owner: ${ownerId}`);
-    const budget = await this.budgetRepository
-      .createQueryBuilder('budget')
-      .where('budget.ownerId = :ownerId::uuid', { ownerId })
-      .andWhere("budget.status = 'ACTIVE'")
-      .andWhere('budget.isDefault = true')
-      .getOne();
+    const budget = await this.budgetRepository.findOne({
+      where: { ownerId, status: 'ACTIVE', isDefault: true },
+    });
     return budget ?? null;
   }
 
   async setDefault(budgetId: string, ownerId: string): Promise<Budget> {
     this.logger.info(this.context, `Setting budget ${budgetId} as default for owner ${ownerId}`);
-    await this.budgetRepository
-      .createQueryBuilder()
-      .update(BudgetEntity)
-      .set({ isDefault: false })
-      .where('ownerId = :ownerId::uuid', { ownerId })
-      .andWhere('isDefault = true')
-      .execute();
-    await this.budgetRepository
-      .createQueryBuilder()
-      .update(BudgetEntity)
-      .set({ isDefault: true })
-      .where('id = :id::uuid', { id: budgetId })
-      .execute();
+    await this.budgetRepository.update({ ownerId, isDefault: true }, { isDefault: false });
+    await this.budgetRepository.update({ id: budgetId }, { isDefault: true });
     const updated = await this.findById(budgetId);
     if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
     return updated;

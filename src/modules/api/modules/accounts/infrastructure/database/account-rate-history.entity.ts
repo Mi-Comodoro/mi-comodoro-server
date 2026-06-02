@@ -14,7 +14,7 @@ export class AccountRateHistoryEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'account_id' })
+  @Column({ name: 'account_id', type: 'uuid' })
   accountId: string;
 
   @Column({ type: 'decimal', precision: 6, scale: 4, name: 'previous_rate' })

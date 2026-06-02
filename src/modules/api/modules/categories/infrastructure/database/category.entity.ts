@@ -38,7 +38,7 @@ export class CategoryEntity implements Category {
   parent?: CategoryEntity;
   @OneToMany(() => CategoryEntity, (category) => category.parent)
   children: CategoryEntity[];
-  @Column({ default: true })
+  @Column({ name: 'is_selectable', default: true })
   isSelectable: boolean;
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
