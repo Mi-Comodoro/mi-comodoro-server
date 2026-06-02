@@ -51,9 +51,12 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       this.context,
       `Finding budget for financesId: ${financesId}, month: ${month}, year: ${year}`,
     );
-    const budget = await this.budgetRepository.findOne({
-      where: { financesId, month, year },
-    });
+    const budget = await this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.financesId = :financesId::uuid', { financesId })
+      .andWhere('budget.month = :month', { month })
+      .andWhere('budget.year = :year', { year })
+      .getOne();
     return budget ?? null;
   }
 
@@ -67,7 +70,10 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       `Finding previous budget for financesId: ${financesId}, month: ${month}, year: ${year}`,
     );
 
-    const budgets = await this.budgetRepository.find({ where: { financesId } });
+    const budgets = await this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.financesId = :financesId::uuid', { financesId })
+      .getMany();
     const currentMonthNumber = this.getMonthNumber(month);
 
     const candidates = budgets.filter((budget) => {
@@ -96,13 +102,15 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       this.context,
       `Finding all budgets for financesId: ${financesId}${year ? `, year: ${year}` : ''}`,
     );
-    const where: Record<string, unknown> = { financesId };
-    if (year !== undefined) {
-      where.year = year;
-    }
-    const budgets = await this.budgetRepository.find({ where });
+    const qb = this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.financesId = :financesId::uuid', { financesId });
 
-    return budgets;
+    if (year !== undefined) {
+      qb.andWhere('budget.year = :year', { year });
+    }
+
+    return qb.getMany();
   }
 
   async findHistoricalSummaryByFinancesId(
@@ -291,7 +299,11 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async findClosedByFinancesId(financesId: string): Promise<Budget[]> {
     this.logger.info(this.context, `Finding closed budgets for financesId: ${financesId}`);
-    return this.budgetRepository.find({ where: { financesId, status: 'CLOSED' } });
+    return this.budgetRepository
+      .createQueryBuilder('budget')
+      .where('budget.financesId = :financesId::uuid', { financesId })
+      .andWhere("budget.status = 'CLOSED'")
+      .getMany();
   }
 
   async update(
