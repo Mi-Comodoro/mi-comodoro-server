@@ -27,7 +27,7 @@ export class PlannedExpenseEntity implements PlannedExpense {
   @JoinColumn({ name: 'budget_id' })
   budget: BudgetEntity;
 
-  @Column({ name: 'budget_id' })
+  @Column({ name: 'budget_id', type: 'uuid' })
   budgetId: string;
 
   /*

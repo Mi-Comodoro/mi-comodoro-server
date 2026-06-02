@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -19,7 +20,11 @@ export class PlannedSavingEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ name: 'budgetId', type: 'uuid', nullable: false })
+  budgetId: string;
+
   @ManyToOne(() => BudgetEntity)
+  @JoinColumn({ name: 'budgetId' })
   budget: BudgetEntity;
 
   // 🔥 clave para trazabilidad por ingreso

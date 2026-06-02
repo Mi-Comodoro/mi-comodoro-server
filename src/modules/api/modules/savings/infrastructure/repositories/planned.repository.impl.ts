@@ -46,7 +46,7 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
 
   async findByBudget(budgetId: string): Promise<PlannedSaving[]> {
     const entities = await this.plannedSavingRepository.find({
-      where: { budget: { id: budgetId } },
+      where: { budgetId },
       relations: { account: true, savingGoal: true, plannedIncome: true, budget: true },
       order: { date: 'DESC' },
     });

@@ -20,7 +20,7 @@ export class PlannedIncomeEntity implements PlannedIncome {
 
   @Column({ name: 'income_source_id', nullable: true })
   incomeSourceId?: string;
-  @Column({ name: 'budget_id' })
+  @Column({ name: 'budget_id', type: 'uuid' })
   budgetId: string;
 
   @Column({ name: 'source_label', nullable: true })

@@ -51,9 +51,9 @@ export class BudgetEntity implements Budget {
   savingsLimit: number;
   @Column({ name: 'finances_id', nullable: false })
   financesId: string;
-  @Column({ name: 'ownerId', nullable: false })
+  @Column({ name: 'ownerId', type: 'uuid', nullable: false })
   ownerId: string;
-  @Column({ name: 'partnerId', nullable: true })
+  @Column({ name: 'partnerId', type: 'uuid', nullable: true })
   partnerId?: string;
   @Column({ name: 'updatedBy', nullable: true })
   updatedBy?: string;
