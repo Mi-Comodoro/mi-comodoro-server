@@ -14,6 +14,7 @@ export class ExpenseMapper {
       dueDate: entity.dueDate,
       notes: entity.notes,
       billsId: entity.billsId,
+      groupId: entity.groupId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -33,6 +34,7 @@ export class ExpenseMapper {
     entity.dueDate = data.dueDate as Date;
     entity.notes = data.notes;
     entity.billsId = data.billsId?.trim().length ? data.billsId : undefined;
+    entity.groupId = data.groupId ?? undefined;
 
     return entity;
   }

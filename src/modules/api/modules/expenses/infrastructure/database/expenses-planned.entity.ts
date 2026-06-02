@@ -64,6 +64,10 @@ export class PlannedExpenseEntity implements PlannedExpense {
   isEssential: boolean;
   @Column({ type: 'text', nullable: true })
   notes?: string;
+
+  @Column({ name: 'group_id', type: 'uuid', nullable: true })
+  groupId?: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

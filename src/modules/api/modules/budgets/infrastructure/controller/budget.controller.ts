@@ -366,4 +366,24 @@ export class BudgetController {
     await this.budgetService.transferBalance(budgetId, user.userId, dto);
     return { message: 'Transferencia realizada correctamente' };
   }
+
+  @Patch('/:budgetId/set-default')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Establecer un presupuesto activo como predeterminado',
+    description:
+      'Solo puede haber un presupuesto predeterminado activo por usuario. El anterior pierde el flag automáticamente.',
+  })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    'El presupuesto debe estar activo para ser predeterminado',
+  )
+  async setDefault(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
+    this.logger.info(this.context, `Estableciendo presupuesto ${budgetId} como predeterminado`);
+    return await this.budgetService.setDefaultBudget(budgetId, user.userId);
+  }
 }

@@ -35,6 +35,16 @@ export class AccountReceivableRepositoryImpl implements AccountReceivableReposit
     return AccountReceivableMapper.toDomain(entity);
   }
 
+  async findById(id: string): Promise<AccountReceivable | null> {
+    const entity = await this.arRepository.findOne({ where: { id } });
+    if (!entity) return null;
+    return AccountReceivableMapper.toDomain(entity);
+  }
+
+  async setLinkedCxp(id: string, linkedCxpId: string): Promise<void> {
+    await this.arRepository.update(id, { linkedCxpId });
+  }
+
   async create(
     data: Omit<AccountReceivable, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<AccountReceivable> {

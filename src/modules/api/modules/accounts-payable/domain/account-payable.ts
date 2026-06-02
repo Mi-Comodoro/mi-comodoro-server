@@ -11,6 +11,7 @@ export interface AccountPayable {
   dueDate?: Date;
   nextPaymentDate?: Date;
   status: 'active' | 'paid' | 'overdue';
+  linkedCxcId?: string;
   nulledAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;

@@ -49,6 +49,7 @@ export class ExpenseService {
       isEssential: dto.isEssential,
       notes: dto.notes,
       billsId: dto.billsId,
+      groupId: dto.groupId,
     };
     return await this.expensePlannedRepository.add(plannedExpense);
   }

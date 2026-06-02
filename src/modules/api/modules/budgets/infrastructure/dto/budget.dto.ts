@@ -75,6 +75,9 @@ class BudgetResponseData implements Budget {
 
   @ApiResponseProperty({ type: 'string', example: 'COP' })
   currency: string;
+
+  @ApiResponseProperty({ type: 'boolean', example: false })
+  isDefault: boolean;
 }
 
 export class BudgetResponseDto {

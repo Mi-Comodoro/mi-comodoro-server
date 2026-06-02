@@ -13,6 +13,7 @@ export class AccountReceivableMapper {
       currentBalance: Number(entity.currentBalance),
       dueDate: entity.dueDate,
       status: entity.status,
+      linkedCxpId: entity.linkedCxpId,
       nulledAt: entity.nulledAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,

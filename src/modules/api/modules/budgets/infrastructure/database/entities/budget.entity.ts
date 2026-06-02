@@ -40,6 +40,9 @@ export class BudgetEntity implements Budget {
   @Column({ name: 'is_shared', nullable: false })
   isShared: boolean;
 
+  @Column({ name: 'is_default', nullable: false, default: false })
+  isDefault: boolean;
+
   @Column({ name: 'needs', nullable: false })
   needsLimit: number;
   @Column({ name: 'wants', nullable: false })

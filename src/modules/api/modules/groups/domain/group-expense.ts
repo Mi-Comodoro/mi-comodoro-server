@@ -10,6 +10,7 @@ export interface GroupExpense {
   status: ExpenseStatus;
   transactionId?: string | null;
   cxpId?: string | null;
+  cxcId?: string | null;
   nulledAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;

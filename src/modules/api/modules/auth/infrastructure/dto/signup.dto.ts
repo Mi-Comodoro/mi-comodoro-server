@@ -14,6 +14,7 @@ import { PASSWORD_REGEX } from '@/common/constants';
 import { AccountType } from '@/common/enums/account-type.enum';
 
 import { FinancialProfileEnum, GenderEnum, UsageEnum } from '../../../shared/enum/enum';
+import { SignInResponseDataDto } from './signin.dto';
 
 export class SignUpDto {
   @ApiProperty({
@@ -97,60 +98,46 @@ export class SignUpDto {
   @IsOptional()
   @IsString()
   plan?: string;
-}
-
-class UserProfileSignUpResponseDto {
-  @ApiProperty({ example: '2f303bd7-7db1-4c5f-8d32-f9227617a7bc' })
-  id: string;
-
-  @ApiProperty({ example: 'John Doe', description: 'Nombre de la cuenta' })
-  name: string;
-
-  @ApiPropertyOptional({ example: 'John', description: 'Nombre visible dentro de la app' })
-  displayName?: string;
-
-  @ApiPropertyOptional({ example: 'MALE', enum: GenderEnum, description: 'Género de la cuenta' })
-  gender?: GenderEnum;
-
-  @ApiPropertyOptional({ example: 'CO', description: 'Código de país ISO 3166-1 alpha-2' })
-  country?: string;
 
   @ApiPropertyOptional({
-    example: 'PERSONAL',
-    enum: UsageEnum,
-    description: 'Tipo de uso de la cuenta',
+    example: '+573001234567',
+    description: 'Número de teléfono del usuario (opcional)',
   })
-  usageType?: UsageEnum;
+  @IsOptional()
+  @IsString()
+  @MinLength(7)
+  @MaxLength(20)
+  phone?: string;
 
   @ApiPropertyOptional({
-    example: 'employee',
-    enum: FinancialProfileEnum,
-    description: 'Perfil financiero',
+    example: 'juan_perez',
+    description: 'Nombre de usuario único (solo letras minúsculas, números y _)',
   })
-  financialProfile?: FinancialProfileEnum;
-
-  @ApiProperty({ example: true, description: 'Indica si la cuenta está activa' })
-  isActive: boolean;
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(20)
+  @Matches(/^[a-z][a-z0-9_]*$/, {
+    message: 'El handle solo puede contener letras minúsculas, números y _',
+  })
+  handle?: string;
 }
 
-export class SignUpResponseDataDto {
-  @ApiProperty({ example: '7918ef8b-9c7c-454e-8e26-a6d5dfc4faa5' })
-  id: string;
-
-  @ApiProperty({ example: 'user@email.com', description: 'Email del usuario' })
-  email: string;
-
+export class SignUpResponseDataDto extends SignInResponseDataDto {
   @ApiProperty({
-    type: UserProfileSignUpResponseDto,
-    description: 'Información de la cuenta asociada',
+    example: 'PENDING',
+    description: 'Estado actual del onboarding del usuario recién registrado',
   })
-  userProfile: UserProfileSignUpResponseDto;
+  onboarding: string;
 }
 
 export class SignUpResponseDto {
   @ApiProperty({ example: true, description: 'Indica si la operación fue exitosa' })
   success: boolean;
 
-  @ApiProperty({ type: SignUpResponseDataDto, description: 'Datos del usuario creado' })
+  @ApiProperty({
+    type: SignUpResponseDataDto,
+    description: 'Datos de la sesión del usuario recién creado',
+  })
   data: SignUpResponseDataDto;
 }

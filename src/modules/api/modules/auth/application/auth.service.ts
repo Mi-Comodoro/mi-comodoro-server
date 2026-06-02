@@ -23,7 +23,6 @@ import { UserRepository } from '../../users/domain/user.repository';
 import { UserRole } from '../../users/domain/user-role.enum';
 import type { RefreshTokenRepository } from '../domain/refresh-token.repository';
 import { CreateUserProfile, LoginUserProfile } from './interface';
-import { signUpToClient } from './mapper/signup.mapper';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -51,8 +50,8 @@ export class AuthService {
     }
   }
 
-  async signup(data: CreateUserProfile) {
-    this.logger.info(this.context, 'Creating user user-profile');
+  async signup(data: CreateUserProfile, userAgent?: string | null) {
+    this.logger.info(this.context, 'Creando usuario y perfil de usuario');
     const existingUser = await this.userRepository.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User already exists');
@@ -63,6 +62,7 @@ export class AuthService {
         password: data.passwordHash,
         provider: 'LOCAL',
         tokenVersion: 0,
+        handle: data.handle ?? null,
       };
 
       const planMap: Record<string, AccountType> = {
@@ -88,13 +88,35 @@ export class AuthService {
         country: data.country,
         accountType,
         trialEndsAt,
+        phone: data.phone,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
-      this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
-      return signUpToClient(userCreated, userProfile);
+      this.logger.info(this.context, `Registro completado para el usuario ${userCreated.id}`);
+
+      const payload: JwtPayload = {
+        userId: userCreated.id,
+        email: userCreated.email,
+        role: userCreated.role ?? UserRole.USER,
+        accountType: userProfile.accountType,
+        userProfileId: userProfile.id,
+        tokenVersion: userCreated.tokenVersion ?? 0,
+      };
+
+      const { token, refreshToken, expiresAt } = await this.generateTokenPair(
+        payload,
+        accountType,
+        userAgent,
+      );
+      return {
+        token,
+        refreshToken,
+        accountType,
+        expiresAt,
+        onboarding: 'PENDING',
+      };
     }
   }
 

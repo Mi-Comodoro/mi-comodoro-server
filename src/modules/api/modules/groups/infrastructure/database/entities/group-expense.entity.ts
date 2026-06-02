@@ -41,6 +41,9 @@ export class GroupExpenseEntity implements GroupExpense {
   @Column({ name: 'cxp_id', type: 'uuid', nullable: true })
   cxpId?: string | null;
 
+  @Column({ name: 'cxc_id', type: 'uuid', nullable: true })
+  cxcId?: string | null;
+
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true })
   nulledAt?: Date | null;
 

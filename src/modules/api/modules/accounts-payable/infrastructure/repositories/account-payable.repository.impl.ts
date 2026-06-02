@@ -33,6 +33,16 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
     return AccountPayableMapper.toDomain(entity);
   }
 
+  async findById(id: string): Promise<AccountPayable | null> {
+    const entity = await this.accountPayableRepo.findOne({ where: { id } });
+    if (!entity) return null;
+    return AccountPayableMapper.toDomain(entity);
+  }
+
+  async setLinkedCxc(id: string, linkedCxcId: string): Promise<void> {
+    await this.accountPayableRepo.update(id, { linkedCxcId });
+  }
+
   async create(
     data: Omit<AccountPayable, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<AccountPayable> {

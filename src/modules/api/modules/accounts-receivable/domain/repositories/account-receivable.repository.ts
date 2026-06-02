@@ -3,11 +3,13 @@ import { AccountReceivable } from '../account-receivable';
 export interface AccountReceivableRepository {
   findAll(userId: string): Promise<AccountReceivable[]>;
   findOne(id: string, userId: string): Promise<AccountReceivable | null>;
+  findById(id: string): Promise<AccountReceivable | null>;
   create(
     data: Omit<AccountReceivable, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<AccountReceivable>;
   update(id: string, data: Partial<AccountReceivable>): Promise<AccountReceivable | null>;
   softDelete(id: string): Promise<void>;
+  setLinkedCxp(id: string, linkedCxpId: string): Promise<void>;
   registerCollection(
     accountReceivableId: string,
     amount: number,

@@ -48,6 +48,9 @@ export class AccountReceivableEntity implements AccountReceivable {
   })
   status: 'pending' | 'partial' | 'collected' | 'overdue';
 
+  @Column({ name: 'linked_cxp_id', nullable: true })
+  linkedCxpId?: string;
+
   @Column({ name: 'nulled_at', nullable: true, type: 'timestamp' })
   nulledAt: Date | null;
 

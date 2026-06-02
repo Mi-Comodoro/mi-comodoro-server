@@ -176,6 +176,7 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.billsId !== undefined) updateData.billsId = data.billsId || undefined;
+    if (data.groupId !== undefined) updateData.groupId = data.groupId;
 
     const result = await this.expensePlannedRepository.update(id, updateData);
     if (result.affected === 0) return null;

@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { LoggerProviderService } from '@/core/providers';
 
-import { AccountReceivable } from '../domain/account-receivable';
+import type { AccountReceivable } from '../domain/account-receivable';
 import {
   AccountReceivableRepository,
   AccountReceivableSummaryData,
@@ -97,6 +97,25 @@ export class AccountsReceivableService {
       new Date(dto.collectionDate),
       dto.notes,
     );
+  }
+
+  async autoCollect(
+    id: string,
+    amount: number,
+    collectionDate: Date,
+    notes?: string,
+  ): Promise<void> {
+    this.logger.info(this.context, `Auto-collecting account receivable: ${id}`);
+    await this.repository.registerCollection(id, amount, collectionDate, notes);
+  }
+
+  async findByIdInternal(id: string): Promise<AccountReceivable | null> {
+    return this.repository.findById(id);
+  }
+
+  async setLinkedCxp(id: string, linkedCxpId: string): Promise<void> {
+    this.logger.info(this.context, `Setting linked CxP ${linkedCxpId} on CxC ${id}`);
+    await this.repository.setLinkedCxp(id, linkedCxpId);
   }
 
   async getSummary(userId: string): Promise<AccountReceivableSummaryData> {

@@ -298,6 +298,23 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     await this.budgetRepository.update({ id: budgetId }, { nulledAt: new Date() });
   }
 
+  async findDefaultActiveByOwnerId(ownerId: string): Promise<Budget | null> {
+    this.logger.info(this.context, `Finding default active budget for owner: ${ownerId}`);
+    const budget = await this.budgetRepository.findOne({
+      where: { ownerId, status: 'ACTIVE', isDefault: true },
+    });
+    return budget ?? null;
+  }
+
+  async setDefault(budgetId: string, ownerId: string): Promise<Budget> {
+    this.logger.info(this.context, `Setting budget ${budgetId} as default for owner ${ownerId}`);
+    await this.budgetRepository.update({ ownerId, isDefault: true }, { isDefault: false });
+    await this.budgetRepository.update({ id: budgetId }, { isDefault: true });
+    const updated = await this.findById(budgetId);
+    if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
+    return updated;
+  }
+
   private getMonthNumber(month: string): number {
     return this.monthOrder[month.toLowerCase()] ?? 0;
   }

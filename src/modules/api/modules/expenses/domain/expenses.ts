@@ -17,7 +17,8 @@ export interface PlannedExpense {
   isEssential: boolean;
   notes?: string;
   billsId?: string | null;
-  accountId?: string; // ← nuevo, opcional por ahora
+  accountId?: string;
+  groupId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

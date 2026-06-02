@@ -6,6 +6,12 @@ export interface NotificationPayload {
   senderId?: string;
   title?: string;
   body?: string;
+  // Group trip invitation fields
+  groupId?: string;
+  groupName?: string;
+  goal?: number | null;
+  organizerPlannedAmount?: number;
+  inviterHandle?: string;
 }
 
 export interface Notification {

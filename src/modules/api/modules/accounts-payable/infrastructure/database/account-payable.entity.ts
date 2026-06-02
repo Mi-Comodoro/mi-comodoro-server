@@ -57,6 +57,9 @@ export class AccountPayableEntity implements AccountPayable {
   @Column({ type: 'enum', enum: ['active', 'paid', 'overdue'], default: 'active' })
   status: 'active' | 'paid' | 'overdue';
 
+  @Column({ name: 'linked_cxc_id', nullable: true })
+  linkedCxcId?: string;
+
   @Column({ name: 'nulled_at', nullable: true, type: 'timestamp' })
   nulledAt: Date | null;
 

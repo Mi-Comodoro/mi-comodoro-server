@@ -403,6 +403,21 @@ export class BudgetService {
     }
   }
 
+  async setDefaultBudget(budgetId: string, userId: string): Promise<Budget> {
+    this.logger.info(this.context, `Estableciendo presupuesto ${budgetId} como predeterminado`);
+    const budget = await this.assertBudgetOwner(budgetId, userId);
+    if (budget.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'Solo se puede establecer como predeterminado un presupuesto activo',
+      );
+    }
+    return this.budgetRepository.setDefault(budgetId, userId);
+  }
+
+  async getDefaultBudget(userId: string): Promise<Budget | null> {
+    return this.budgetRepository.findDefaultActiveByOwnerId(userId);
+  }
+
   private async calculateSurplus(budgetId: string): Promise<number> {
     const rows = await this.dataSource.query<{ type: string; total: string }[]>(
       `SELECT type, COALESCE(SUM(amount), 0) AS total

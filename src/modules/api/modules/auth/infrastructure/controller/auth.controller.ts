@@ -43,7 +43,7 @@ export class AuthController {
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(409, 'User already exists')
-  async signup(@Body() body: SignUpDto) {
+  async signup(@Body() body: SignUpDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'creating user user-profile');
     const { passwordHash } = usePassword();
     const hash = await passwordHash(body.password);
@@ -57,9 +57,11 @@ export class AuthController {
       usageType: body.usageType,
       financialProfile: body.financialProfile,
       plan: body.plan,
+      phone: body.phone,
+      handle: body.handle,
       passwordHash: hash,
     };
-    return await this.authService.signup(data);
+    return await this.authService.signup(data, userAgent);
   }
 
   @Post('/signin')
