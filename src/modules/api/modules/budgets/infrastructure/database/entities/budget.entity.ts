@@ -49,7 +49,7 @@ export class BudgetEntity implements Budget {
   wantsLimit: number;
   @Column({ name: 'savings', nullable: false })
   savingsLimit: number;
-  @Column({ name: 'finances_id', nullable: false })
+  @Column({ name: 'finances_id', type: 'uuid', nullable: false })
   financesId: string;
   @Column({ name: 'ownerId', type: 'uuid', nullable: false })
   ownerId: string;

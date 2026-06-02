@@ -190,7 +190,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     this.logger.info(this.context, `Finding budget with ID: ${budgetId}`);
     const budget = await this.budgetRepository
       .createQueryBuilder('budget')
-      .where('budget.id = CAST(:id AS uuid)', { id: budgetId })
+      .where('budget.id = :id::uuid', { id: budgetId })
       .getOne();
     return budget ?? null;
   }
@@ -203,7 +203,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
         .createQueryBuilder()
         .update(BudgetEntity)
         .set({ status: 'ACTIVE' })
-        .where('id = CAST(:id AS uuid)', { id: budgetId })
+        .where('id = :id::uuid', { id: budgetId })
         .execute();
 
       if (!result.affected) {
@@ -231,7 +231,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
         .createQueryBuilder()
         .update(BudgetEntity)
         .set({ status: 'CLOSED', closedAt: new Date() })
-        .where('id = CAST(:id AS uuid)', { id: budgetId })
+        .where('id = :id::uuid', { id: budgetId })
         .execute();
 
       if (!result.affected) {
@@ -303,7 +303,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       .createQueryBuilder()
       .update(BudgetEntity)
       .set(data)
-      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .where('id = :id::uuid', { id: budgetId })
       .execute();
     if (!result.affected) return null;
     return this.findById(budgetId);
@@ -315,7 +315,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       .createQueryBuilder()
       .update(BudgetEntity)
       .set({ nulledAt: new Date() })
-      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .where('id = :id::uuid', { id: budgetId })
       .execute();
   }
 
@@ -323,7 +323,7 @@ export class BudgetRepositoryImpl implements BudgetRepository {
     this.logger.info(this.context, `Finding default active budget for owner: ${ownerId}`);
     const budget = await this.budgetRepository
       .createQueryBuilder('budget')
-      .where('budget.ownerId = CAST(:ownerId AS uuid)', { ownerId })
+      .where('budget.ownerId = :ownerId::uuid', { ownerId })
       .andWhere("budget.status = 'ACTIVE'")
       .andWhere('budget.isDefault = true')
       .getOne();
@@ -336,14 +336,14 @@ export class BudgetRepositoryImpl implements BudgetRepository {
       .createQueryBuilder()
       .update(BudgetEntity)
       .set({ isDefault: false })
-      .where('ownerId = CAST(:ownerId AS uuid)', { ownerId })
+      .where('ownerId = :ownerId::uuid', { ownerId })
       .andWhere('isDefault = true')
       .execute();
     await this.budgetRepository
       .createQueryBuilder()
       .update(BudgetEntity)
       .set({ isDefault: true })
-      .where('id = CAST(:id AS uuid)', { id: budgetId })
+      .where('id = :id::uuid', { id: budgetId })
       .execute();
     const updated = await this.findById(budgetId);
     if (!updated) throw new NotFoundException(`Budget not found after update: ${budgetId}`);
