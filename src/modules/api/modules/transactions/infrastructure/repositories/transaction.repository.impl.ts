@@ -63,7 +63,15 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     data: Transaction[];
     pagination: TransactionPagination;
   }> {
-    const { type, categoryId, dateFrom, dateTo, page = 1, limit = 20 } = filters;
+    const {
+      type,
+      categoryId,
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 20,
+      includeCategory = true,
+    } = filters;
 
     const where: FindOptionsWhere<TransactionEntity> = { budgetId, nulledAt: IsNull() };
 
@@ -80,7 +88,7 @@ export class TransactionRepositoryImpl implements TransactionRepository {
 
     const [entities, total] = await this.transactionRepository.findAndCount({
       where,
-      relations: { category: true },
+      relations: includeCategory ? { category: true } : {},
       order: { transactionDate: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,

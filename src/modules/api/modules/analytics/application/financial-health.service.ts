@@ -386,18 +386,21 @@ export class FinancialHealthService {
     const expenseTransactions = await this.transactionRepository.findByBudget(budgetId, {
       type: 'expense',
       limit: 1000,
+      includeCategory: false,
     });
 
     this.logger.info(this.context, `[pillares] transacciones ingresos — budgetId=${budgetId}`);
     const incomeTransactions = await this.transactionRepository.findByBudget(budgetId, {
       type: 'income',
       limit: 1000,
+      includeCategory: false,
     });
 
     this.logger.info(this.context, `[pillares] transacciones ahorros — budgetId=${budgetId}`);
     const savingsTransactions = await this.transactionRepository.findByBudget(budgetId, {
       type: 'savings',
       limit: 1000,
+      includeCategory: false,
     });
 
     const totalIncome = incomeTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
