@@ -157,7 +157,7 @@ export class AdminUsersService {
       this.userRepo.count({ where: { nulledAt: IsNull() } }),
       this.userRepo
         .createQueryBuilder('u')
-        .innerJoin('budgets', 'b', 'b."ownerId" = u.id AND b.nulled_at IS NULL')
+        .innerJoin('budgets', 'b', 'b.owner_id = u.id AND b.nulled_at IS NULL')
         .where('u.nulled_at IS NULL')
         .getCount(),
       this.budgetRepo.count(),

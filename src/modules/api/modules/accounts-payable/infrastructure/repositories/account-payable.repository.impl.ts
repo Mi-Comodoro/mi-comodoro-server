@@ -139,7 +139,7 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
     SELECT b.id, COALESCE(SUM(t.amount), 0) as budget_income
     FROM budgets b
     LEFT JOIN transactions t ON t.budget_id::text = b.id::text AND t.type = 'income' AND t.nulled_at IS NULL
-    WHERE b."ownerId"::text = $1::text AND b.status = 'CLOSED'
+    WHERE b.owner_id::text = $1::text AND b.status = 'CLOSED'
     GROUP BY b.id
     ORDER BY b.created_at DESC
     LIMIT 3

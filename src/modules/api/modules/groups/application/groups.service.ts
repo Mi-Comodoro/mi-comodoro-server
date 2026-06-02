@@ -418,7 +418,7 @@ export class GroupsService {
         user_id: string | null;
       }[]
     >(
-      `SELECT ep.id, ep.name, ep.expected_amount, ep.status, ep.budget_id, b."ownerId" AS user_id
+      `SELECT ep.id, ep.name, ep.expected_amount, ep.status, ep.budget_id, b.owner_id AS user_id
        FROM expenses_planned ep
        LEFT JOIN budgets b ON b.id = ep.budget_id
        WHERE ep.group_id = $1`,
@@ -554,7 +554,7 @@ export class GroupsService {
         if (!budgetId) {
           const budgets = await this.dataSource.query<{ id: string }[]>(
             `SELECT id FROM budgets
-             WHERE "ownerId" = $1 AND status IN ('ACTIVE', 'PLANNED') AND nulled_at IS NULL
+             WHERE owner_id = $1 AND status IN ('ACTIVE', 'PLANNED') AND nulled_at IS NULL
              ORDER BY is_default DESC, created_at DESC LIMIT 1`,
             [responderId],
           );
@@ -567,7 +567,7 @@ export class GroupsService {
           if (!categoryId) {
             const cats = await this.dataSource.query<{ id: string }[]>(
               `SELECT id FROM categories
-               WHERE bucket = 'wants' AND "isSelectable" = true AND nulled_at IS NULL
+               WHERE bucket = 'wants' AND is_selectable = true AND nulled_at IS NULL
                ORDER BY created_at ASC LIMIT 1`,
             );
             categoryId = cats[0]?.id;
