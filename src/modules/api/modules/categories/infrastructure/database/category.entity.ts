@@ -29,7 +29,7 @@ export class CategoryEntity implements Category {
   })
   bucket?: CategoryBucket;
 
-  @Column({ nullable: true, name: 'parent_id' })
+  @Column({ nullable: true, name: 'parent_id', type: 'uuid' })
   parentId?: string;
   @ManyToOne(() => CategoryEntity, (category) => category.children, {
     nullable: true,

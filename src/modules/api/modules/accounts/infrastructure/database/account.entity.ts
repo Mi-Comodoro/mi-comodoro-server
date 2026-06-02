@@ -34,7 +34,7 @@ export class AccountEntity implements Account {
   isActive: boolean;
   @Column({ name: 'is_primary', default: false })
   isPrimary: boolean;
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

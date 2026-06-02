@@ -23,14 +23,14 @@ export class BillsEntity implements Bill {
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @ManyToOne(() => CategoryEntity)
   @JoinColumn({ name: 'category_id' })
   category: CategoryEntity;
 
-  @Column({ name: 'category_id' })
+  @Column({ name: 'category_id', type: 'uuid' })
   categoryId: string;
 
   @Column()

@@ -39,7 +39,7 @@ export class IncomesEntity implements IncomeSource {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ name: 'user_id', nullable: false })
+  @Column({ name: 'user_id', type: 'uuid', nullable: false })
   userId: string;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })

@@ -37,10 +37,10 @@ export class SavingGoalEntity implements SavingGoal {
     nullable: true,
   })
   targetDate: Date;
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  @Column({ name: 'account_id' })
+  @Column({ name: 'account_id', type: 'uuid' })
   accountId: string;
 
   @ManyToOne(() => UserEntity, (user) => user.savingGoals, { onDelete: 'CASCADE' })
