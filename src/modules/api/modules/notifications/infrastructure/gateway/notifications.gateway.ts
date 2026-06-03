@@ -28,6 +28,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     try {
       const token = client.handshake.auth?.token as string;
       if (!token) {
+        this.logger.warn(`Conexión rechazada (sin token) socket=${client.id}`);
         client.disconnect();
         return;
       }
@@ -38,7 +39,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
       this.userSockets.set(payload.userId, client.id);
       this.logger.log(`Usuario conectado: ${payload.userId} → socket ${client.id}`);
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Conexión rechazada (token inválido) socket=${client.id} — ${msg}`);
       client.disconnect();
     }
   }
