@@ -68,6 +68,9 @@ export class PlannedExpenseEntity implements PlannedExpense {
   @Column({ name: 'group_id', type: 'uuid', nullable: true })
   groupId?: string | null;
 
+  @Column({ name: 'custom_bucket_id', type: 'uuid', nullable: true, default: null })
+  customBucketId?: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

@@ -78,6 +78,18 @@ class BudgetResponseData implements Budget {
 
   @ApiResponseProperty({ type: 'boolean', example: false })
   isDefault: boolean;
+
+  @ApiResponseProperty({
+    type: 'array',
+    example: [{ id: 'uuid', name: 'Entretenimiento', percentage: 10, color: '#FF5733' }],
+  })
+  customBuckets?: Array<{
+    id: string;
+    name: string;
+    purpose?: string;
+    percentage: number;
+    color?: string;
+  }>;
 }
 
 export class BudgetResponseDto {

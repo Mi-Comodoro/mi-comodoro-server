@@ -25,6 +25,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   constructor(private readonly jwtService: JwtService) {}
 
   handleConnection(client: Socket) {
+    const origin = client.handshake.headers?.origin ?? 'sin-origin';
+    this.logger.log(`handleConnection disparado socket=${client.id} origin=${origin}`);
     try {
       const token = client.handshake.auth?.token as string;
       if (!token) {

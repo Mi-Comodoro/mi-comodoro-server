@@ -2,28 +2,30 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { getBillingDateUTC } from '@/common/utils/timezone.utils';
 import { LoggerProviderService } from '@/core/providers';
 
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { PlannedExpenseStatus } from '../../../expenses/domain/expenses';
 import { PlannedExpenseEntity } from '../../../expenses/infrastructure/database/expenses-planned.entity';
+import { UserRepository } from '../../../users/domain/user.repository';
 import { Bill } from '../../domain/bills';
 import { BillsRepository } from '../../domain/repositories/bills.repository';
 import { CreateBillDto, ImportBillsDto, UpdateBillDto } from '../../infrastructure/dto/bill.dto';
 
 const MONTH_MAP: Record<string, number> = {
-  enero: 0,
-  febrero: 1,
-  marzo: 2,
-  abril: 3,
-  mayo: 4,
-  junio: 5,
-  julio: 6,
-  agosto: 7,
-  septiembre: 8,
-  octubre: 9,
-  noviembre: 10,
-  diciembre: 11,
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
 };
 
 @Injectable()
@@ -33,6 +35,7 @@ export class BillsService {
   constructor(
     @Inject('BillsRepository') private readonly billsRepository: BillsRepository,
     @Inject('BudgetRepository') private readonly budgetRepository: BudgetRepository,
+    @Inject('UserRepository') private readonly userRepository: UserRepository,
     @InjectRepository(PlannedExpenseEntity)
     private readonly plannedExpenseRepo: Repository<PlannedExpenseEntity>,
     private readonly logger: LoggerProviderService,
@@ -97,7 +100,9 @@ export class BillsService {
       throw new NotFoundException('No se encontraron facturas para importar');
     }
 
-    const monthIndex = MONTH_MAP[budget.month.toLowerCase()] ?? 0;
+    const monthNumber = MONTH_MAP[budget.month.toLowerCase()] ?? 1;
+    const user = await this.userRepository.findAuthById(userId);
+    const userTimezone = user?.timezone ?? 'America/Bogota';
 
     const expenses = bills.map((bill) => {
       const expense = new PlannedExpenseEntity();
@@ -105,7 +110,7 @@ export class BillsService {
       expense.categoryId = bill.categoryId;
       expense.name = bill.name;
       expense.expectedAmount = bill.expectedAmount;
-      expense.dueDate = new Date(budget.year, monthIndex, bill.billingDay);
+      expense.dueDate = getBillingDateUTC(bill.billingDay, budget.year, monthNumber, userTimezone);
       expense.status = PlannedExpenseStatus.PLANNED;
       expense.isEssential = true;
       expense.billsId = bill.id!;

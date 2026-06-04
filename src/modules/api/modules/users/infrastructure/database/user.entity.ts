@@ -44,6 +44,8 @@ export class UserEntity {
   handle?: string | null;
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true })
   nulledAt?: Date | null;
+  @Column({ default: 'America/Bogota' })
+  timezone: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

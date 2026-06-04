@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { toZonedTime } from 'date-fns-tz';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
@@ -17,6 +18,7 @@ import { GoalsRepository } from '@/modules/api/modules/savings/domain/repositori
 import { PlannedSavingStatus } from '@/modules/api/modules/savings/domain/savings-planned';
 import { PlannedSavingEntity } from '@/modules/api/modules/savings/infrastructure/database/entities/saving-planned.entity';
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
+import { UserRepository } from '@/modules/api/modules/users/domain/user.repository';
 
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
@@ -69,6 +71,7 @@ export class BudgetService {
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('UserRepository') private readonly userRepository: UserRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly systemConfigService: SystemConfigService,
   ) {}
@@ -308,25 +311,52 @@ export class BudgetService {
     return (await this.budgetRepository.findById(budgetId))!;
   }
 
-  @Cron('5 0 1 * *')
-  async closeExpiredBudgets(): Promise<void> {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1;
+  @Cron('0 * * * *')
+  async processMonthlyClosures(): Promise<void> {
+    this.logger.info(this.context, 'Verificando cierres de presupuesto mensuales por zona horaria');
+    const users = await this.userRepository.findAll();
+    for (const user of users) {
+      const local = toZonedTime(new Date(), user.timezone ?? 'America/Bogota');
+      const isStartOfDay = local.getHours() === 0 && local.getMinutes() < 5;
+      const isEndOfMonth = local.getDate() === 1;
+      if (isStartOfDay && isEndOfMonth) {
+        try {
+          await this.autoClose(user.id, user.timezone ?? 'America/Bogota');
+        } catch (err) {
+          this.logger.error(
+            this.context,
+            `Error en cierre automático para usuario ${user.id}: ${(err as Error).message}`,
+          );
+        }
+      }
+    }
+  }
+
+  async autoClose(userId: string, timezone: string): Promise<void> {
+    const local = toZonedTime(new Date(), timezone);
+    const currentYear = local.getFullYear();
+    const currentMonth = local.getMonth() + 1;
 
     this.logger.info(
       this.context,
-      `Ejecutando cierre automático de presupuestos expirados: ${currentYear}-${currentMonth}`,
+      `Ejecutando cierre automático de presupuestos para usuario ${userId}: ${currentYear}-${currentMonth}`,
     );
 
     const expired = await this.budgetRepository.findActiveExpired(currentYear, currentMonth);
+    const userExpired = expired.filter((b) => b.ownerId === userId);
 
-    this.logger.info(this.context, `Presupuestos expirados encontrados: ${expired.length}`);
+    this.logger.info(
+      this.context,
+      `Presupuestos expirados encontrados para usuario ${userId}: ${userExpired.length}`,
+    );
 
-    for (const budget of expired) {
+    for (const budget of userExpired) {
       try {
         await this.budgetRepository.close(budget.id as string);
-        this.logger.info(this.context, `Presupuesto ${budget.id} cerrado automáticamente`);
+        this.logger.info(
+          this.context,
+          `Presupuesto ${budget.id} cerrado automáticamente para usuario ${userId}`,
+        );
       } catch (err) {
         this.logger.error(
           this.context,
@@ -710,5 +740,17 @@ export class BudgetService {
     }
 
     return parsedYear;
+  }
+
+  async deleteCustomBucket(budgetId: string, bucketId: string, userId: string): Promise<Budget> {
+    const budget = await this.assertBudgetOwner(budgetId, userId);
+
+    const bucket = (budget.customBuckets ?? []).find((b) => b.id === bucketId);
+    if (!bucket) {
+      throw new NotFoundException(`Bucket ${bucketId} no encontrado en el presupuesto`);
+    }
+
+    const updatedBuckets = (budget.customBuckets ?? []).filter((b) => b.id !== bucketId);
+    return (await this.budgetRepository.update(budgetId, { customBuckets: updatedBuckets }))!;
   }
 }

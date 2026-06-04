@@ -151,6 +151,12 @@ export class MeResponseDto {
   onboarding: string;
 
   @ApiProperty({
+    description: 'Zona horaria del usuario',
+    example: 'America/Bogota',
+  })
+  timezone: string;
+
+  @ApiProperty({
     description: 'Datos de la cuenta del usuario',
     type: UserProfileResponseDto,
   })

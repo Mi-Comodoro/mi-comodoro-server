@@ -15,6 +15,7 @@ export class ExpenseMapper {
       notes: entity.notes,
       billsId: entity.billsId,
       groupId: entity.groupId,
+      customBucketId: entity.customBucketId,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -35,6 +36,7 @@ export class ExpenseMapper {
     entity.notes = data.notes;
     entity.billsId = data.billsId?.trim().length ? data.billsId : undefined;
     entity.groupId = data.groupId ?? undefined;
+    entity.customBucketId = data.customBucketId ?? undefined;
 
     return entity;
   }
