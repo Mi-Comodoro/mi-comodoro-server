@@ -32,9 +32,9 @@ const config: JestConfigWithTsJest = {
   },
   coverageThreshold: {
     global: {
-      lines: 54,
-      functions: 51,
-      statements: 54,
+      lines: 56,
+      functions: 55,
+      statements: 57,
     },
   },
   coverageReporters: ['text', 'text-summary', 'lcov'],
