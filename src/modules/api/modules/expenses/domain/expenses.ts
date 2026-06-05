@@ -19,6 +19,7 @@ export interface PlannedExpense {
   billsId?: string | null;
   accountId?: string;
   groupId?: string | null;
+  customBucketId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

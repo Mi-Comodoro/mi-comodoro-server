@@ -258,7 +258,12 @@ export class BudgetRepositoryImpl implements BudgetRepository {
 
   async update(
     budgetId: string,
-    data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+    data: Partial<
+      Pick<
+        Budget,
+        'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit' | 'customBuckets'
+      >
+    >,
   ): Promise<Budget | null> {
     this.logger.info(this.context, `Updating budget ${budgetId}`);
     const result = await this.budgetRepository.update({ id: budgetId }, data);

@@ -137,12 +137,26 @@ export class UsersService {
   }
 
   async updateMe(userId: string, dto: UpdateUserDto) {
-    this.logger.info(this.context, `Updating profile for user ${userId}`);
+    this.logger.info(this.context, `Actualizando perfil del usuario ${userId}`);
     const profile = await this.userProfileRepository.findByUserId(userId);
     if (!profile) {
       throw new NotFoundException('User profile not found');
     }
-    const updated = await this.userProfileRepository.update(userId, { ...profile, ...dto });
+
+    const { timezone, ...profileFields } = dto;
+
+    if (timezone !== undefined) {
+      await this.userRepository.updateTimezone(userId, timezone);
+      this.logger.info(
+        this.context,
+        `Zona horaria actualizada a ${timezone} para usuario ${userId}`,
+      );
+    }
+
+    const updated = await this.userProfileRepository.update(userId, {
+      ...profile,
+      ...profileFields,
+    });
     return updated;
   }
 

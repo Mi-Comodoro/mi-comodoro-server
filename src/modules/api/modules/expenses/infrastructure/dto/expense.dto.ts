@@ -58,6 +58,14 @@ export class CreateExpensePlanDto {
   @IsOptional()
   @IsUUID()
   groupId?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid',
+    description: 'ID del bucket personalizado del presupuesto',
+  })
+  @IsOptional()
+  @IsUUID()
+  customBucketId?: string | null;
 }
 export class CreateUnplannedExpenseDto {
   @ApiProperty({ example: 950000, description: 'Monto del gasto no planificado' })
@@ -127,4 +135,12 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsUUID()
   groupId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'uuid',
+    description: 'ID del bucket personalizado del presupuesto',
+  })
+  @IsOptional()
+  @IsUUID()
+  customBucketId?: string | null;
 }

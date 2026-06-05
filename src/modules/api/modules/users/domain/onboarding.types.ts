@@ -1,4 +1,4 @@
-import { Budget, FinancialStrategyType } from '../../budgets/domain/budget';
+import { Budget, CustomBucketItem, FinancialStrategyType } from '../../budgets/domain/budget';
 import { IncomeFrequency } from '../../incomes/domain/incomes';
 import { GenderType } from '../../user-profile/domain/user-profile.types';
 
@@ -23,6 +23,7 @@ export interface OnboardingBudgetData {
   savings: number;
   strategy: FinancialStrategyType;
   budgetFrequency: string;
+  customBuckets?: CustomBucketItem[];
 }
 
 export interface OnboardingIncomeData {

@@ -18,6 +18,19 @@ export class UserRepositoryImpl implements UserRepository {
     private readonly userRepository: Repository<UserEntity>,
     private readonly logger: LoggerProviderService,
   ) {}
+  async findAll(): Promise<User[]> {
+    try {
+      return await this.userRepository.find();
+    } catch (error) {
+      this.logger.error(
+        this.context,
+        'Error al obtener todos los usuarios',
+        getErrorMessage(error),
+      );
+      throw error;
+    }
+  }
+
   async save(user: Omit<User, 'userProfile'>): Promise<User> {
     try {
       const userData = this.userRepository.create(user);
@@ -145,6 +158,19 @@ export class UserRepositoryImpl implements UserRepository {
       await this.userRepository.update(userId, { handle });
     } catch (error) {
       this.logger.error(this.context, `Error updating handle for user ${userId}`, String(error));
+      throw error;
+    }
+  }
+
+  async updateTimezone(userId: string, timezone: string): Promise<void> {
+    try {
+      await this.userRepository.update(userId, { timezone });
+    } catch (error) {
+      this.logger.error(
+        this.context,
+        `Error actualizando zona horaria para usuario ${userId}`,
+        String(error),
+      );
       throw error;
     }
   }

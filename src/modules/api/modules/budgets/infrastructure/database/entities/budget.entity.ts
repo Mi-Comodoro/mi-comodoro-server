@@ -87,6 +87,15 @@ export class BudgetEntity implements Budget {
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true, default: null })
   nulledAt?: Date | null;
 
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  customBuckets: Array<{
+    id: string;
+    name: string;
+    purpose?: string;
+    percentage: number;
+    color?: string;
+  }>;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

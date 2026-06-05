@@ -301,6 +301,28 @@ export class BudgetController {
     await this.budgetService.deleteBudget(budgetId, user.userId);
   }
 
+  @Delete('/:budgetId/buckets/:bucketId')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un custom bucket de un presupuesto' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiParam({ name: 'bucketId', type: String, description: 'ID del bucket a eliminar' })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    'No puedes eliminar este bucket: tiene gastos asignados',
+  )
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  async deleteCustomBucket(
+    @CurrentUser() user: JwtPayload,
+    @Param('budgetId') budgetId: string,
+    @Param('bucketId') bucketId: string,
+  ) {
+    this.logger.info(this.context, `Eliminando bucket ${bucketId} del presupuesto ${budgetId}`);
+    return await this.budgetService.deleteCustomBucket(budgetId, bucketId, user.userId);
+  }
+
   @Patch('/:budgetId/active')
   @ApiBearerAuth('bearerAuth')
   @UseGuards(AuthGuard('jwt'))
