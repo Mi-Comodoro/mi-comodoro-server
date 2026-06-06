@@ -8,4 +8,6 @@ export interface CreateUserProfile {
   gender?: GenderType;
   country?: string;
   plan?: string;
+  phone?: string;
+  handle?: string;
 }

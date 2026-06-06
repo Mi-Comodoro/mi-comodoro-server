@@ -16,7 +16,7 @@ export class AccountReceivableEntity implements AccountReceivable {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
@@ -47,6 +47,9 @@ export class AccountReceivableEntity implements AccountReceivable {
     default: 'pending',
   })
   status: 'pending' | 'partial' | 'collected' | 'overdue';
+
+  @Column({ name: 'linked_cxp_id', nullable: true })
+  linkedCxpId?: string;
 
   @Column({ name: 'nulled_at', nullable: true, type: 'timestamp' })
   nulledAt: Date | null;

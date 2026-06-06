@@ -17,7 +17,7 @@ export class FinancesEntity implements Finances {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', unique: true, nullable: false })
+  @Column({ name: 'user_id', type: 'uuid', unique: true, nullable: false })
   userId: string;
 
   @Column({ name: 'profile', nullable: false })

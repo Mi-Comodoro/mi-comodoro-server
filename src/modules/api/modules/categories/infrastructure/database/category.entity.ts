@@ -29,7 +29,7 @@ export class CategoryEntity implements Category {
   })
   bucket?: CategoryBucket;
 
-  @Column({ nullable: true, name: 'parent_id' })
+  @Column({ nullable: true, name: 'parent_id', type: 'uuid' })
   parentId?: string;
   @ManyToOne(() => CategoryEntity, (category) => category.children, {
     nullable: true,
@@ -38,7 +38,7 @@ export class CategoryEntity implements Category {
   parent?: CategoryEntity;
   @OneToMany(() => CategoryEntity, (category) => category.parent)
   children: CategoryEntity[];
-  @Column({ default: true })
+  @Column({ name: 'is_selectable', default: true })
   isSelectable: boolean;
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

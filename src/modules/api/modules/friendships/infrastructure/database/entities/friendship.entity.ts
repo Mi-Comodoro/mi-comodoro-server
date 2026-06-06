@@ -18,10 +18,10 @@ export class FriendshipEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'requester_id' })
+  @Column({ name: 'requester_id', type: 'uuid' })
   requesterId: string;
 
-  @Column({ name: 'addressee_id' })
+  @Column({ name: 'addressee_id', type: 'uuid' })
   addresseeId: string;
 
   @Column({ type: 'enum', enum: FriendshipStatus, default: FriendshipStatus.PENDING })

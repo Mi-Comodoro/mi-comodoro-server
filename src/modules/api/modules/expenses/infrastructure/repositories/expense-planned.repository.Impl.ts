@@ -56,6 +56,8 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
         'expense.dueDate AS "dueDate"',
         'expense.status AS status',
         'expense.isEssential AS "isEssential"',
+        'expense.billsId AS "billsId"',
+        'expense.customBucketId AS "customBucketId"',
         'category.name AS category',
         'category.bucket AS bucket',
         `
@@ -175,6 +177,9 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.billsId !== undefined) updateData.billsId = data.billsId || undefined;
+    if (data.groupId !== undefined) updateData.groupId = data.groupId;
+    if (data.customBucketId !== undefined)
+      updateData.customBucketId = data.customBucketId ?? undefined;
 
     const result = await this.expensePlannedRepository.update(id, updateData);
     if (result.affected === 0) return null;
@@ -204,5 +209,11 @@ export class PlannedExpenseRepositoryImpl implements PlannedExpenseRepository {
     if (!updated) throw new NotFoundException('Planned expense not found after update');
 
     return ExpenseMapper.toDomain(updated);
+  }
+
+  async countByBudgetAndCustomBucket(budgetId: string, bucketId: string): Promise<number> {
+    return this.expensePlannedRepository.count({
+      where: { budgetId, customBucketId: bucketId },
+    });
   }
 }

@@ -25,6 +25,7 @@ export class SavingGoalEntity implements SavingGoal {
   reason: string;
 
   @Column({
+    name: 'target_amount',
     type: 'decimal',
     precision: 12,
     scale: 2,
@@ -33,14 +34,15 @@ export class SavingGoalEntity implements SavingGoal {
   targetAmount: number;
 
   @Column({
+    name: 'target_date',
     type: 'date',
     nullable: true,
   })
   targetDate: Date;
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  @Column({ name: 'account_id' })
+  @Column({ name: 'account_id', type: 'uuid' })
   accountId: string;
 
   @ManyToOne(() => UserEntity, (user) => user.savingGoals, { onDelete: 'CASCADE' })
@@ -51,7 +53,7 @@ export class SavingGoalEntity implements SavingGoal {
   @JoinColumn({ name: 'account_id' })
   account: AccountEntity;
 
-  @Column({ default: true })
+  @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
   @Column({

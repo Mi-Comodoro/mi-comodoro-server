@@ -10,6 +10,7 @@ export interface CreateUser {
 
 export type UserInfo = {
   displayName: string;
+  handle?: string;
   email: string;
   phone: string;
   gender: GenderType;

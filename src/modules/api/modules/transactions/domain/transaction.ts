@@ -41,6 +41,7 @@ export interface TransactionFilters {
   dateTo?: Date;
   page?: number;
   limit?: number;
+  includeCategory?: boolean;
 }
 
 export interface TransactionPagination {

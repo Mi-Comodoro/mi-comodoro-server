@@ -23,10 +23,10 @@ export class SavingAllocationEntity implements SavingAllocation {
   })
   percentage: number;
 
-  @Column({ name: 'goal_id' })
+  @Column({ name: 'goal_id', type: 'uuid' })
   goalId: string;
 
-  @Column({ name: 'budget_id' })
+  @Column({ name: 'budget_id', type: 'uuid' })
   budgetId: string;
   @ManyToOne(() => BudgetEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'budget_id' })

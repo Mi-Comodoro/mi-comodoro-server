@@ -27,6 +27,9 @@ export class PlannedExpenseItemDto {
 
   @ApiProperty()
   isFromBill: boolean;
+
+  @ApiProperty({ nullable: true, required: false })
+  customBucketId?: string | null;
 }
 
 export class PaginationMetaDto {

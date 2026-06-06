@@ -183,210 +183,225 @@ export class FinancialHealthService {
   private async calculateScore(userId: string): Promise<HealthScoreFullResponse> {
     this.logger.info(this.context, `Calculando score financiero para usuario ${userId}`);
 
-    const finances = await this.financesRepository.findByUserId(userId);
-    if (!finances?.id) {
-      throw new NotFoundException('Finanzas no encontradas para el usuario');
-    }
+    try {
+      const finances = await this.financesRepository.findByUserId(userId);
+      if (!finances?.id) {
+        throw new NotFoundException('Finanzas no encontradas para el usuario');
+      }
 
-    const [allBudgets, apSummary] = await Promise.all([
-      this.budgetRepository.findAllByFinancesId(finances.id),
-      this.apService.getSummary(userId),
-    ]);
+      const [allBudgets, apSummary] = await Promise.all([
+        this.budgetRepository.findAllByFinancesId(finances.id),
+        this.apService.getSummary(userId),
+      ]);
 
-    this.logger.info(
-      this.context,
-      `Presupuestos encontrados para financesId=${finances.id}: ${allBudgets.length}`,
-    );
-
-    const budgets = this.selectLastThree(allBudgets);
-    const totalDebt = apSummary.totalDebt ?? 0;
-
-    if (budgets.length === 0) {
-      this.logger.warn(
+      this.logger.info(
         this.context,
-        `Usuario ${userId} no tiene presupuestos — retornando score base`,
+        `Presupuestos encontrados para financesId=${finances.id}: ${allBudgets.length}`,
       );
 
-      const avgMonthlyIncome = 0;
-      const dti = totalDebt > 0 ? 200 : 0;
+      const budgets = this.selectLastThree(allBudgets);
+      const totalDebt = apSummary.totalDebt ?? 0;
+
+      if (budgets.length === 0) {
+        this.logger.warn(
+          this.context,
+          `Usuario ${userId} no tiene presupuestos — retornando score base`,
+        );
+
+        const avgMonthlyIncome = 0;
+        const dti = totalDebt > 0 ? 200 : 0;
+        const debtScore = this.calcDebtScore(totalDebt, avgMonthlyIncome);
+
+        await this.scoreRepository.insert({
+          userId,
+          totalScore: debtScore,
+          cashFlowScore: 0,
+          savingsScore: 0,
+          expenseScore: 0,
+          debtScore,
+          level: this.resolveLevel(debtScore),
+          cashFlowRate: 0,
+          savingsRate: 0,
+          expensesExcessPct: 0,
+          dti,
+          avgMonthlyIncome,
+          totalTransactions: 0,
+        });
+
+        const totalScore = debtScore;
+        return {
+          score: {
+            total: totalScore,
+            label: this.resolveLevelLabel(this.resolveLevel(totalScore)),
+            pillars: {
+              cashFlow: { score: 0, max: 25, rate: 0, label: this.cashFlowLabel(0) },
+              savings: { score: 0, max: 25, rate: 0, label: this.savingsLabel(0) },
+              expenses: { score: 0, max: 25, excessPct: 0, label: this.expensesLabel(0) },
+              debt: { score: debtScore, max: 25, dti, label: this.debtLabel(debtScore) },
+            },
+            insight: '',
+            weakestPillar: '',
+          },
+          debtRatio: this.buildDebtRatio(dti, totalDebt, avgMonthlyIncome * 12),
+          totalTransactions: 0,
+          totals: { income: 0, expenses: 0, savings: 0 },
+        };
+      }
+
+      const pillarsByBudget = await Promise.all(
+        budgets.map((budget) => this.calculatePillarsForBudget(budget)),
+      );
+
+      const averaged = this.averagePillars(pillarsByBudget);
+      const avgMonthlyIncome = averaged.avgMonthlyIncome;
+      const dti = this.calcDti(totalDebt, avgMonthlyIncome);
       const debtScore = this.calcDebtScore(totalDebt, avgMonthlyIncome);
+      const totalTransactions = pillarsByBudget.reduce((sum, p) => sum + p.totalTransactions, 0);
+      const totalIncome = pillarsByBudget.reduce((sum, p) => sum + p.totalIncome, 0);
+      const totalExpenses = pillarsByBudget.reduce((sum, p) => sum + p.totalExpenses, 0);
+      const totalSavings = pillarsByBudget.reduce((sum, p) => sum + p.totalSavings, 0);
+
+      const totalScore =
+        averaged.cashFlowScore + averaged.savingsScore + averaged.expenseScore + debtScore;
+      const level = this.resolveLevel(totalScore);
+
+      console.log('[P1] cashFlow score:', averaged.cashFlowScore, 'tasa:', averaged.cashFlowRate);
+      console.log(
+        '[P2] savings score:',
+        averaged.savingsScore,
+        'cumplimiento:',
+        averaged.savingsRate,
+      );
+      console.log(
+        '[P3] expenses score:',
+        averaged.expenseScore,
+        'exceso:',
+        averaged.expensesExcessPct,
+      );
+      console.log(
+        '[P4] debt score:',
+        debtScore,
+        'DTI:',
+        dti,
+        'ingresoAnual:',
+        averaged.avgMonthlyIncome * 12,
+      );
+      console.log('[TOTAL]:', totalScore);
+
+      this.logger.info(
+        this.context,
+        `Score calculado para usuario ${userId}: total=${totalScore} nivel=${level} dti=${dti} | pillares: cashFlow=${averaged.cashFlowScore} savings=${averaged.savingsScore} expenses=${averaged.expenseScore} debt=${debtScore}`,
+      );
 
       await this.scoreRepository.insert({
         userId,
-        totalScore: debtScore,
-        cashFlowScore: 0,
-        savingsScore: 0,
-        expenseScore: 0,
+        totalScore,
+        cashFlowScore: averaged.cashFlowScore,
+        savingsScore: averaged.savingsScore,
+        expenseScore: averaged.expenseScore,
         debtScore,
-        level: this.resolveLevel(debtScore),
-        cashFlowRate: 0,
-        savingsRate: 0,
-        expensesExcessPct: 0,
+        level,
+        cashFlowRate: averaged.cashFlowRate,
+        savingsRate: averaged.savingsRate,
+        expensesExcessPct: averaged.expensesExcessPct,
         dti,
         avgMonthlyIncome,
-        totalTransactions: 0,
+        totalTransactions,
+        totalIncome,
+        totalExpenses,
+        totalSavings,
       });
 
-      const totalScore = debtScore;
+      const insight = this.buildInsight(
+        totalScore,
+        averaged.cashFlowScore,
+        averaged.savingsScore,
+        averaged.expenseScore,
+        debtScore,
+      );
+      const weakestPillar = this.findWeakestPillarName(
+        averaged.cashFlowScore,
+        averaged.savingsScore,
+        averaged.expenseScore,
+        debtScore,
+      );
+
       return {
         score: {
           total: totalScore,
-          label: this.resolveLevelLabel(this.resolveLevel(totalScore)),
+          label: this.resolveLevelLabel(level),
           pillars: {
-            cashFlow: { score: 0, max: 25, rate: 0, label: this.cashFlowLabel(0) },
-            savings: { score: 0, max: 25, rate: 0, label: this.savingsLabel(0) },
-            expenses: { score: 0, max: 25, excessPct: 0, label: this.expensesLabel(0) },
-            debt: { score: debtScore, max: 25, dti, label: this.debtLabel(debtScore) },
+            cashFlow: {
+              score: averaged.cashFlowScore,
+              max: 25,
+              rate: averaged.cashFlowRate,
+              label: this.cashFlowLabel(averaged.cashFlowScore),
+            },
+            savings: {
+              score: averaged.savingsScore,
+              max: 25,
+              rate: averaged.savingsRate,
+              label: this.savingsLabel(averaged.savingsScore),
+            },
+            expenses: {
+              score: averaged.expenseScore,
+              max: 25,
+              excessPct: averaged.expensesExcessPct,
+              label: this.expensesLabel(averaged.expenseScore),
+            },
+            debt: {
+              score: debtScore,
+              max: 25,
+              dti,
+              label: this.debtLabel(debtScore),
+            },
           },
-          insight: '',
-          weakestPillar: '',
+          insight,
+          weakestPillar,
         },
         debtRatio: this.buildDebtRatio(dti, totalDebt, avgMonthlyIncome * 12),
-        totalTransactions: 0,
-        totals: { income: 0, expenses: 0, savings: 0 },
+        totalTransactions,
+        totals: { income: totalIncome, expenses: totalExpenses, savings: totalSavings },
       };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        this.context,
+        `Error al calcular score financiero para ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw error;
     }
-
-    const pillarsByBudget = await Promise.all(
-      budgets.map((budget) => this.calculatePillarsForBudget(budget)),
-    );
-
-    const averaged = this.averagePillars(pillarsByBudget);
-    const avgMonthlyIncome = averaged.avgMonthlyIncome;
-    const dti = this.calcDti(totalDebt, avgMonthlyIncome);
-    const debtScore = this.calcDebtScore(totalDebt, avgMonthlyIncome);
-    const totalTransactions = pillarsByBudget.reduce((sum, p) => sum + p.totalTransactions, 0);
-    const totalIncome = pillarsByBudget.reduce((sum, p) => sum + p.totalIncome, 0);
-    const totalExpenses = pillarsByBudget.reduce((sum, p) => sum + p.totalExpenses, 0);
-    const totalSavings = pillarsByBudget.reduce((sum, p) => sum + p.totalSavings, 0);
-
-    const totalScore =
-      averaged.cashFlowScore + averaged.savingsScore + averaged.expenseScore + debtScore;
-    const level = this.resolveLevel(totalScore);
-
-    console.log('[P1] cashFlow score:', averaged.cashFlowScore, 'tasa:', averaged.cashFlowRate);
-    console.log(
-      '[P2] savings score:',
-      averaged.savingsScore,
-      'cumplimiento:',
-      averaged.savingsRate,
-    );
-    console.log(
-      '[P3] expenses score:',
-      averaged.expenseScore,
-      'exceso:',
-      averaged.expensesExcessPct,
-    );
-    console.log(
-      '[P4] debt score:',
-      debtScore,
-      'DTI:',
-      dti,
-      'ingresoAnual:',
-      averaged.avgMonthlyIncome * 12,
-    );
-    console.log('[TOTAL]:', totalScore);
-
-    this.logger.info(
-      this.context,
-      `Score calculado para usuario ${userId}: total=${totalScore} nivel=${level} dti=${dti} | pillares: cashFlow=${averaged.cashFlowScore} savings=${averaged.savingsScore} expenses=${averaged.expenseScore} debt=${debtScore}`,
-    );
-
-    await this.scoreRepository.insert({
-      userId,
-      totalScore,
-      cashFlowScore: averaged.cashFlowScore,
-      savingsScore: averaged.savingsScore,
-      expenseScore: averaged.expenseScore,
-      debtScore,
-      level,
-      cashFlowRate: averaged.cashFlowRate,
-      savingsRate: averaged.savingsRate,
-      expensesExcessPct: averaged.expensesExcessPct,
-      dti,
-      avgMonthlyIncome,
-      totalTransactions,
-      totalIncome,
-      totalExpenses,
-      totalSavings,
-    });
-
-    const insight = this.buildInsight(
-      totalScore,
-      averaged.cashFlowScore,
-      averaged.savingsScore,
-      averaged.expenseScore,
-      debtScore,
-    );
-    const weakestPillar = this.findWeakestPillarName(
-      averaged.cashFlowScore,
-      averaged.savingsScore,
-      averaged.expenseScore,
-      debtScore,
-    );
-
-    return {
-      score: {
-        total: totalScore,
-        label: this.resolveLevelLabel(level),
-        pillars: {
-          cashFlow: {
-            score: averaged.cashFlowScore,
-            max: 25,
-            rate: averaged.cashFlowRate,
-            label: this.cashFlowLabel(averaged.cashFlowScore),
-          },
-          savings: {
-            score: averaged.savingsScore,
-            max: 25,
-            rate: averaged.savingsRate,
-            label: this.savingsLabel(averaged.savingsScore),
-          },
-          expenses: {
-            score: averaged.expenseScore,
-            max: 25,
-            excessPct: averaged.expensesExcessPct,
-            label: this.expensesLabel(averaged.expenseScore),
-          },
-          debt: {
-            score: debtScore,
-            max: 25,
-            dti,
-            label: this.debtLabel(debtScore),
-          },
-        },
-        insight,
-        weakestPillar,
-      },
-      debtRatio: this.buildDebtRatio(dti, totalDebt, avgMonthlyIncome * 12),
-      totalTransactions,
-      totals: { income: totalIncome, expenses: totalExpenses, savings: totalSavings },
-    };
   }
 
   private async calculatePillarsForBudget(budget: Budget): Promise<PillarResult> {
-    const [
-      plannedExpenses,
-      plannedSavings,
-      expenseTransactions,
-      incomeTransactions,
-      savingsTransactions,
-    ] = await Promise.all([
-      this.plannedExpenseRepository.findByBudget(budget.id as string),
-      this.plannedSavingRepository.findByBudget(budget.id as string),
-      this.transactionRepository.findByBudget(budget.id as string, {
-        type: 'expense',
-        limit: 1000,
-      }),
-      this.transactionRepository.findByBudget(budget.id as string, {
-        type: 'income',
-        limit: 1000,
-      }),
-      this.transactionRepository.findByBudget(budget.id as string, {
-        type: 'savings',
-        limit: 1000,
-      }),
-    ]);
+    const budgetId = budget.id as string;
+    this.logger.info(this.context, `[pillares] gastos planeados — budgetId=${budgetId}`);
+    const plannedExpenses = await this.plannedExpenseRepository.findByBudget(budgetId);
+
+    this.logger.info(this.context, `[pillares] ahorros planeados — budgetId=${budgetId}`);
+    const plannedSavings = await this.plannedSavingRepository.findByBudget(budgetId);
+
+    this.logger.info(this.context, `[pillares] transacciones gastos — budgetId=${budgetId}`);
+    const expenseTransactions = await this.transactionRepository.findByBudget(budgetId, {
+      type: 'expense',
+      limit: 1000,
+      includeCategory: false,
+    });
+
+    this.logger.info(this.context, `[pillares] transacciones ingresos — budgetId=${budgetId}`);
+    const incomeTransactions = await this.transactionRepository.findByBudget(budgetId, {
+      type: 'income',
+      limit: 1000,
+      includeCategory: false,
+    });
+
+    this.logger.info(this.context, `[pillares] transacciones ahorros — budgetId=${budgetId}`);
+    const savingsTransactions = await this.transactionRepository.findByBudget(budgetId, {
+      type: 'savings',
+      limit: 1000,
+      includeCategory: false,
+    });
 
     const totalIncome = incomeTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalExpenses = expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);

@@ -7,7 +7,7 @@ export class FinancialHealthScoreEntity implements FinancialHealthScore {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', nullable: false })
+  @Column({ name: 'user_id', type: 'uuid', nullable: false })
   userId: string;
 
   @Column({ name: 'total_score', type: 'int', nullable: false })

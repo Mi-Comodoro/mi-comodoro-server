@@ -37,22 +37,33 @@ export class AdminUsersService {
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
     this.logger.info(this.context, `Listing users — page ${page}, limit ${limit}`);
-    const [data, total] = await this.userRepo.findAndCount({
+
+    const [rows, total] = await this.userRepo.findAndCount({
       where: { nulledAt: IsNull() },
       relations: { userProfile: true },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        onboarding: true,
-        createdAt: true,
-        userProfile: { isActive: true },
-      },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { data, total, page, limit };
+
+    const users = rows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.userProfile?.displayName ?? u.userProfile?.name ?? '',
+      role: u.role,
+      createdAt: u.createdAt,
+      isActive: u.userProfile?.isActive ?? false,
+    }));
+
+    return {
+      users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findById(id: string) {
@@ -146,7 +157,7 @@ export class AdminUsersService {
       this.userRepo.count({ where: { nulledAt: IsNull() } }),
       this.userRepo
         .createQueryBuilder('u')
-        .innerJoin('budgets', 'b', 'b."ownerId" = u.id AND b.nulled_at IS NULL')
+        .innerJoin('budgets', 'b', 'b.owner_id = u.id AND b.nulled_at IS NULL')
         .where('u.nulled_at IS NULL')
         .getCount(),
       this.budgetRepo.count(),

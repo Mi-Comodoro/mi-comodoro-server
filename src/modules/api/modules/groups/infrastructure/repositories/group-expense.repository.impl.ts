@@ -36,10 +36,21 @@ export class GroupExpenseRepositoryImpl implements GroupExpenseRepository {
     return this.toDomain(saved);
   }
 
+  async update(id: string, data: Partial<GroupExpense>): Promise<GroupExpense> {
+    await this.repo.update(id, {
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.amount !== undefined && { amount: data.amount }),
+      ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
+      ...(data.responsibleUserId !== undefined && { responsibleUserId: data.responsibleUserId }),
+    });
+    const updated = await this.repo.findOneOrFail({ where: { id } });
+    return this.toDomain(updated);
+  }
+
   async updateStatus(
     id: string,
     status: GroupExpense['status'],
-    extra?: { transactionId?: string; cxpId?: string },
+    extra?: { transactionId?: string; cxpId?: string; cxcId?: string },
   ): Promise<GroupExpense> {
     await this.repo.update(id, { status, ...extra });
     const updated = await this.repo.findOneOrFail({ where: { id } });
@@ -61,6 +72,7 @@ export class GroupExpenseRepositoryImpl implements GroupExpenseRepository {
       status: entity.status,
       transactionId: entity.transactionId ?? null,
       cxpId: entity.cxpId ?? null,
+      cxcId: entity.cxcId ?? null,
       nulledAt: entity.nulledAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,

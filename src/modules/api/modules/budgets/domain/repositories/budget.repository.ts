@@ -26,7 +26,14 @@ export interface BudgetRepository {
   close(budgetId: string): Promise<Budget | null>;
   update(
     budgetId: string,
-    data: Partial<Pick<Budget, 'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit'>>,
+    data: Partial<
+      Pick<
+        Budget,
+        'name' | 'strategy' | 'needsLimit' | 'wantsLimit' | 'savingsLimit' | 'customBuckets'
+      >
+    >,
   ): Promise<Budget | null>;
   softDelete(budgetId: string): Promise<void>;
+  findDefaultActiveByOwnerId(ownerId: string): Promise<Budget | null>;
+  setDefault(budgetId: string, ownerId: string): Promise<Budget>;
 }

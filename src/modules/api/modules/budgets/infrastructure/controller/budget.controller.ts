@@ -301,6 +301,28 @@ export class BudgetController {
     await this.budgetService.deleteBudget(budgetId, user.userId);
   }
 
+  @Delete('/:budgetId/buckets/:bucketId')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un custom bucket de un presupuesto' })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiParam({ name: 'bucketId', type: String, description: 'ID del bucket a eliminar' })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    'No puedes eliminar este bucket: tiene gastos asignados',
+  )
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  async deleteCustomBucket(
+    @CurrentUser() user: JwtPayload,
+    @Param('budgetId') budgetId: string,
+    @Param('bucketId') bucketId: string,
+  ) {
+    this.logger.info(this.context, `Eliminando bucket ${bucketId} del presupuesto ${budgetId}`);
+    return await this.budgetService.deleteCustomBucket(budgetId, bucketId, user.userId);
+  }
+
   @Patch('/:budgetId/active')
   @ApiBearerAuth('bearerAuth')
   @UseGuards(AuthGuard('jwt'))
@@ -365,5 +387,25 @@ export class BudgetController {
     );
     await this.budgetService.transferBalance(budgetId, user.userId, dto);
     return { message: 'Transferencia realizada correctamente' };
+  }
+
+  @Patch('/:budgetId/set-default')
+  @ApiBearerAuth('bearerAuth')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Establecer un presupuesto activo como predeterminado',
+    description:
+      'Solo puede haber un presupuesto predeterminado activo por usuario. El anterior pierde el flag automáticamente.',
+  })
+  @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
+  @ApiOkResponse({ type: BudgetResponseDto })
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Budget not found')
+  @ApiErrorResponse(
+    HttpStatus.BAD_REQUEST,
+    'El presupuesto debe estar activo para ser predeterminado',
+  )
+  async setDefault(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
+    this.logger.info(this.context, `Estableciendo presupuesto ${budgetId} como predeterminado`);
+    return await this.budgetService.setDefaultBudget(budgetId, user.userId);
   }
 }

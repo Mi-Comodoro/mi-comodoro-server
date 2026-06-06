@@ -15,7 +15,7 @@ export class AccountPayablePaymentEntity implements AccountPayablePayment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'account_payable_id' })
+  @Column({ name: 'account_payable_id', type: 'uuid' })
   accountPayableId: string;
 
   @ManyToOne(() => AccountPayableEntity, { onDelete: 'CASCADE' })

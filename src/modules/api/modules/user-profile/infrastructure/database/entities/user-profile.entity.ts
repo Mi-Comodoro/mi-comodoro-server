@@ -19,7 +19,7 @@ import { GenderType } from '../../../domain/user-profile.types';
 export class UserProfileEntity implements UserProfile {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-  @Column({ name: 'user_id', unique: true })
+  @Column({ name: 'user_id', type: 'uuid', unique: true })
   userId: string;
   @Column({ name: 'name', nullable: false })
   name: string;
