@@ -46,6 +46,7 @@ jobs:
           cp -r dist /var/www/intranet/mi-comodoro-server/
           cp package.json /var/www/intranet/mi-comodoro-server/
           cp package-lock.json /var/www/intranet/mi-comodoro-server/
+          cp ecosystem.config.js /var/www/intranet/mi-comodoro-server/
 
       # Corregido: Se añade --ignore-scripts para evitar el fallo de Husky en producción
       - name: Instalar dependencias produccion
@@ -60,17 +61,6 @@ jobs:
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           cd /var/www/intranet/mi-comodoro-server
-          
-          # 1. Intentar reiniciar si el proceso ya está registrado en PM2
-          pm2 restart mi-comodoro-server && pm2 save && exit 0
-          
-          # 2. Si no existe, verificar la ruta e iniciar de forma correcta
-          if [ -f "dist/src/main.js" ]; then
-            pm2 start dist/src/main.js --name "mi-comodoro-server"
-          elif [ -f "dist/main.js" ]; then
-            pm2 start dist/main.js --name "mi-comodoro-server"
-          else
-            echo "❌ Error: No se encontró el archivo main.js en dist/ ni en dist/src/"
-            exit 1
-          fi
+          pm2 delete mi-comodoro-server || true
+          pm2 start ecosystem.config.js
           pm2 save
