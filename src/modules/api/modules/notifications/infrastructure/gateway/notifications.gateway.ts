@@ -52,6 +52,13 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         secret: process.env.JWT_SECRET,
       });
 
+      // Solo se aceptan tokens de WebSocket (typ 'ws', 60 s), no access tokens
+      if (payload.typ !== 'ws') {
+        this.logger.warn(`Conexión rechazada (tipo de token inválido) socket=${client.id}`);
+        client.disconnect();
+        return;
+      }
+
       // Misma regla que JwtStrategy: el usuario debe existir y el token seguir vigente
       const user = await this.userRepository.findAuthById(payload.userId);
       if (!user || (payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {

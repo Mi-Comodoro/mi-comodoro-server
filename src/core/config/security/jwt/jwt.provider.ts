@@ -7,6 +7,8 @@ import { LoggerProviderService } from '@/core/providers';
 
 import { JwtPayload } from './jwt.payload';
 
+export const WS_TOKEN_TTL: StringValue = '60s';
+
 @Injectable()
 export class JwtProvider {
   private readonly context: string = JwtProvider.name;
@@ -25,6 +27,23 @@ export class JwtProvider {
     } catch (error) {
       this.logger.error(this.context, getErrorMessage(error));
       throw new InternalServerErrorException('Error generating access token');
+    }
+  }
+
+  /**
+   * Token de vida corta (60 s) y un solo propósito para el handshake del WebSocket.
+   * Evita exponer el access token a JavaScript del navegador. JwtStrategy lo rechaza
+   * como token de API (typ = 'ws').
+   */
+  generateWsToken(payload: Pick<JwtPayload, 'userId' | 'tokenVersion'>): string {
+    try {
+      return this.jwtService.sign(
+        { userId: payload.userId, tokenVersion: payload.tokenVersion ?? 0, typ: 'ws' },
+        { secret: process.env.JWT_SECRET, expiresIn: WS_TOKEN_TTL },
+      );
+    } catch (error) {
+      this.logger.error(this.context, getErrorMessage(error));
+      throw new InternalServerErrorException('Error generating websocket token');
     }
   }
 }

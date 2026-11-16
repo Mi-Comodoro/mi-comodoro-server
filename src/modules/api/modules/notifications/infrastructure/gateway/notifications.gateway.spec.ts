@@ -37,8 +37,16 @@ describe('NotificationsGateway', () => {
     expect(client.disconnect).toHaveBeenCalled();
   });
 
-  it('rechaza si el usuario ya no existe', async () => {
+  it('rechaza access tokens (solo se aceptan tokens de WebSocket)', async () => {
     jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0 });
+    const client = buildClient('access-token');
+    await gateway.handleConnection(client);
+    expect(client.disconnect).toHaveBeenCalled();
+    expect(userRepository.findAuthById).not.toHaveBeenCalled();
+  });
+
+  it('rechaza si el usuario ya no existe', async () => {
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0, typ: 'ws' });
     userRepository.findAuthById.mockResolvedValue(null);
     const client = buildClient('t');
     await gateway.handleConnection(client);
@@ -46,7 +54,7 @@ describe('NotificationsGateway', () => {
   });
 
   it('rechaza tokens invalidados (tokenVersion distinto)', async () => {
-    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 1 });
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 1, typ: 'ws' });
     userRepository.findAuthById.mockResolvedValue({ id: 'u1', tokenVersion: 2 } as never);
     const client = buildClient('t');
     await gateway.handleConnection(client);
@@ -54,7 +62,7 @@ describe('NotificationsGateway', () => {
   });
 
   it('acepta tokens vigentes y registra el socket del usuario', async () => {
-    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 2 });
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 2, typ: 'ws' });
     userRepository.findAuthById.mockResolvedValue({ id: 'u1', tokenVersion: 2 } as never);
     const client = buildClient('t');
     await gateway.handleConnection(client);
@@ -63,7 +71,7 @@ describe('NotificationsGateway', () => {
   });
 
   it('soporta varios sockets por usuario y limpia al desconectar', async () => {
-    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0 });
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0, typ: 'ws' });
     userRepository.findAuthById.mockResolvedValue({ id: 'u1', tokenVersion: 0 } as never);
     const a = buildClient('t');
     const b = { ...buildClient('t'), id: 'socket-2' } as unknown as jest.Mocked<Socket>;
@@ -83,7 +91,7 @@ describe('NotificationsGateway', () => {
   });
 
   it('cierra los sockets del usuario cuando su sesión se invalida', async () => {
-    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0 });
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0, typ: 'ws' });
     userRepository.findAuthById.mockResolvedValue({ id: 'u1', tokenVersion: 0 } as never);
     const a = buildClient('t');
     const b = { ...buildClient('t'), id: 'socket-2' } as unknown as jest.Mocked<Socket>;

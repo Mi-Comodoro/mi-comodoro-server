@@ -8,4 +8,6 @@ export interface JwtPayload {
   accountType?: AccountType;
   userProfileId?: string;
   tokenVersion?: number;
+  /** 'ws': token de un solo propósito para el handshake del WebSocket (vida corta). */
+  typ?: 'ws';
 }

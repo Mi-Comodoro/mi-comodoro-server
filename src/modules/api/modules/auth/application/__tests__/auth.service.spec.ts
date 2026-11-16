@@ -54,7 +54,10 @@ const mockLogger = {
   error: jest.fn(),
   debug: jest.fn(),
 };
-const mockJwtProvider = { generateToken: jest.fn().mockReturnValue('signed-jwt-token') };
+const mockJwtProvider = {
+  generateToken: jest.fn().mockReturnValue('signed-jwt-token'),
+  generateWsToken: jest.fn().mockReturnValue('ws-token'),
+};
 const mockJwtService = { decode: jest.fn().mockReturnValue({ exp: 9999999999 }) };
 const mockSystemConfig = { getNumber: jest.fn().mockResolvedValue(14) };
 
@@ -229,6 +232,19 @@ describe('AuthService', () => {
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('auth.session.invalidated', {
         userId: 'user-1',
       });
+    });
+  });
+
+  // ─── issueWsToken ──────────────────────────────────────────────────────────
+  describe('issueWsToken', () => {
+    it('devuelve un token de WebSocket generado a partir del payload', () => {
+      const result = service.issueWsToken({ userId: 'user-1', tokenVersion: 2 } as never);
+
+      expect(mockJwtProvider.generateWsToken).toHaveBeenCalledWith({
+        userId: 'user-1',
+        tokenVersion: 2,
+      });
+      expect(result).toEqual({ token: 'ws-token' });
     });
   });
 
