@@ -1,4 +1,5 @@
 import { Inject, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
@@ -8,6 +9,10 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+import {
+  SESSION_INVALIDATED_EVENT,
+  SessionInvalidatedPayload,
+} from '@/common/events/session.events';
 import { corsOriginResolver } from '@/core/config/security/allowed-origins';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 
@@ -77,6 +82,17 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       this.userSockets.delete(userId);
     }
     this.logger.log(`Usuario desconectado: ${userId}`);
+  }
+
+  /** Cierra los sockets abiertos del usuario cuando su sesión se invalida (logout). */
+  @OnEvent(SESSION_INVALIDATED_EVENT)
+  handleSessionInvalidated({ userId }: SessionInvalidatedPayload) {
+    const sockets = this.userSockets.get(userId);
+    if (!sockets) return;
+
+    sockets.forEach((socketId) => this.server.sockets.sockets.get(socketId)?.disconnect(true));
+    this.userSockets.delete(userId);
+    this.logger.log(`Sockets cerrados por invalidación de sesión: ${userId}`);
   }
 
   sendToUser(userId: string, event: string, payload: unknown) {

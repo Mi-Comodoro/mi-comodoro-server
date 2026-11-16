@@ -81,4 +81,27 @@ describe('NotificationsGateway', () => {
     gateway.sendToUser('u1', 'evt', {});
     expect(emit).not.toHaveBeenCalled();
   });
+
+  it('cierra los sockets del usuario cuando su sesión se invalida', async () => {
+    jwtService.verify.mockReturnValue({ userId: 'u1', tokenVersion: 0 });
+    userRepository.findAuthById.mockResolvedValue({ id: 'u1', tokenVersion: 0 } as never);
+    const a = buildClient('t');
+    const b = { ...buildClient('t'), id: 'socket-2' } as unknown as jest.Mocked<Socket>;
+    await gateway.handleConnection(a);
+    await gateway.handleConnection(b);
+
+    const sockets = new Map([
+      ['socket-1', { disconnect: jest.fn() }],
+      ['socket-2', { disconnect: jest.fn() }],
+    ]);
+    gateway.server = { sockets: { sockets } } as never;
+
+    gateway.handleSessionInvalidated({ userId: 'u1' });
+
+    expect(sockets.get('socket-1')?.disconnect).toHaveBeenCalledWith(true);
+    expect(sockets.get('socket-2')?.disconnect).toHaveBeenCalledWith(true);
+
+    // Sin sockets registrados: no falla
+    expect(() => gateway.handleSessionInvalidated({ userId: 'u1' })).not.toThrow();
+  });
 });
