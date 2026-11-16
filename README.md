@@ -147,7 +147,7 @@ Las respuestas exitosas siguen el contrato estandarizado por el interceptor glob
 
 ### Requisitos
 
-- Node.js `22.11.x`
+- Node.js `26.13.x` (LTS)
 - pnpm `11.1.2` (vía `packageManager`)
 - PostgreSQL accesible desde la configuracion local
 
@@ -240,7 +240,7 @@ Esto implica que el comportamiento de sincronizacion de esquema debe tratarse co
 
 ### Requisitos
 
-- Node 22 (ver .nvmrc)
+- Node 26 LTS (ver .nvmrc)
 - PostgreSQL 15+
 - pnpm
 

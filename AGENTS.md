@@ -2,7 +2,7 @@
 
 ## Entorno de desarrollo
 
-- **Node.js requerido: >=22.13 <23** (definido en `engines.node`; pnpm 11 lo exige)
+- **Node.js requerido: >=26.13 <27** (LTS "Lithium"; definido en `engines.node` y `.nvmrc`)
 - **Package manager: pnpm** (versión fijada en `packageManager`; requiere Node >=22.13)
 - Verificar versión activa: `node --version`
 - Cambiar con nvm: `nvm use` (lee .nvmrc automáticamente)
@@ -15,7 +15,7 @@
 | TypeORM      | 0.3.28   |
 | TypeScript   | 5.x      |
 | PostgreSQL   | —        |
-| Node.js      | >=22.13  |
+| Node.js      | >=26.13 (LTS) |
 
 ## Project Context
 
