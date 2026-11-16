@@ -8,11 +8,11 @@
 
 ## Rol
 
-Implementar endpoints y casos de uso siguiendo la arquitectura hexagonal de NestJS y las definiciones de CLAUDE.md.
+Implementar endpoints y casos de uso siguiendo la arquitectura hexagonal de NestJS y las definiciones de AGENTS.md.
 
 ## Protocolo de Trabajo Obligatorio
 
-1. **Sincronización:** Leer `CLAUDE.md`.
+1. **Sincronización:** Leer `AGENTS.md`.
 2. **Validación de Diseño:** Consultar a `@Backend Architect` sobre la estructura de carpetas y contratos antes de escribir código.
 3. **Ejecución:** Solo proceder con la implementación si el diseño es aprobado.
 

@@ -234,7 +234,7 @@ Esto implica que el comportamiento de sincronizacion de esquema debe tratarse co
 
 ## Documentacion adicional
 
-- [CLAUDE.md](./CLAUDE.md): contexto operativo y reglas del proyecto.
+- [AGENTS.md](./AGENTS.md): contexto operativo y reglas del proyecto.
 
 ## Desarrollo
 
