@@ -77,6 +77,7 @@ export class AuthController {
   }
 
   @Post('/google')
+  @Throttle({ short: { ttl: 60_000, limit: 10 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
@@ -86,6 +87,7 @@ export class AuthController {
   }
 
   @Post('/refresh')
+  @Throttle({ short: { ttl: 60_000, limit: 20 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Renovar la sesion usando un refresh token opaco' })
   @ApiOkResponse({ type: RefreshResponseDto })

@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
@@ -9,6 +9,9 @@ import {
 import { Server, Socket } from 'socket.io';
 
 import { corsOriginResolver } from '@/core/config/security/allowed-origins';
+import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
+
+import { UserRepository } from '../../../users/domain/user.repository';
 
 @WebSocketGateway({
   cors: {
@@ -24,9 +27,12 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   private readonly logger = new Logger(NotificationsGateway.name);
   private readonly userSockets = new Map<string, Set<string>>();
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    @Inject('UserRepository') private readonly userRepository: UserRepository,
+  ) {}
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const origin = client.handshake.headers?.origin ?? 'sin-origin';
     this.logger.log(`handleConnection disparado socket=${client.id} origin=${origin}`);
     try {
@@ -37,9 +43,17 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         return;
       }
 
-      const payload = this.jwtService.verify<{ userId: string }>(token, {
+      const payload = this.jwtService.verify<JwtPayload>(token, {
         secret: process.env.JWT_SECRET,
       });
+
+      // Misma regla que JwtStrategy: el usuario debe existir y el token seguir vigente
+      const user = await this.userRepository.findAuthById(payload.userId);
+      if (!user || (payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+        this.logger.warn(`Conexión rechazada (token invalidado) socket=${client.id}`);
+        client.disconnect();
+        return;
+      }
 
       const sockets = this.userSockets.get(payload.userId) ?? new Set<string>();
       sockets.add(client.id);
