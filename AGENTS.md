@@ -121,7 +121,7 @@ NODE_ENV=                  # development | production
 # URLs
 APP_URL=                   # URL pública del backend
 SWAGGER_URL=               # URL de la documentación Swagger
-FRONTEND_URL=              # URL del frontend (CRÍTICO para WebSocket CORS)
+FRONTEND_URL=              # URL(s) del frontend, separadas por coma. Obligatoria solo en production
 
 # Base de datos
 DB_HOST=
@@ -140,7 +140,7 @@ FB_CLIENT_EMAIL=
 FB_PRIVATE_KEY=            # Incluir con comillas y \n escapados
 ```
 
-> ⚠️ `FRONTEND_URL` (admite varias URLs separadas por coma) se suma a los dominios productivos como lista blanca CORS (HTTP y WebSocket, ver `src/core/config/security/allowed-origins.ts`). Solo `NODE_ENV=local` permite cualquier origen. Sin ella en `development`, el front de dev será rechazado por CORS.
+> ⚠️ `FRONTEND_URL` (admite varias URLs separadas por coma) es **obligatoria solo en `production`** (se valida al arrancar) y se suma a los dominios productivos como lista blanca CORS (HTTP y WebSocket, ver `src/core/config/security/allowed-origins.ts`). En `local` y `development` se permite cualquier origen (por ahora).
 > ⚠️ El repo no tiene `.env.example`. Crear uno al incorporar nuevos desarrolladores.
 
 ## Comandos frecuentes

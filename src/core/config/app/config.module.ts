@@ -21,6 +21,12 @@ const envFilePath: string = getEnvironmentPath();
           .required(),
         APP_URL: Joi.string().required(),
         APP_PORT: Joi.number().default(DEFAULT_PORT).required(),
+        // Obligatoria solo en producción (lista blanca CORS); en local/development se permite cualquier origen
+        FRONTEND_URL: Joi.string().when('NODE_ENV', {
+          is: 'production',
+          then: Joi.required(),
+          otherwise: Joi.optional().allow(''),
+        }),
       }),
     }),
   ],
