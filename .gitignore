@@ -8,3 +8,6 @@ coverage
 # Compat local Claude Code (junctions hacia .agents/, no versionar)
 .claude/agents
 .claude/skills
+
+# Volcados de crash de Git Bash
+*.stackdump

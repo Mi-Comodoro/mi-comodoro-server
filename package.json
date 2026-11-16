@@ -54,6 +54,7 @@
     "date-fns": "4.1.0",
     "date-fns-tz": "^3.2.0",
     "decimal.js": "10.6.0",
+    "dotenv": "17.4.1",
     "fast-xml-parser": "^5.6.1",
     "firebase-admin": "13.7.0",
     "helmet": "8.1.0",
@@ -61,6 +62,7 @@
     "passport": "0.7.0",
     "passport-jwt": "4.0.1",
     "pg": "8.17.2",
+    "rxjs": "7.8.2",
     "socket.io": "^4.8.3",
     "typeorm": "0.3.28"
   },
@@ -70,6 +72,7 @@
     "@types/date-fns": "^2.5.3",
     "@types/express": "5.0.6",
     "@types/jest": "^29.5.14",
+    "@types/ms": "2.1.0",
     "@types/node": "^25.5.0",
     "@types/passport-jwt": "^4.0.1",
     "eslint": "^9.39.4",
@@ -96,13 +99,13 @@
     "lodash": "^4.17.24"
   },
   "engines": {
-    "node": "22.11.0",
-    "npm": ">=10.0.0"
+    "node": ">=22.13 <23"
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "npm run lint",
-      "npm run format"
+      "pnpm lint",
+      "pnpm format"
     ]
-  }
+  },
+  "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499"
 }

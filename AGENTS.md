@@ -2,8 +2,8 @@
 
 ## Entorno de desarrollo
 
-- **Node.js requerido: v22.11.0** (definido en `engines.node` de package.json)
-- **Package manager: npm**
+- **Node.js requerido: >=22.13 <23** (definido en `engines.node`; pnpm 11 lo exige)
+- **Package manager: pnpm** (versión fijada en `packageManager`; requiere Node >=22.13)
 - Verificar versión activa: `node --version`
 - Cambiar con nvm: `nvm use` (lee .nvmrc automáticamente)
 
@@ -15,7 +15,7 @@
 | TypeORM      | 0.3.28   |
 | TypeScript   | 5.x      |
 | PostgreSQL   | —        |
-| Node.js      | 22.11.0  |
+| Node.js      | >=22.13  |
 
 ## Project Context
 
@@ -147,20 +147,20 @@ FB_PRIVATE_KEY=            # Incluir con comillas y \n escapados
 
 ```bash
 # Desarrollo
-npm run start:dev          # Modo watch con hot-reload
+pnpm start:dev          # Modo watch con hot-reload
 
 # Producción
-npm run build
-npm run start:prod
+pnpm build
+pnpm start:prod
 
 # Base de datos (TypeORM)
-npm run migration:generate -- --name=MigrationName
-npm run migration:run
-npm run migration:revert
+pnpm migration:generate --name=MigrationName
+pnpm migration:run
+pnpm migration:revert
 
 # Lint
-npm run lint
-npm run lint:fix
+pnpm lint
+pnpm lint:fix
 ```
 
 ## Patterns establecidos
