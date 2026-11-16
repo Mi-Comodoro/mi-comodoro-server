@@ -140,7 +140,7 @@ FB_CLIENT_EMAIL=
 FB_PRIVATE_KEY=            # Incluir con comillas y \n escapados
 ```
 
-> ⚠️ `FRONTEND_URL` es requerida. Sin ella, el módulo WebSocket/Notifications acepta cualquier origen (`cors: true`).
+> ⚠️ `FRONTEND_URL` (admite varias URLs separadas por coma) se suma a los dominios productivos como lista blanca CORS (HTTP y WebSocket, ver `src/core/config/security/allowed-origins.ts`). Solo `NODE_ENV=local` permite cualquier origen. Sin ella en `development`, el front de dev será rechazado por CORS.
 > ⚠️ El repo no tiene `.env.example`. Crear uno al incorporar nuevos desarrolladores.
 
 ## Comandos frecuentes

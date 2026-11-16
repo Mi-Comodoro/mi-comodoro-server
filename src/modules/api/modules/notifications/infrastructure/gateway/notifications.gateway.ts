@@ -8,9 +8,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+import { corsOriginResolver } from '@/core/config/security/allowed-origins';
+
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL ?? true,
+    origin: corsOriginResolver,
     credentials: true,
   },
   transports: ['websocket', 'polling'],
@@ -20,7 +22,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   server: Server;
 
   private readonly logger = new Logger(NotificationsGateway.name);
-  private readonly userSockets = new Map<string, string>();
+  private readonly userSockets = new Map<string, Set<string>>();
 
   constructor(private readonly jwtService: JwtService) {}
 
@@ -39,7 +41,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         secret: process.env.JWT_SECRET,
       });
 
-      this.userSockets.set(payload.userId, client.id);
+      const sockets = this.userSockets.get(payload.userId) ?? new Set<string>();
+      sockets.add(client.id);
+      this.userSockets.set(payload.userId, sockets);
+      client.data.userId = payload.userId;
       this.logger.log(`Usuario conectado: ${payload.userId} → socket ${client.id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -49,19 +54,19 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   }
 
   handleDisconnect(client: Socket) {
-    for (const [userId, socketId] of this.userSockets.entries()) {
-      if (socketId === client.id) {
-        this.userSockets.delete(userId);
-        this.logger.log(`Usuario desconectado: ${userId}`);
-        break;
-      }
+    const userId = client.data?.userId as string | undefined;
+    if (!userId) return;
+
+    const sockets = this.userSockets.get(userId);
+    sockets?.delete(client.id);
+    if (sockets && sockets.size === 0) {
+      this.userSockets.delete(userId);
     }
+    this.logger.log(`Usuario desconectado: ${userId}`);
   }
 
   sendToUser(userId: string, event: string, payload: unknown) {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, payload);
-    }
+    const sockets = this.userSockets.get(userId);
+    sockets?.forEach((socketId) => this.server.to(socketId).emit(event, payload));
   }
 }
