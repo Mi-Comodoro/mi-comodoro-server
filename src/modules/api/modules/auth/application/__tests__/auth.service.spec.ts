@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -11,11 +12,13 @@ import { UserRole } from '../../../users/domain/user-role.enum';
 import { AuthService } from '../auth.service';
 
 // ─── firebase-admin mock (prevents real SDK initialization) ──────────────────
-jest.mock('firebase-admin', () => ({
-  apps: [],
+jest.mock('firebase-admin/app', () => ({
+  getApps: jest.fn().mockReturnValue([]),
   initializeApp: jest.fn(),
-  credential: { cert: jest.fn().mockReturnValue({}) },
-  auth: jest.fn().mockReturnValue({
+  cert: jest.fn().mockReturnValue({}),
+}));
+jest.mock('firebase-admin/auth', () => ({
+  getAuth: jest.fn().mockReturnValue({
     verifyIdToken: jest.fn(),
   }),
 }));
@@ -26,6 +29,8 @@ jest.mock('argon2', () => ({
   verify: jest.fn().mockResolvedValue(true),
   argon2id: 2,
 }));
+
+const mockEventEmitter = { emit: jest.fn() };
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 const mockUserRepo = {
@@ -79,6 +84,7 @@ describe('AuthService', () => {
         { provide: JwtProvider, useValue: mockJwtProvider },
         { provide: JwtService, useValue: mockJwtService },
         { provide: SystemConfigService, useValue: mockSystemConfig },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 
@@ -211,6 +217,18 @@ describe('AuthService', () => {
       expect(mockUserRepo.invalidateTokens).toHaveBeenCalledWith('user-1', 0);
       expect(mockRefreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith('user-1');
       expect(result.message).toBe('Logout successful');
+    });
+
+    it('emite el evento de sesión invalidada para cerrar sockets', async () => {
+      mockUserRepo.findAuthById.mockResolvedValue(makeUser());
+      mockUserRepo.invalidateTokens.mockResolvedValue(undefined);
+      mockRefreshTokenRepo.revokeAllForUser.mockResolvedValue(undefined);
+
+      await service.logout(jwtPayload as never);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('auth.session.invalidated', {
+        userId: 'user-1',
+      });
     });
   });
 

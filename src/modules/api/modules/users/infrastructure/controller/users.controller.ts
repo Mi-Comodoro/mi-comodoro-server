@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { CurrentUser } from '@/common/decorators/current-user.request';
@@ -25,6 +26,7 @@ export class UsersController {
   ) {}
 
   @Get('/check-phone')
+  @Throttle({ short: { ttl: 60_000, limit: 10 } }) // evita enumeración de teléfonos registrados
   @ApiOperation({ summary: 'Verificar disponibilidad de número de teléfono' })
   @ApiQuery({ name: 'phone', required: true, example: '+573001234567' })
   @ApiOkResponse({

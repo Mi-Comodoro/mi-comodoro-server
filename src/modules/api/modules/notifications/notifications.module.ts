@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
+import { UsersModule } from '../users/users.module';
 import { NotificationsService } from './application/services/notifications.service';
 import { NotificationsController } from './infrastructure/controller/notifications.controller';
 import { NotificationEntity } from './infrastructure/database/entities/notification.entity';
@@ -13,6 +14,7 @@ import { NotificationRepositoryImpl } from './infrastructure/repositories/notifi
 @Module({
   imports: [
     TypeOrmModule.forFeature([NotificationEntity]),
+    UsersModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
     }),

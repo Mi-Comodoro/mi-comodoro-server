@@ -5,11 +5,17 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import * as admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 import { AccountType } from '@/common/enums/account-type.enum';
+import {
+  SESSION_INVALIDATED_EVENT,
+  SessionInvalidatedPayload,
+} from '@/common/events/session.events';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
@@ -38,10 +44,11 @@ export class AuthService {
     private readonly jwtProvider: JwtProvider,
     private readonly jwtService: JwtService,
     private readonly systemConfigService: SystemConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
           projectId: process.env.FB_PROJECT_ID,
           clientEmail: process.env.FB_CLIENT_EMAIL,
           privateKey: process.env.FB_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -176,7 +183,7 @@ export class AuthService {
       onboarding: '',
     };
     const { idToken, name } = data;
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await getAuth().verifyIdToken(idToken);
     const user = (await this.userRepository.findByEmail(decodedToken.email!)) as User;
     if (!user) {
       this.logger.info(this.context, 'No user found for email, creating new user-profile');
@@ -280,6 +287,10 @@ export class AuthService {
 
     await this.userRepository.invalidateTokens(user.id, user.tokenVersion ?? 0);
     await this.refreshTokenRepository.revokeAllForUser(user.id!);
+    // Cierra los sockets abiertos del usuario (ver NotificationsGateway)
+    this.eventEmitter.emit(SESSION_INVALIDATED_EVENT, {
+      userId: user.id!,
+    } satisfies SessionInvalidatedPayload);
 
     return {
       message: 'Logout successful',
