@@ -11,11 +11,13 @@ import { UserRole } from '../../../users/domain/user-role.enum';
 import { AuthService } from '../auth.service';
 
 // ─── firebase-admin mock (prevents real SDK initialization) ──────────────────
-jest.mock('firebase-admin', () => ({
-  apps: [],
+jest.mock('firebase-admin/app', () => ({
+  getApps: jest.fn().mockReturnValue([]),
   initializeApp: jest.fn(),
-  credential: { cert: jest.fn().mockReturnValue({}) },
-  auth: jest.fn().mockReturnValue({
+  cert: jest.fn().mockReturnValue({}),
+}));
+jest.mock('firebase-admin/auth', () => ({
+  getAuth: jest.fn().mockReturnValue({
     verifyIdToken: jest.fn(),
   }),
 }));

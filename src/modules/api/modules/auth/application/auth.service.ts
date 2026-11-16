@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import * as admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 import { AccountType } from '@/common/enums/account-type.enum';
 import { usePassword } from '@/common/utils';
@@ -39,9 +40,9 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly systemConfigService: SystemConfigService,
   ) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
           projectId: process.env.FB_PROJECT_ID,
           clientEmail: process.env.FB_CLIENT_EMAIL,
           privateKey: process.env.FB_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -176,7 +177,7 @@ export class AuthService {
       onboarding: '',
     };
     const { idToken, name } = data;
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await getAuth().verifyIdToken(idToken);
     const user = (await this.userRepository.findByEmail(decodedToken.email!)) as User;
     if (!user) {
       this.logger.info(this.context, 'No user found for email, creating new user-profile');
