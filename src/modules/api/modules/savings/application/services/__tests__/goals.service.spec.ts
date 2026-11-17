@@ -445,6 +445,47 @@ describe('GoalsService', () => {
       expect(result.id).toBe('ps-1');
     });
 
+    it('pasa la meta de SCHEDULED a IN_PROGRESS con el primer aporte y deja historial', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue({
+        ...baseGoal,
+        status: GoalStatus.SCHEDULED,
+      });
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+
+      await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+      expect(mockGoalsRepo.update).toHaveBeenCalledWith('goal-1', 'user-1', {
+        status: GoalStatus.IN_PROGRESS,
+      });
+      expect(mockHistoryRepo.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          field: 'status',
+          oldValue: GoalStatus.SCHEDULED,
+          newValue: GoalStatus.IN_PROGRESS,
+        }),
+      );
+    });
+
+    it('no cambia el estado si la meta ya está en progreso', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue({
+        ...baseGoal,
+        status: GoalStatus.IN_PROGRESS,
+      });
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+
+      await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+      expect(mockGoalsRepo.update).not.toHaveBeenCalled();
+    });
+
     it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {
       mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
       mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });

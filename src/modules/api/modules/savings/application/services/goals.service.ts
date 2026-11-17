@@ -280,6 +280,25 @@ export class GoalsService {
       );
     }
 
+    // 6. El primer aporte activa la meta: SCHEDULED → IN_PROGRESS (no bloquea el flujo si falla)
+    if (goal.status === GoalStatus.SCHEDULED) {
+      try {
+        await this.goalsRepository.update(goalId, userId, { status: GoalStatus.IN_PROGRESS });
+        await this.historyRepository.add({
+          goalId,
+          userId,
+          field: 'status',
+          oldValue: GoalStatus.SCHEDULED,
+          newValue: GoalStatus.IN_PROGRESS,
+        });
+      } catch (err) {
+        this.logger.warn(
+          this.context,
+          `Failed to move goal ${goalId} to IN_PROGRESS: ${(err as Error).message}`,
+        );
+      }
+    }
+
     return plannedSaving;
   }
 
