@@ -526,7 +526,7 @@ describe('GoalsService', () => {
         expect(result.id).toBe('plan-1');
       });
 
-      it('deja el plan pendiente cuando el aporte no alcanza a cubrirlo', async () => {
+      it('un aporte parcial completa una fila y deja el plan pendiente solo por el resto', async () => {
         arrange([
           {
             id: 'plan-1',
@@ -539,8 +539,9 @@ describe('GoalsService', () => {
 
         await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-        expect(mockPlannedSavingRepo.update).not.toHaveBeenCalled();
         expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
+        expect(mockPlannedSavingRepo.update).toHaveBeenCalledTimes(1);
+        expect(mockPlannedSavingRepo.update).toHaveBeenCalledWith('plan-1', { amount: 300 });
       });
 
       it('ignora planes de otras metas o que ya no están pendientes', async () => {
@@ -554,6 +555,27 @@ describe('GoalsService', () => {
         expect(mockPlannedSavingRepo.update).not.toHaveBeenCalled();
         expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('sin tipo explícito el aporte es internal con la cuenta de la meta y no crea ingreso', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-x' });
+      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+
+      await service.createContribution('goal-1', 'user-1', {
+        amount: 200,
+        date: '2026-06-01',
+      } as never);
+
+      expect(mockTransactionRepo.getBudgetTotals).toHaveBeenCalled();
+      expect(mockTransactionRepo.save.mock.calls.map((c) => c[0].type)).toEqual(['savings']);
+      expect(mockPlannedSavingRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'acc-1' }),
+      );
     });
 
     it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {

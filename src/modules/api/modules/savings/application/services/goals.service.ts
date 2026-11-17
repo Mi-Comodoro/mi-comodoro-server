@@ -192,17 +192,22 @@ export class GoalsService {
       throw new NotFoundException('Goal not found');
     }
 
-    const contributionType = dto.contributionType ?? 'external';
+    // Sin tipo explícito el aporte sale del presupuesto (internal), nunca crea un ingreso.
+    // Los clientes que no envían el tipo aportan desde la cuenta de la propia meta.
+    const contributionType = dto.contributionType ?? 'internal';
+    const originAccountId =
+      dto.accountId ??
+      (dto.contributionType === undefined ? (goal.accountId ?? undefined) : undefined);
 
     // 2. Si es internal, validar que la cuenta existe y pertenece al usuario
     if (contributionType === 'internal') {
-      if (!dto.accountId) {
+      if (!originAccountId) {
         throw new BadRequestException('accountId is required for internal contributions');
       }
       const accounts = await this.accountRepository.get(userId);
-      const accountExists = accounts.some((acc) => acc.id === dto.accountId);
+      const accountExists = accounts.some((acc) => acc.id === originAccountId);
       if (!accountExists) {
-        throw new BadRequestException(`Account ${dto.accountId} not found or not yours`);
+        throw new BadRequestException(`Account ${originAccountId} not found or not yours`);
       }
     }
 
@@ -263,23 +268,23 @@ export class GoalsService {
       });
     }
 
-    // 3.2 Si el aporte cubre el ahorro planificado pendiente de esta meta en el mes,
-    //     ese plan se completa en lugar de crear uno nuevo (evita duplicar el ahorro)
+    // 3.2 Ahorro planificado pendiente más antiguo de esta meta en el mes:
+    //     - si el aporte lo cubre (monto >= plan), ese plan se completa (no se duplica el ahorro)
+    //     - si es parcial, se crea la fila completada y el plan queda pendiente solo por el resto,
+    //       así el objetivo del mes no se infla
     const budgetPlans = await this.plannedSavingRepository.findByBudget(budget.id as string);
-    const coveredPlan = budgetPlans
-      .filter(
-        (plan) =>
-          plan.savingGoalId === goalId &&
-          plan.status === PlannedSavingStatus.PENDING &&
-          dto.amount >= Number(plan.amount ?? 0),
-      )
+    const pendingPlan = budgetPlans
+      .filter((plan) => plan.savingGoalId === goalId && plan.status === PlannedSavingStatus.PENDING)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    const pendingPlanAmount = Number(pendingPlan?.amount ?? 0);
+    const coveredPlan = pendingPlan && dto.amount >= pendingPlanAmount ? pendingPlan : undefined;
+    const partialPlan = pendingPlan && !coveredPlan ? pendingPlan : undefined;
 
     // 4. Completar el plan cubierto o crear el PlannedSaving con status COMPLETED
     const contributionData = {
       savingGoalId: goalId,
       budgetId: budget.id,
-      accountId: contributionType === 'internal' ? dto.accountId : undefined,
+      accountId: contributionType === 'internal' ? originAccountId : undefined,
       amount: dto.amount,
       date: new Date(dto.date),
       status: PlannedSavingStatus.COMPLETED,
@@ -290,6 +295,12 @@ export class GoalsService {
         ((await this.plannedSavingRepository.update(coveredPlan.id, contributionData)) ??
         (await this.plannedSavingRepository.save(contributionData)))
       : await this.plannedSavingRepository.save(contributionData);
+
+    if (partialPlan) {
+      // Se guarda primero la fila completada: si esto fallara, el objetivo queda alto pero no se pierde ahorro
+      const remaining = Math.round((pendingPlanAmount - dto.amount) * 100) / 100;
+      await this.plannedSavingRepository.update(partialPlan.id, { amount: remaining });
+    }
 
     // 5. Crear transacción de tipo ahorro (no bloquea el flujo si falla)
     try {

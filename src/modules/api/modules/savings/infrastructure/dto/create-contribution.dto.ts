@@ -38,9 +38,9 @@ export class CreateContributionDto {
 
   @ApiPropertyOptional({
     enum: ['internal', 'external'],
-    example: 'external',
+    example: 'internal',
     description:
-      'Tipo de aporte: internal (desde una cuenta del sistema) o external (fuera del sistema). Por defecto: external.',
+      'Tipo de aporte: internal (sale del presupuesto, valida saldo) o external (ingreso no esperado: registra un ingreso y luego el ahorro). Por defecto: internal con la cuenta de la meta.',
   })
   @IsOptional()
   @IsEnum(['internal', 'external'])
