@@ -129,6 +129,59 @@ describe('PlannedIncomeRepositoryImpl', () => {
       );
       expect(mockRepo.create).toHaveBeenCalledTimes(2);
     });
+
+    describe.each([
+      ['enero', 0],
+      ['noviembre', 10],
+      ['diciembre', 11],
+    ])('fechas en %s (mes base 0 = %i)', (_name, monthIndex) => {
+      beforeEach(() => {
+        mockRepo.create.mockImplementation((v: unknown) => v);
+        mockRepo.save.mockResolvedValue([]);
+      });
+
+      it('genera la fecha mensual dentro del mes del presupuesto', async () => {
+        await repository.generateIncomesPlannedForBudget(
+          'budget-1',
+          [
+            {
+              id: 's',
+              source: 'Salario',
+              amount: 100,
+              frequency: 'monthly',
+              paymentDays: [16],
+            } as never,
+          ],
+          2026,
+          monthIndex,
+        );
+        const [planned] = mockRepo.save.mock.calls.at(-1)![0] as { date: Date }[];
+        expect(planned.date.getFullYear()).toBe(2026);
+        expect(planned.date.getMonth()).toBe(monthIndex);
+        expect(planned.date.getDate()).toBe(16);
+      });
+
+      it('genera dos fechas quincenales dentro del mes del presupuesto', async () => {
+        await repository.generateIncomesPlannedForBudget(
+          'budget-1',
+          [
+            {
+              id: 's',
+              source: 'Salario',
+              amount: 100,
+              frequency: 'biweekly',
+              paymentDays: [1, 15],
+            } as never,
+          ],
+          2026,
+          monthIndex,
+        );
+        const planned = mockRepo.save.mock.calls.at(-1)![0] as { date: Date }[];
+        expect(planned).toHaveLength(2);
+        expect(planned.map((p) => p.date.getMonth())).toEqual([monthIndex, monthIndex]);
+        expect(planned.map((p) => p.date.getDate())).toEqual([1, 15]);
+      });
+    });
   });
 
   describe('findByBudgetId', () => {

@@ -3,6 +3,7 @@ import { IncomeSource } from '../incomes';
 
 export interface PlannedIncomeRepository {
   create(domain: Partial<PlannedIncome>): Promise<Partial<PlannedIncome>>;
+  /** `month` en base 0 (enero = 0, diciembre = 11). */
   generateIncomesPlannedForBudget(
     budgetId: string,
     incomes: IncomeSource[],
