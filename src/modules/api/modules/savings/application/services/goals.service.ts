@@ -268,8 +268,12 @@ export class GoalsService {
       completedAt: new Date(),
     };
     const plannedSaving = coveredPlan
-      ? ((await this.plannedSavingRepository.update(coveredPlan.id, contributionData)) ??
-        (await this.plannedSavingRepository.save(contributionData)))
+      ? // El plan conserva su monto planificado; lo realmente aportado queda en la transacción
+        ((await this.plannedSavingRepository.update(coveredPlan.id, {
+          status: PlannedSavingStatus.COMPLETED,
+          completedAt: contributionData.completedAt,
+          accountId: contributionData.accountId,
+        })) ?? (await this.plannedSavingRepository.save(contributionData)))
       : await this.plannedSavingRepository.save(contributionData);
 
     // 5. Crear transacción de tipo ahorro (no bloquea el flujo si falla)

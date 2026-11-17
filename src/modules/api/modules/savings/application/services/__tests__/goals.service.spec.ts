@@ -519,7 +519,7 @@ describe('GoalsService', () => {
 
         expect(mockPlannedSavingRepo.update).toHaveBeenCalledWith(
           'plan-1',
-          expect.objectContaining({ status: PlannedSavingStatus.COMPLETED, amount: 200 }),
+          expect.objectContaining({ status: PlannedSavingStatus.COMPLETED }),
         );
         expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
         expect(result.id).toBe('plan-1');
