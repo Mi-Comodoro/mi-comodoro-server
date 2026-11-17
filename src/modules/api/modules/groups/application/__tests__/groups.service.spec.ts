@@ -247,7 +247,7 @@ describe('GroupsService', () => {
       expect(mockGroupRepo.findById).toHaveBeenCalledWith('g-2');
     });
 
-    it('agrega memberCount con miembros activos (incluye organizador) y conserva maxMembers', async () => {
+    it('agrega memberCount (activos, incluye organizador) y pendingInvitesCount (invitados) y conserva maxMembers', async () => {
       mockGroupRepo.findByOwner.mockResolvedValue([makeGroup({ id: 'g-1', maxMembers: 6 })]);
       mockMemberRepo.findByUser.mockResolvedValue([]);
       mockMemberRepo.findByGroup.mockResolvedValue([
@@ -260,7 +260,12 @@ describe('GroupsService', () => {
       const result = await service.getGroups('owner-1');
 
       expect(mockMemberRepo.findByGroup).toHaveBeenCalledWith('g-1');
-      expect(result[0]).toMatchObject({ id: 'g-1', memberCount: 2, maxMembers: 6 });
+      expect(result[0]).toMatchObject({
+        id: 'g-1',
+        memberCount: 2,
+        pendingInvitesCount: 1,
+        maxMembers: 6,
+      });
     });
 
     it('returns only owned groups when user has no other memberships', async () => {

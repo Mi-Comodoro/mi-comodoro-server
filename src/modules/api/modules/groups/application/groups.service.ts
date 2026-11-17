@@ -106,7 +106,11 @@ export class GroupsService {
       groups.map(async (group) => {
         const members = await this.memberRepository.findByGroup(group.id as string);
         const memberCount = members.filter((m) => m.memberStatus === 'active' && m.isActive).length;
-        return { ...group, memberCount };
+        // pendingInvitesCount: invitaciones enviadas que aún no se aceptan
+        const pendingInvitesCount = members.filter(
+          (m) => m.memberStatus === 'invited' && m.isActive,
+        ).length;
+        return { ...group, memberCount, pendingInvitesCount };
       }),
     );
   }

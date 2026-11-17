@@ -121,4 +121,10 @@ export class GroupListItemResponseDto {
       'Miembros activos del grupo (incluye al organizador; excluye invitaciones pendientes)',
   })
   memberCount: number;
+
+  @ApiProperty({
+    example: 1,
+    description: 'Invitaciones pendientes de aceptar (no cuentan en memberCount)',
+  })
+  pendingInvitesCount: number;
 }
