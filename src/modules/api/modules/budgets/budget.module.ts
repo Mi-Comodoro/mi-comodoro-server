@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
+import { AccountModule } from '../accounts/account.module';
 import { ExpensesModule } from '../expenses/expenses.module';
 import { FinancesModule } from '../finances/finances.module';
 import { IncomesModule } from '../incomes/incomes.module';
@@ -18,6 +19,7 @@ import { BudgetRepositoryImpl } from './infrastructure/repositories/budget.repos
   imports: [
     TypeOrmModule.forFeature([BudgetEntity]),
     FinancesModule,
+    AccountModule,
     SavingsModule,
     ExpensesModule,
     forwardRef(() => IncomesModule),
