@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GoalStatus } from '../../../domain/savings-goals';
+import { PlannedSavingStatus } from '../../../domain/savings-planned';
 import { GoalsService } from '../goals.service';
 
 const mockGoalsRepo = {
@@ -23,6 +24,8 @@ const mockHistoryRepo = {
 const mockPlannedSavingRepo = {
   sumCompletedByGoalIds: jest.fn(),
   findByGoalId: jest.fn(),
+  findByBudget: jest.fn().mockResolvedValue([]),
+  update: jest.fn(),
   save: jest.fn(),
 };
 
@@ -484,6 +487,72 @@ describe('GoalsService', () => {
       await service.createContribution('goal-1', 'user-1', baseDto as never);
 
       expect(mockGoalsRepo.update).not.toHaveBeenCalled();
+    });
+
+    describe('ahorro planificado pendiente de la meta', () => {
+      const arrange = (plans: unknown[]) => {
+        mockGoalsRepo.findByIdAndUser.mockResolvedValue({
+          ...baseGoal,
+          status: GoalStatus.IN_PROGRESS,
+        });
+        mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+        mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+        mockPlannedSavingRepo.findByBudget.mockResolvedValue(plans);
+        mockPlannedSavingRepo.update.mockResolvedValue({ id: 'plan-1', status: 'completed' });
+        mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-new', amount: 200 });
+        mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+        mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+      };
+
+      it('completa el plan pendiente cuando el aporte lo cubre y no crea uno nuevo', async () => {
+        arrange([
+          {
+            id: 'plan-1',
+            savingGoalId: 'goal-1',
+            status: PlannedSavingStatus.PENDING,
+            amount: 150,
+            date: '2026-06-10',
+          },
+        ]);
+
+        const result = await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+        expect(mockPlannedSavingRepo.update).toHaveBeenCalledWith(
+          'plan-1',
+          expect.objectContaining({ status: PlannedSavingStatus.COMPLETED, amount: 200 }),
+        );
+        expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+        expect(result.id).toBe('plan-1');
+      });
+
+      it('deja el plan pendiente cuando el aporte no alcanza a cubrirlo', async () => {
+        arrange([
+          {
+            id: 'plan-1',
+            savingGoalId: 'goal-1',
+            status: PlannedSavingStatus.PENDING,
+            amount: 500,
+            date: '2026-06-10',
+          },
+        ]);
+
+        await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+        expect(mockPlannedSavingRepo.update).not.toHaveBeenCalled();
+        expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
+      });
+
+      it('ignora planes de otras metas o que ya no están pendientes', async () => {
+        arrange([
+          { id: 'p-a', savingGoalId: 'goal-2', status: PlannedSavingStatus.PENDING, amount: 100 },
+          { id: 'p-b', savingGoalId: 'goal-1', status: PlannedSavingStatus.SKIPPED, amount: 100 },
+        ]);
+
+        await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+        expect(mockPlannedSavingRepo.update).not.toHaveBeenCalled();
+        expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {

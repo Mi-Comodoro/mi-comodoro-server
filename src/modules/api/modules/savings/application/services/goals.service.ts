@@ -245,8 +245,20 @@ export class GoalsService {
     const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
     assertSufficientBalance(totals, dto.amount);
 
-    // 4. Crear el PlannedSaving con status COMPLETED
-    const plannedSaving = await this.plannedSavingRepository.save({
+    // 3.2 Si el aporte cubre el ahorro planificado pendiente de esta meta en el mes,
+    //     ese plan se completa en lugar de crear uno nuevo (evita duplicar el ahorro)
+    const budgetPlans = await this.plannedSavingRepository.findByBudget(budget.id as string);
+    const coveredPlan = budgetPlans
+      .filter(
+        (plan) =>
+          plan.savingGoalId === goalId &&
+          plan.status === PlannedSavingStatus.PENDING &&
+          dto.amount >= Number(plan.amount ?? 0),
+      )
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+    // 4. Completar el plan cubierto o crear el PlannedSaving con status COMPLETED
+    const contributionData = {
       savingGoalId: goalId,
       budgetId: budget.id,
       accountId: contributionType === 'internal' ? dto.accountId : undefined,
@@ -254,7 +266,11 @@ export class GoalsService {
       date: new Date(dto.date),
       status: PlannedSavingStatus.COMPLETED,
       completedAt: new Date(),
-    });
+    };
+    const plannedSaving = coveredPlan
+      ? ((await this.plannedSavingRepository.update(coveredPlan.id, contributionData)) ??
+        (await this.plannedSavingRepository.save(contributionData)))
+      : await this.plannedSavingRepository.save(contributionData);
 
     // 5. Crear transacción de tipo ahorro (no bloquea el flujo si falla)
     try {
