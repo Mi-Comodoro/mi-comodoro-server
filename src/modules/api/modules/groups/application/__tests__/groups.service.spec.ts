@@ -152,6 +152,7 @@ describe('GroupsService', () => {
 
     service = module.get<GroupsService>(GroupsService);
     jest.clearAllMocks();
+    mockMemberRepo.findByGroup.mockResolvedValue([]);
   });
 
   // ─── createGroup ────────────────────────────────────────────────────────────
@@ -244,6 +245,22 @@ describe('GroupsService', () => {
       // findById should only be called for the non-owned group
       expect(mockGroupRepo.findById).toHaveBeenCalledTimes(1);
       expect(mockGroupRepo.findById).toHaveBeenCalledWith('g-2');
+    });
+
+    it('agrega memberCount con miembros activos (incluye organizador) y conserva maxMembers', async () => {
+      mockGroupRepo.findByOwner.mockResolvedValue([makeGroup({ id: 'g-1', maxMembers: 6 })]);
+      mockMemberRepo.findByUser.mockResolvedValue([]);
+      mockMemberRepo.findByGroup.mockResolvedValue([
+        makeMember({ id: 'm1' }),
+        makeMember({ id: 'm2', userId: 'u2', role: 'MEMBER' }),
+        makeMember({ id: 'm3', userId: 'u3', memberStatus: 'invited' }),
+        makeMember({ id: 'm4', userId: 'u4', isActive: false }),
+      ]);
+
+      const result = await service.getGroups('owner-1');
+
+      expect(mockMemberRepo.findByGroup).toHaveBeenCalledWith('g-1');
+      expect(result[0]).toMatchObject({ id: 'g-1', memberCount: 2, maxMembers: 6 });
     });
 
     it('returns only owned groups when user has no other memberships', async () => {

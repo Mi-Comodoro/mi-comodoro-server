@@ -30,6 +30,7 @@ import { CreateGroupExpenseDto, UpdateGroupExpenseDto } from '../dto/group-expen
 import {
   AddMemberDto,
   CreateGroupDto,
+  GroupListItemResponseDto,
   InviteWithContextDto,
   RespondGroupInvitationDto,
   UpdateGroupDto,
@@ -60,7 +61,7 @@ export class GroupsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('bearerAuth')
   @ApiOperation({ summary: 'Listar grupos del usuario autenticado' })
-  @ApiOkResponse({ description: 'Lista de grupos' })
+  @ApiOkResponse({ description: 'Lista de grupos', type: [GroupListItemResponseDto] })
   async getGroups(@CurrentUser() user: JwtPayload) {
     this.logger.info(this.context, `Getting groups for user ${user.userId}`);
     return this.groupsService.getGroups(user.userId);

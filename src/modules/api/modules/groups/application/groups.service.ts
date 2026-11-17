@@ -22,7 +22,7 @@ import type { GroupContributionRepository } from '../domain/repositories/group-c
 import type { GroupExpenseRepository } from '../domain/repositories/group-expense.repository';
 import type { GroupMemberRepository } from '../domain/repositories/group-member.repository';
 import type { UserGroupRepository } from '../domain/repositories/user-group.repository';
-import type { UserGroup } from '../domain/user-group';
+import type { UserGroup, UserGroupWithMemberCount } from '../domain/user-group';
 import type {
   CreateGroupExpenseDto,
   UpdateGroupExpenseDto,
@@ -90,7 +90,7 @@ export class GroupsService {
     return { ...group, members: [member] };
   }
 
-  async getGroups(userId: string): Promise<UserGroup[]> {
+  async getGroups(userId: string): Promise<UserGroupWithMemberCount[]> {
     this.logger.info(this.context, `Getting groups for user ${userId}`);
     const owned = await this.groupRepository.findByOwner(userId);
     const memberships = await this.memberRepository.findByUser(userId);
@@ -100,7 +100,15 @@ export class GroupsService {
         .filter((id) => !owned.some((g) => g.id === id))
         .map((id) => this.groupRepository.findById(id)),
     );
-    return [...owned, ...memberGroups.filter((g): g is UserGroup => g !== null)];
+    const groups = [...owned, ...memberGroups.filter((g): g is UserGroup => g !== null)];
+    // memberCount: miembros con cuenta, aceptados y activos (incluye al organizador)
+    return Promise.all(
+      groups.map(async (group) => {
+        const members = await this.memberRepository.findByGroup(group.id as string);
+        const memberCount = members.filter((m) => m.memberStatus === 'active' && m.isActive).length;
+        return { ...group, memberCount };
+      }),
+    );
   }
 
   async getGroupById(id: string, userId: string): Promise<UserGroup & { members: GroupMember[] }> {
