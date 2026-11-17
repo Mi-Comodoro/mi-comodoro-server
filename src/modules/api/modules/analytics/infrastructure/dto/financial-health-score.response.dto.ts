@@ -38,7 +38,7 @@ class PillarExpensesDto {
   @ApiProperty({ example: 0.0, description: 'Porcentaje de exceso sobre lo planeado' })
   excessPct: number;
 
-  @ApiProperty({ example: 'Dentro del plan' })
+  @ApiProperty({ example: 'Holgado' })
   label: string;
 }
 

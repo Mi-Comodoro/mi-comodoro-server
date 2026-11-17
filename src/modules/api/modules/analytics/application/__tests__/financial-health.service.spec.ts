@@ -11,7 +11,11 @@ import { FinancialHealthService } from '../financial-health.service';
 interface FinancialHealthCalculations {
   calcCashFlow(income: number, expenses: number): { score: number; rate: number };
   calcSavings(actual: number, planned: number): { score: number; rate: number };
-  calcExpenses(actual: number, planned: number): { score: number; excessPct: number };
+  calcExpenses(
+    actual: number,
+    income: number,
+    savings: number,
+  ): { score: number; excessPct: number };
   calcDti(debt: number, income: number): number;
   calcDebtScore(debt: number, income: number): number;
   averagePillars(pillars: object[]): object;
@@ -140,35 +144,36 @@ describe('FinancialHealthService — pure calculation methods', () => {
 
   // ─── calcExpenses ──────────────────────────────────────────────────────────
   describe('calcExpenses', () => {
-    it('returns score 25 with excessPct 0 when both are 0', () => {
-      expect(svc.calcExpenses(0, 0)).toEqual({ score: 25, excessPct: 0 });
+    // gastable = ingresos − ahorros (aquí 1000 − 0)
+    it('returns score 25 when there are no expenses', () => {
+      expect(svc.calcExpenses(0, 0, 0)).toEqual({ score: 25, excessPct: 0 });
     });
 
-    it('returns score 0 with excessPct 100 when planned is 0 but actual > 0', () => {
-      expect(svc.calcExpenses(500, 0)).toEqual({ score: 0, excessPct: 100 });
+    it('does not punish unplanned spending: a small expense still scores 25', () => {
+      // 45.000 de 2.760.000 gastables ≈ 1.6%
+      expect(svc.calcExpenses(45000, 3000000, 240000)).toEqual({ score: 25, excessPct: 0 });
     });
 
-    it('returns score 25 when actual equals planned (no excess)', () => {
-      expect(svc.calcExpenses(1000, 1000)).toEqual({ score: 25, excessPct: 0 });
+    it('returns score 25 up to 70% of the spendable balance', () => {
+      expect(svc.calcExpenses(700, 1000, 0)).toEqual({ score: 25, excessPct: 0 });
     });
 
-    it('returns score 25 when actual is below planned', () => {
-      expect(svc.calcExpenses(800, 1000)).toEqual({ score: 25, excessPct: 0 });
+    it('returns score 18 between 70% and 90%', () => {
+      expect(svc.calcExpenses(900, 1000, 0)).toEqual({ score: 18, excessPct: 0 });
     });
 
-    it('returns score 15 when excess is between 0% and 10%', () => {
-      // excess = 1050 - 1000 = 50 → 50/1000 = 5%
-      expect(svc.calcExpenses(1050, 1000)).toEqual({ score: 15, excessPct: 5 });
+    it('returns score 10 between 90% and 100%', () => {
+      expect(svc.calcExpenses(1000, 1000, 0)).toEqual({ score: 10, excessPct: 0 });
     });
 
-    it('returns score 8 when excess is between 10% and 25%', () => {
-      // excess = 1200 - 1000 = 200 → 200/1000 = 20%
-      expect(svc.calcExpenses(1200, 1000)).toEqual({ score: 8, excessPct: 20 });
+    it('returns score 0 with the excess when spending more than the spendable balance', () => {
+      // gastable = 1000 − 200 = 800; gastos 1000 → 125% → exceso 25%
+      expect(svc.calcExpenses(1000, 1000, 200)).toEqual({ score: 0, excessPct: 25 });
     });
 
-    it('returns score 0 when excess exceeds 25%', () => {
-      // excess = 1400 - 1000 = 400 → 400/1000 = 40%
-      expect(svc.calcExpenses(1400, 1000)).toEqual({ score: 0, excessPct: 40 });
+    it('returns score 0 with excessPct 100 when there is nothing to spend', () => {
+      expect(svc.calcExpenses(500, 0, 0)).toEqual({ score: 0, excessPct: 100 });
+      expect(svc.calcExpenses(500, 1000, 1000)).toEqual({ score: 0, excessPct: 100 });
     });
   });
 
@@ -286,10 +291,10 @@ describe('FinancialHealthService — pure calculation methods', () => {
 
   describe('expensesLabel', () => {
     it.each([
-      [25, 'Dentro del plan'],
-      [15, 'Ligeramente sobre'],
-      [8, 'Sobre el plan'],
-      [0, 'Muy sobre el plan'],
+      [25, 'Holgado'],
+      [18, 'Controlado'],
+      [10, 'Al límite'],
+      [0, 'Sobre tu saldo'],
     ])('score %i → "%s"', (score, expected) => {
       expect(svc.expensesLabel(score)).toBe(expected);
     });
