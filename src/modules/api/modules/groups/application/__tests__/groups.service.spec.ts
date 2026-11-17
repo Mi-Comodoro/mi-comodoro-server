@@ -253,7 +253,7 @@ describe('GroupsService', () => {
       mockMemberRepo.findByGroup.mockResolvedValue([
         makeMember({ id: 'm1' }),
         makeMember({ id: 'm2', userId: 'u2', role: 'MEMBER' }),
-        makeMember({ id: 'm3', userId: 'u3', memberStatus: 'invited' }),
+        makeMember({ id: 'm3', userId: 'u3', memberStatus: 'invited', isActive: false }),
         makeMember({ id: 'm4', userId: 'u4', isActive: false }),
       ]);
 
