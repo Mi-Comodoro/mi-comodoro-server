@@ -11,6 +11,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
+import { assertSufficientBalance } from '../../domain/budget-balance';
 import { TransactionRepository } from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters } from '../../domain/transaction';
 import { CreateManualTransactionDto } from '../../infrastructure/dto/create-manual-transaction.dto';
@@ -110,6 +111,12 @@ export class TransactionService {
     // Validar que el amount sea positivo
     if (dto.amount <= 0) {
       throw new BadRequestException('Amount must be greater than 0');
+    }
+
+    // Los gastos manuales no pueden superar el saldo disponible del presupuesto
+    if (dto.type === 'expense') {
+      const totals = await this.transactionRepository.getBudgetTotals(dto.budgetId);
+      assertSufficientBalance(totals, dto.amount);
     }
 
     // Crear la transacción

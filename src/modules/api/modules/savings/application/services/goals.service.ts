@@ -12,6 +12,7 @@ import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositor
 import { CategoryType } from '@/modules/api/modules/categories/domain/category';
 import { CategoryRepository } from '@/modules/api/modules/categories/domain/repositories/category.repository';
 import { FinancesRepository } from '@/modules/api/modules/finances/domain/repositories/finances.repository';
+import { assertSufficientBalance } from '@/modules/api/modules/transactions/domain/budget-balance';
 import { TransactionRepository } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 import { GoalSummary } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 
@@ -239,6 +240,10 @@ export class GoalsService {
         `No budget found for current month (${currentMonth}/${currentYear})`,
       );
     }
+
+    // 3.1 El aporte no puede superar el saldo disponible del presupuesto
+    const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
+    assertSufficientBalance(totals, dto.amount);
 
     // 4. Crear el PlannedSaving con status COMPLETED
     const plannedSaving = await this.plannedSavingRepository.save({

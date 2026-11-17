@@ -11,6 +11,7 @@ import {
   Repository,
 } from 'typeorm';
 
+import { BudgetTotals } from '../../domain/budget-balance';
 import {
   GoalSummary,
   TransactionRepository,
@@ -102,6 +103,20 @@ export class TransactionRepositoryImpl implements TransactionRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getBudgetTotals(budgetId: string): Promise<BudgetTotals> {
+    const rows = await this.transactionRepository
+      .createQueryBuilder('t')
+      .select('t.type', 'type')
+      .addSelect('COALESCE(SUM(t.amount), 0)', 'total')
+      .where('t.budget_id = :budgetId', { budgetId })
+      .andWhere('t.nulled_at IS NULL')
+      .groupBy('t.type')
+      .getRawMany<{ type: string; total: string }>();
+
+    const sum = (type: string) => Number(rows.find((r) => r.type === type)?.total ?? 0);
+    return { income: sum('income'), expense: sum('expense'), savings: sum('savings') };
   }
 
   async softDelete(id: string): Promise<boolean> {

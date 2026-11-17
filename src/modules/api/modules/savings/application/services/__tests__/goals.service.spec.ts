@@ -42,6 +42,7 @@ const mockTransactionRepo = {
   findByGoalId: jest.fn(),
   getGoalSummary: jest.fn(),
   save: jest.fn(),
+  getBudgetTotals: jest.fn(),
 };
 
 const mockCategoryRepo = {
@@ -87,6 +88,11 @@ describe('GoalsService', () => {
 
     service = module.get<GoalsService>(GoalsService);
     jest.clearAllMocks();
+    mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+      income: 1000000,
+      expense: 0,
+      savings: 0,
+    });
   });
 
   describe('create', () => {
@@ -437,6 +443,34 @@ describe('GoalsService', () => {
         }),
       );
       expect(result.id).toBe('ps-1');
+    });
+
+    it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
+
+      await expect(
+        service.createContribution('goal-1', 'user-1', baseDto as never),
+      ).rejects.toThrow('Aún no has registrado ingresos en este presupuesto.');
+      expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza el aporte si supera el saldo disponible', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+        income: 1000,
+        expense: 500,
+        savings: 400,
+      });
+
+      await expect(
+        service.createContribution('goal-1', 'user-1', baseDto as never),
+      ).rejects.toThrow(/Saldo insuficiente: tu saldo disponible es \$100,00\./);
+      expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
     });
 
     it('acepta contribución internal si la cuenta existe en las cuentas del usuario', async () => {
