@@ -240,11 +240,27 @@ export class GoalsService {
     }
 
     // 3.1 Un aporte internal sale del presupuesto: no puede superar su saldo disponible.
-    //     Un aporte external viene de fuera del presupuesto y no valida saldo.
+    //     Un aporte external es un ingreso no esperado que se destina a la meta: se registra
+    //     primero como ingreso (queda saldo cero tras el ahorro) y por eso no valida saldo.
     //     Los intereses (tipo 'interest') no suman ni restan al saldo.
     if (contributionType === 'internal') {
       const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
       assertSufficientBalance(totals, dto.amount);
+    } else {
+      const incomeCategory = await this.categoryRepository.findByType(CategoryType.INCOME);
+      if (!incomeCategory) {
+        throw new NotFoundException('Income category not found');
+      }
+      await this.transactionRepository.save({
+        type: 'income' as const,
+        amount: dto.amount,
+        source: `Ingreso no esperado: aporte a ${goal.name}`,
+        userId,
+        budgetId: budget.id,
+        categoryId: incomeCategory.id,
+        toAccountId: goal.accountId ?? undefined,
+        transactionDate: new Date(dto.date),
+      });
     }
 
     // 3.2 Si el aporte cubre el ahorro planificado pendiente de esta meta en el mes,
