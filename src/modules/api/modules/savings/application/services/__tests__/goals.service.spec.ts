@@ -372,6 +372,7 @@ describe('GoalsService', () => {
       date: '2026-06-01',
       contributionType: 'external' as const,
     };
+    const internalDto = { ...baseDto, contributionType: 'internal' as const, accountId: 'acc-1' };
 
     it('lanza NotFoundException si el goal no existe', async () => {
       mockGoalsRepo.findByIdAndUser.mockResolvedValue(null);
@@ -557,18 +558,20 @@ describe('GoalsService', () => {
 
     it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {
       mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
       mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
       mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
 
       await expect(
-        service.createContribution('goal-1', 'user-1', baseDto as never),
+        service.createContribution('goal-1', 'user-1', internalDto as never),
       ).rejects.toThrow('Aún no has registrado ingresos en este presupuesto.');
       expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
     });
 
     it('rechaza el aporte si supera el saldo disponible', async () => {
       mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
       mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
       mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({
@@ -578,9 +581,40 @@ describe('GoalsService', () => {
       });
 
       await expect(
-        service.createContribution('goal-1', 'user-1', baseDto as never),
+        service.createContribution('goal-1', 'user-1', internalDto as never),
       ).rejects.toThrow(/Saldo insuficiente: tu saldo disponible es \$100,00\./);
       expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no valida saldo en un aporte external (viene de fuera del presupuesto)', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
+      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+
+      await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+      expect(mockTransactionRepo.getBudgetTotals).not.toHaveBeenCalled();
+      expect(mockPlannedSavingRepo.save).toHaveBeenCalled();
+    });
+
+    it('busca el presupuesto del mes de la fecha del aporte, no el del mes en curso', async () => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+
+      await service.createContribution('goal-1', 'user-1', {
+        ...baseDto,
+        date: '2026-03-15T10:00:00.000Z',
+      } as never);
+
+      expect(mockBudgetRepo.findByFinancesIdAndMonth).toHaveBeenCalledWith('fin-1', 'Marzo', 2026);
     });
 
     it('acepta contribución internal si la cuenta existe en las cuentas del usuario', async () => {

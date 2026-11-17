@@ -226,24 +226,26 @@ export class GoalsService {
       'Noviembre',
       'Diciembre',
     ];
-    const now = new Date();
-    const currentMonth = MONTH_NAMES[now.getMonth()];
-    const currentYear = now.getFullYear();
+    // El presupuesto es el del mes de la fecha del aporte (YYYY-MM-DD), no el del mes en curso
+    const [budgetYear, budgetMonthNumber] = dto.date.slice(0, 10).split('-').map(Number);
+    const budgetMonth = MONTH_NAMES[budgetMonthNumber - 1];
 
     const budget = await this.budgetRepository.findByFinancesIdAndMonth(
       finances.id,
-      currentMonth,
-      currentYear,
+      budgetMonth,
+      budgetYear,
     );
     if (!budget) {
-      throw new NotFoundException(
-        `No budget found for current month (${currentMonth}/${currentYear})`,
-      );
+      throw new NotFoundException(`No budget found for ${budgetMonth}/${budgetYear}`);
     }
 
-    // 3.1 El aporte no puede superar el saldo disponible del presupuesto
-    const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
-    assertSufficientBalance(totals, dto.amount);
+    // 3.1 Un aporte internal sale del presupuesto: no puede superar su saldo disponible.
+    //     Un aporte external viene de fuera del presupuesto y no valida saldo.
+    //     Los intereses (tipo 'interest') no suman ni restan al saldo.
+    if (contributionType === 'internal') {
+      const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
+      assertSufficientBalance(totals, dto.amount);
+    }
 
     // 3.2 Si el aporte cubre el ahorro planificado pendiente de esta meta en el mes,
     //     ese plan se completa en lugar de crear uno nuevo (evita duplicar el ahorro)
