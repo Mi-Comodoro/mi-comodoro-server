@@ -192,23 +192,17 @@ export class GoalsService {
       throw new NotFoundException('Goal not found');
     }
 
-    // Sin tipo explícito el aporte sale del presupuesto (internal), nunca crea un ingreso.
-    // Los clientes que no envían el tipo aportan desde la cuenta de la propia meta.
-    const contributionType = dto.contributionType ?? 'internal';
-    const originAccountId =
-      dto.accountId ??
-      (dto.contributionType === undefined ? (goal.accountId ?? undefined) : undefined);
-
-    // 2. Si es internal, validar que la cuenta existe y pertenece al usuario
-    if (contributionType === 'internal') {
-      if (!originAccountId) {
-        throw new BadRequestException('accountId is required for internal contributions');
-      }
-      const accounts = await this.accountRepository.get(userId);
-      const accountExists = accounts.some((acc) => acc.id === originAccountId);
-      if (!accountExists) {
-        throw new BadRequestException(`Account ${originAccountId} not found or not yours`);
-      }
+    // 2. El aporte sale del Disponible del presupuesto. La cuenta de origen es la indicada o,
+    //    si el cliente no la envía, la cuenta de la propia meta; debe ser del usuario.
+    //    El dinero inesperado entra como un ingreso normal y luego se aporta desde el Disponible.
+    const originAccountId = dto.accountId ?? goal.accountId ?? undefined;
+    if (!originAccountId) {
+      throw new BadRequestException('accountId is required for contributions');
+    }
+    const accounts = await this.accountRepository.get(userId);
+    const accountExists = accounts.some((acc) => acc.id === originAccountId);
+    if (!accountExists) {
+      throw new BadRequestException(`Account ${originAccountId} not found or not yours`);
     }
 
     // 3. Obtener el budget activo del mes/año actual
@@ -244,29 +238,10 @@ export class GoalsService {
       throw new NotFoundException(`No budget found for ${budgetMonth}/${budgetYear}`);
     }
 
-    // 3.1 Un aporte internal sale del presupuesto: no puede superar su saldo disponible.
-    //     Un aporte external es un ingreso no esperado que se destina a la meta: se registra
-    //     primero como ingreso (queda saldo cero tras el ahorro) y por eso no valida saldo.
+    // 3.1 El aporte no puede superar el saldo disponible del presupuesto.
     //     Los intereses (tipo 'interest') no suman ni restan al saldo.
-    if (contributionType === 'internal') {
-      const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
-      assertSufficientBalance(totals, dto.amount);
-    } else {
-      const incomeCategory = await this.categoryRepository.findByType(CategoryType.INCOME);
-      if (!incomeCategory) {
-        throw new NotFoundException('Income category not found');
-      }
-      await this.transactionRepository.save({
-        type: 'income' as const,
-        amount: dto.amount,
-        source: `Ingreso no esperado: aporte a ${goal.name}`,
-        userId,
-        budgetId: budget.id,
-        categoryId: incomeCategory.id,
-        toAccountId: goal.accountId ?? undefined,
-        transactionDate: new Date(dto.date),
-      });
-    }
+    const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
+    assertSufficientBalance(totals, dto.amount);
 
     // 3.2 Ahorro planificado pendiente más antiguo de esta meta en el mes:
     //     - si el aporte lo cubre (monto >= plan), ese plan se completa (no se duplica el ahorro)
@@ -284,7 +259,7 @@ export class GoalsService {
     const contributionData = {
       savingGoalId: goalId,
       budgetId: budget.id,
-      accountId: contributionType === 'internal' ? originAccountId : undefined,
+      accountId: originAccountId,
       amount: dto.amount,
       date: new Date(dto.date),
       status: PlannedSavingStatus.COMPLETED,
