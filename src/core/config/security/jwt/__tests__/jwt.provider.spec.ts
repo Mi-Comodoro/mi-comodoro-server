@@ -70,4 +70,36 @@ describe('JwtProvider', () => {
       expect(mockLogger.error).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('generateWsToken', () => {
+    it('firma un token typ=ws de 60 s sin exponer email ni rol', () => {
+      mockJwtService.sign.mockReturnValue('ws-token');
+
+      const token = provider.generateWsToken({ userId: 'user-1', tokenVersion: 3 });
+
+      expect(token).toBe('ws-token');
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        { userId: 'user-1', tokenVersion: 3, typ: 'ws' },
+        expect.objectContaining({ expiresIn: '60s' }),
+      );
+    });
+
+    it('usa tokenVersion 0 por defecto', () => {
+      mockJwtService.sign.mockReturnValue('ws-token');
+      provider.generateWsToken({ userId: 'user-1' });
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ tokenVersion: 0 }),
+        expect.anything(),
+      );
+    });
+
+    it('lanza InternalServerErrorException si falla la firma', () => {
+      mockJwtService.sign.mockImplementation(() => {
+        throw new Error('boom');
+      });
+      expect(() => provider.generateWsToken({ userId: 'user-1' })).toThrow(
+        InternalServerErrorException,
+      );
+    });
+  });
 });

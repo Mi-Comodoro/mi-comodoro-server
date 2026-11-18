@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -95,6 +95,19 @@ export class AuthController {
   async refresh(@Body() body: RefreshDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Refreshing authenticated session');
     return await this.authService.refresh(body.refreshToken, userAgent);
+  }
+
+  @Get('/ws-token')
+  @UseGuards(AuthGuard('jwt'))
+  @Throttle({ short: { ttl: 60_000, limit: 30 } })
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({
+    summary: 'Obtener un token de vida corta (60 s) para conectar el WebSocket de notificaciones',
+  })
+  @ApiOkResponse({ description: 'Token de WebSocket', schema: { example: { token: 'eyJ...' } } })
+  @ApiErrorResponse(401, 'Unauthorized')
+  wsToken(@CurrentUser() user: JwtPayload) {
+    return this.authService.issueWsToken(user);
   }
 
   @Post('/logout')

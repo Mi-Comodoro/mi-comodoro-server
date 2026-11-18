@@ -277,6 +277,11 @@ export class AuthService {
     return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
+  /** Emite un token de vida corta para conectar el WebSocket sin exponer el access token. */
+  issueWsToken(payload: JwtPayload) {
+    return { token: this.jwtProvider.generateWsToken(payload) };
+  }
+
   async logout(payload: JwtPayload) {
     this.logger.info(this.context, `Logout requested for user ${payload.userId}`);
     const user = await this.userRepository.findAuthById(payload.userId);
