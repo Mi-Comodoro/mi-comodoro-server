@@ -3,12 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { DatabaseConfigModule } from '@/core/config/database/config.module';
 import { DatabaseConfigService } from '@/core/config/database/config.service';
+import { buildPoolOptions } from '@/core/config/database/pool.config';
 import { DatabaseProvider } from '@/core/providers';
-import { InitialSchema20260610000000 } from '@/database/migrations/20260610000000-InitialSchema';
-import { SeedCategories20260610000001 } from '@/database/migrations/20260610000001-SeedCategories';
-import { SeedPlans20260610000002 } from '@/database/migrations/20260610000002-SeedPlans';
-import { AddCustomBucketsToBudget20260610000003 } from '@/database/migrations/20260610000003-AddCustomBucketsToBudget';
-import { AddCustomBucketIdToPlannedExpense20260610000004 } from '@/database/migrations/20260610000004-AddCustomBucketIdToPlannedExpense';
+import { MIGRATIONS } from '@/database/migrations.registry';
 
 @Module({
   imports: [
@@ -20,14 +17,8 @@ import { AddCustomBucketIdToPlannedExpense20260610000004 } from '@/database/migr
         type: 'postgres',
         autoLoadEntities: true,
         synchronize: false,
-        migrationsRun: true,
-        migrations: [
-          InitialSchema20260610000000,
-          SeedCategories20260610000001,
-          SeedPlans20260610000002,
-          AddCustomBucketsToBudget20260610000003,
-          AddCustomBucketIdToPlannedExpense20260610000004,
-        ],
+        migrations: MIGRATIONS,
+        ...buildPoolOptions(),
         host: configService.host,
         port: Number(configService.port),
         username: configService.username,

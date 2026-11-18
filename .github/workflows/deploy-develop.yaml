@@ -24,6 +24,14 @@ jobs:
       - name: Compilar backend
         run: pnpm build
 
+      # Respaldo antes de tocar el esquema. Mientras se instala y prueba en el servidor (docs/BACKUPS.md)
+      # un fallo avisa pero no detiene el despliegue; cuando esté probado, quitar el "|| echo".
+      - name: Respaldo previo a las migraciones
+        run: |
+          env_val() { grep -E "^$1=" /var/www/intranet/mi-comodoro-server/.env | head -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | tr -d '\r'; }
+          export DB_HOST="$(env_val DB_HOST)" DB_PORT="$(env_val DB_PORT)" DB_USER="$(env_val DB_USER)" DB_NAME="$(env_val DB_NAME)" DB_PASSWORD="$(env_val DB_PASSWORD)"
+          bash scripts/db/backup.sh || echo "::warning::El respaldo previo a las migraciones falló. Revisa docs/BACKUPS.md (instalación en el servidor)."
+
       - name: Correr migraciones
         run: |
           cp /var/www/intranet/mi-comodoro-server/.env .env
