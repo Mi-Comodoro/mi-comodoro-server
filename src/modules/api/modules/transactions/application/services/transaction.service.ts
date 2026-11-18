@@ -5,6 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -14,6 +16,8 @@ import { CategoryRepository } from '../../../categories/domain/repositories/cate
 import { assertSufficientBalance } from '../../domain/budget-balance';
 import { TransactionRepository } from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters } from '../../domain/transaction';
+import { lockBudgetRow } from '../../infrastructure/budget-lock';
+import { TransactionEntity } from '../../infrastructure/database/entities/transaction.entity';
 import { CreateManualTransactionDto } from '../../infrastructure/dto/create-manual-transaction.dto';
 import { UpdateTransactionDto } from '../../infrastructure/dto/update-transaction.dto';
 
@@ -30,6 +34,7 @@ export class TransactionService {
     @Inject('AccountRepository')
     private readonly accountRepository: AccountRepository,
     private readonly logger: LoggerProviderService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async findByBudget(
@@ -113,23 +118,26 @@ export class TransactionService {
       throw new BadRequestException('Amount must be greater than 0');
     }
 
-    // Los gastos manuales no pueden superar el saldo disponible del presupuesto
-    if (dto.type === 'expense') {
-      const totals = await this.transactionRepository.getBudgetTotals(dto.budgetId);
-      assertSufficientBalance(totals, dto.amount);
-    }
+    // Un gasto no puede superar el saldo disponible del presupuesto. La validación y el insert van
+    // en una transacción con el presupuesto bloqueado: dos gastos simultáneos no gastan el mismo saldo.
+    const transaction = await this.dataSource.transaction(async (manager) => {
+      if (dto.type === 'expense') {
+        await lockBudgetRow(manager, dto.budgetId);
+        const totals = await this.transactionRepository.getBudgetTotals(dto.budgetId, manager);
+        assertSufficientBalance(totals, dto.amount);
+      }
 
-    // Crear la transacción
-    const transaction = await this.transactionRepository.save({
-      amount: dto.amount,
-      source: dto.source,
-      description: dto.description,
-      type: dto.type,
-      userId,
-      budgetId: dto.budgetId,
-      categoryId: dto.categoryId,
-      accountId: dto.accountId,
-      transactionDate: dto.transactionDate,
+      return await manager.save(TransactionEntity, {
+        amount: dto.amount,
+        source: dto.source,
+        description: dto.description,
+        type: dto.type,
+        userId,
+        budgetId: dto.budgetId,
+        categoryId: dto.categoryId,
+        accountId: dto.accountId,
+        transactionDate: dto.transactionDate,
+      });
     });
 
     this.logger.info(this.context, `Manual transaction created: ${transaction.id}`);
@@ -176,6 +184,22 @@ export class TransactionService {
 
     // No permitir cambiar type, budgetId, accountId
     const { ...allowedUpdates } = updateData;
+
+    // Subir el monto de un gasto también debe caber en el saldo disponible (solo el aumento)
+    const increase =
+      transaction.type === 'expense' && allowedUpdates.amount !== undefined
+        ? allowedUpdates.amount - Number(transaction.amount)
+        : 0;
+    if (increase > 0) {
+      await this.dataSource.transaction(async (manager) => {
+        await lockBudgetRow(manager, transaction.budgetId);
+        const totals = await this.transactionRepository.getBudgetTotals(
+          transaction.budgetId,
+          manager,
+        );
+        assertSufficientBalance(totals, increase);
+      });
+    }
 
     const updated = await this.transactionRepository.update(id, allowedUpdates);
 

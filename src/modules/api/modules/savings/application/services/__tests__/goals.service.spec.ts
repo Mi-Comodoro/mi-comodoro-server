@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getDataSourceToken } from '@nestjs/typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -52,6 +53,19 @@ const mockCategoryRepo = {
   findByType: jest.fn(),
 };
 
+const mockManager = {
+  query: jest.fn(),
+  find: jest.fn(),
+  save: jest.fn(),
+  update: jest.fn(),
+};
+
+const mockDataSource = {
+  transaction: jest.fn(async (callback: (manager: typeof mockManager) => unknown) =>
+    callback(mockManager),
+  ),
+};
+
 const mockLogger = {
   log: jest.fn(),
   info: jest.fn(),
@@ -86,11 +100,15 @@ describe('GoalsService', () => {
         { provide: 'TransactionRepository', useValue: mockTransactionRepo },
         { provide: 'CategoryRepository', useValue: mockCategoryRepo },
         { provide: LoggerProviderService, useValue: mockLogger },
+        { provide: getDataSourceToken(), useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<GoalsService>(GoalsService);
     jest.clearAllMocks();
+    // Por defecto el manager devuelve lo que se le pasa a save, como lo haría TypeORM
+    mockManager.save.mockImplementation(async (a: unknown, b?: object) => b ?? a);
+    mockManager.find.mockResolvedValue([]);
     mockTransactionRepo.getBudgetTotals.mockResolvedValue({
       income: 1000000,
       expense: 0,
@@ -372,7 +390,18 @@ describe('GoalsService', () => {
       date: '2026-06-01',
       accountId: 'acc-1',
     };
-    const internalDto = baseDto;
+
+    // Arma el escenario feliz: meta, cuenta, presupuesto, categoría y planes pendientes
+    const arrange = (opts: { goal?: object; plans?: unknown[] } = {}) => {
+      mockGoalsRepo.findByIdAndUser.mockResolvedValue(opts.goal ?? baseGoal);
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
+      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
+      mockManager.find.mockResolvedValue(opts.plans ?? []);
+    };
+
+    // El plan se guarda con save(entidad), el resto con save(Clase, datos)
+    const savedPlan = () => mockManager.save.mock.calls.find((c) => c.length === 1)?.[0];
 
     beforeEach(() => {
       mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
@@ -402,7 +431,6 @@ describe('GoalsService', () => {
         service.createContribution('goal-1', 'user-1', {
           amount: 200,
           date: '2026-06-01',
-          contributionType: 'internal',
           accountId: 'acc-no-existe',
         } as never),
       ).rejects.toThrow(BadRequestException);
@@ -424,7 +452,7 @@ describe('GoalsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('lanza NotFoundException si no hay budget para el mes actual', async () => {
+    it('lanza NotFoundException si no hay budget para el mes del aporte', async () => {
       mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
       mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
       mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue(null);
@@ -433,44 +461,75 @@ describe('GoalsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('crea plannedSaving con status COMPLETED en un aporte exitoso', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
-
-      const result = await service.createContribution('goal-1', 'user-1', baseDto as never);
-      expect(mockPlannedSavingRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          savingGoalId: 'goal-1',
-          budgetId: 'budget-1',
-          amount: 200,
-        }),
-      );
-      expect(result.id).toBe('ps-1');
+    it('falla sin abrir la transacción si no existe la categoría de ahorro', async () => {
+      arrange();
+      mockCategoryRepo.findByType.mockResolvedValue(null);
+      await expect(
+        service.createContribution('goal-1', 'user-1', baseDto as never),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
 
-    it('pasa la meta de SCHEDULED a IN_PROGRESS con el primer aporte y deja historial', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue({
-        ...baseGoal,
-        status: GoalStatus.SCHEDULED,
-      });
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+    it('crea el plan COMPLETED y la transacción de ahorro dentro de una sola transacción', async () => {
+      arrange();
+
+      const result = await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(savedPlan()).toEqual(
+        expect.objectContaining({ amount: 200, status: PlannedSavingStatus.COMPLETED }),
+      );
+      const savingsTx = mockManager.save.mock.calls.find((c) => c[1]?.type === 'savings');
+      expect(savingsTx?.[1]).toEqual(
+        expect.objectContaining({ budgetId: 'budget-1', amount: 200, savingGoalId: 'goal-1' }),
+      );
+      expect(result.amount).toBe(200);
+      // El aporte ya no pasa por los repositorios: todo ocurre con el manager de la transacción
+      expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('bloquea la fila del presupuesto antes de leer el saldo', async () => {
+      arrange();
 
       await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-      expect(mockGoalsRepo.update).toHaveBeenCalledWith('goal-1', 'user-1', {
-        status: GoalStatus.IN_PROGRESS,
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
+        'budget-1',
+      ]);
+      expect(mockTransactionRepo.getBudgetTotals).toHaveBeenCalledWith('budget-1', mockManager);
+      expect(mockManager.query.mock.invocationCallOrder[0]).toBeLessThan(
+        mockTransactionRepo.getBudgetTotals.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('si falla la transacción de ahorro el aporte falla completo (hace rollback)', async () => {
+      arrange({ goal: { ...baseGoal, status: GoalStatus.SCHEDULED } });
+      mockManager.save.mockImplementation(async (a: unknown, b?: { type?: string }) => {
+        if (b?.type === 'savings') throw new Error('TX error');
+        return b ?? a;
       });
-      expect(mockHistoryRepo.add).toHaveBeenCalledWith(
+
+      await expect(
+        service.createContribution('goal-1', 'user-1', baseDto as never),
+      ).rejects.toThrow('TX error');
+      // La meta no llega a activarse: el error corta el resto de pasos
+      expect(mockManager.update).not.toHaveBeenCalled();
+    });
+
+    it('pasa la meta de SCHEDULED a IN_PROGRESS con el primer aporte y deja historial', async () => {
+      arrange({ goal: { ...baseGoal, status: GoalStatus.SCHEDULED } });
+
+      await service.createContribution('goal-1', 'user-1', baseDto as never);
+
+      expect(mockManager.update).toHaveBeenCalledWith(
+        expect.anything(),
+        { id: 'goal-1', userId: 'user-1' },
+        { status: GoalStatus.IN_PROGRESS },
+      );
+      const history = mockManager.save.mock.calls.find((c) => c[1]?.field === 'status');
+      expect(history?.[1]).toEqual(
         expect.objectContaining({
-          field: 'status',
           oldValue: GoalStatus.SCHEDULED,
           newValue: GoalStatus.IN_PROGRESS,
         }),
@@ -478,127 +537,80 @@ describe('GoalsService', () => {
     });
 
     it('no cambia el estado si la meta ya está en progreso', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue({
-        ...baseGoal,
-        status: GoalStatus.IN_PROGRESS,
-      });
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+      arrange({ goal: { ...baseGoal, status: GoalStatus.IN_PROGRESS } });
 
       await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-      expect(mockGoalsRepo.update).not.toHaveBeenCalled();
+      expect(mockManager.update).not.toHaveBeenCalled();
     });
 
     describe('ahorro planificado pendiente de la meta', () => {
-      const arrange = (plans: unknown[]) => {
-        mockGoalsRepo.findByIdAndUser.mockResolvedValue({
-          ...baseGoal,
-          status: GoalStatus.IN_PROGRESS,
-        });
-        mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-        mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-        mockPlannedSavingRepo.findByBudget.mockResolvedValue(plans);
-        mockPlannedSavingRepo.update.mockResolvedValue({ id: 'plan-1', status: 'completed' });
-        mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-new', amount: 200 });
-        mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-        mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
-      };
-
       it('completa el plan pendiente cuando el aporte lo cubre y no crea uno nuevo', async () => {
-        arrange([
-          {
-            id: 'plan-1',
-            savingGoalId: 'goal-1',
-            status: PlannedSavingStatus.PENDING,
-            amount: 150,
-            date: '2026-06-10',
-          },
-        ]);
+        arrange({
+          goal: { ...baseGoal, status: GoalStatus.IN_PROGRESS },
+          plans: [{ id: 'plan-1', amount: '150.00', date: '2026-06-10' }],
+        });
 
         const result = await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-        expect(mockPlannedSavingRepo.update).toHaveBeenCalledWith(
-          'plan-1',
-          expect.objectContaining({ status: PlannedSavingStatus.COMPLETED, amount: 200 }),
+        expect(savedPlan()).toEqual(
+          expect.objectContaining({
+            id: 'plan-1',
+            status: PlannedSavingStatus.COMPLETED,
+            amount: 200,
+          }),
         );
-        expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+        expect(mockManager.update).not.toHaveBeenCalled();
         expect(result.id).toBe('plan-1');
       });
 
       it('un aporte parcial completa una fila y deja el plan pendiente solo por el resto', async () => {
-        arrange([
-          {
-            id: 'plan-1',
-            savingGoalId: 'goal-1',
-            status: PlannedSavingStatus.PENDING,
-            amount: 500,
-            date: '2026-06-10',
-          },
-        ]);
+        arrange({
+          goal: { ...baseGoal, status: GoalStatus.IN_PROGRESS },
+          plans: [{ id: 'plan-1', amount: '500.00', date: '2026-06-10' }],
+        });
 
         await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-        expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
-        expect(mockPlannedSavingRepo.update).toHaveBeenCalledTimes(1);
-        expect(mockPlannedSavingRepo.update).toHaveBeenCalledWith('plan-1', { amount: 300 });
+        expect(savedPlan().id).toBeUndefined();
+        expect(mockManager.update).toHaveBeenCalledTimes(1);
+        expect(mockManager.update).toHaveBeenCalledWith(expect.anything(), 'plan-1', {
+          amount: 300,
+        });
       });
 
-      it('ignora planes de otras metas o que ya no están pendientes', async () => {
-        arrange([
-          { id: 'p-a', savingGoalId: 'goal-2', status: PlannedSavingStatus.PENDING, amount: 100 },
-          { id: 'p-b', savingGoalId: 'goal-1', status: PlannedSavingStatus.SKIPPED, amount: 100 },
-        ]);
+      it('sin plan pendiente crea una fila nueva y no actualiza ninguna', async () => {
+        arrange({ goal: { ...baseGoal, status: GoalStatus.IN_PROGRESS }, plans: [] });
 
         await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-        expect(mockPlannedSavingRepo.update).not.toHaveBeenCalled();
-        expect(mockPlannedSavingRepo.save).toHaveBeenCalledTimes(1);
+        expect(mockManager.update).not.toHaveBeenCalled();
       });
     });
 
     it('sin cuenta indicada el aporte usa la cuenta de la meta', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-x' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+      arrange();
 
       await service.createContribution('goal-1', 'user-1', {
         amount: 200,
         date: '2026-06-01',
       } as never);
 
-      expect(mockTransactionRepo.getBudgetTotals).toHaveBeenCalled();
-      expect(mockTransactionRepo.save.mock.calls.map((c) => c[0].type)).toEqual(['savings']);
-      expect(mockPlannedSavingRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ accountId: 'acc-1' }),
-      );
+      expect(savedPlan().account?.id).toBe('acc-1');
     });
 
     it('rechaza el aporte si el presupuesto no tiene ingresos', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      arrange();
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
 
       await expect(
-        service.createContribution('goal-1', 'user-1', internalDto as never),
+        service.createContribution('goal-1', 'user-1', baseDto as never),
       ).rejects.toThrow('Aún no has registrado ingresos en este presupuesto.');
-      expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+      expect(mockManager.save).not.toHaveBeenCalled();
     });
 
     it('rechaza el aporte si supera el saldo disponible', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
+      arrange();
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({
         income: 1000,
         expense: 500,
@@ -606,32 +618,22 @@ describe('GoalsService', () => {
       });
 
       await expect(
-        service.createContribution('goal-1', 'user-1', internalDto as never),
+        service.createContribution('goal-1', 'user-1', baseDto as never),
       ).rejects.toThrow(/Saldo insuficiente: tu saldo disponible es \$100,00\./);
-      expect(mockPlannedSavingRepo.save).not.toHaveBeenCalled();
+      expect(mockManager.save).not.toHaveBeenCalled();
     });
 
     it('un aporte no registra ingresos: sale del Disponible del presupuesto', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-x' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+      arrange();
 
-      await service.createContribution('goal-1', 'user-1', internalDto as never);
+      await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-      expect(mockTransactionRepo.save.mock.calls.map((c) => c[0].type)).toEqual(['savings']);
+      const types = mockManager.save.mock.calls.map((c) => c[1]?.type).filter(Boolean);
+      expect(types).toEqual(['savings']);
     });
 
     it('busca el presupuesto del mes de la fecha del aporte, no el del mes en curso', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1' });
+      arrange();
 
       await service.createContribution('goal-1', 'user-1', {
         ...baseDto,
@@ -642,35 +644,15 @@ describe('GoalsService', () => {
     });
 
     it('acepta el aporte si la cuenta existe en las cuentas del usuario', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
+      arrange();
       mockAccountRepo.get.mockResolvedValue([{ id: 'acc-valid' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-2', amount: 100 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-2' });
 
       const result = await service.createContribution('goal-1', 'user-1', {
         amount: 100,
         date: '2026-06-01',
-        contributionType: 'internal',
         accountId: 'acc-valid',
       } as never);
-      expect(result.id).toBe('ps-2');
-    });
-
-    it('no bloquea el flujo si falla la transacción de ahorro', async () => {
-      mockGoalsRepo.findByIdAndUser.mockResolvedValue(baseGoal);
-      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'fin-1' });
-      mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue({ id: 'budget-1' });
-      mockPlannedSavingRepo.save.mockResolvedValue({ id: 'ps-1', amount: 200 });
-      mockCategoryRepo.findByType.mockResolvedValue({ id: 'cat-savings' });
-      mockTransactionRepo.save.mockRejectedValue(new Error('TX error'));
-
-      const result = await service.createContribution('goal-1', 'user-1', internalDto as never);
-      expect(result.id).toBe('ps-1');
-      expect(mockLogger.warn).toHaveBeenCalled();
+      expect(result.amount).toBe(100);
     });
   });
 

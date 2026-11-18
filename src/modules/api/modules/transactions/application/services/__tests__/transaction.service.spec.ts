@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getDataSourceToken } from '@nestjs/typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -16,6 +17,15 @@ const mockTransactionRepo = {
 const mockBudgetRepo = { findById: jest.fn() };
 const mockCategoryRepo = { findById: jest.fn() };
 const mockAccountRepo = { findByIdAndUser: jest.fn() };
+const mockManager = {
+  query: jest.fn(),
+  save: jest.fn(),
+};
+const mockDataSource = {
+  transaction: jest.fn(async (callback: (manager: typeof mockManager) => unknown) =>
+    callback(mockManager),
+  ),
+};
 const mockLogger = {
   log: jest.fn(),
   info: jest.fn(),
@@ -52,11 +62,16 @@ describe('TransactionService', () => {
         { provide: 'CategoryRepository', useValue: mockCategoryRepo },
         { provide: 'AccountRepository', useValue: mockAccountRepo },
         { provide: LoggerProviderService, useValue: mockLogger },
+        { provide: getDataSourceToken(), useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<TransactionService>(TransactionService);
     jest.clearAllMocks();
+    mockManager.save.mockImplementation(async (_entity: unknown, data: object) => ({
+      id: 'txn-1',
+      ...data,
+    }));
     mockTransactionRepo.getBudgetTotals.mockResolvedValue({
       income: 1000000,
       expense: 0,
@@ -195,11 +210,25 @@ describe('TransactionService', () => {
     it('creates and returns the transaction', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
-      mockTransactionRepo.save.mockResolvedValue(makeTransaction());
 
       const result = await service.createManual(baseDto as never, 'user-1');
-      expect(mockTransactionRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockManager.save).toHaveBeenCalledTimes(1);
       expect(result.id).toBe('txn-1');
+    });
+
+    it('bloquea el presupuesto antes de leer el saldo de un gasto', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+
+      await service.createManual(baseDto as never, 'user-1');
+
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
+        'budget-1',
+      ]);
+      expect(mockTransactionRepo.getBudgetTotals).toHaveBeenCalledWith('budget-1', mockManager);
+      expect(mockManager.query.mock.invocationCallOrder[0]).toBeLessThan(
+        mockTransactionRepo.getBudgetTotals.mock.invocationCallOrder[0],
+      );
     });
 
     it('rechaza el gasto cuando no hay ingresos registrados', async () => {
@@ -210,7 +239,7 @@ describe('TransactionService', () => {
       await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
         'Aún no has registrado ingresos en este presupuesto.',
       );
-      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+      expect(mockManager.save).not.toHaveBeenCalled();
     });
 
     it('rechaza el gasto cuando supera el saldo disponible', async () => {
@@ -225,22 +254,21 @@ describe('TransactionService', () => {
       await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
         /Saldo insuficiente: tu saldo disponible es \$40\.000,00\./,
       );
-      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+      expect(mockManager.save).not.toHaveBeenCalled();
     });
 
     it('no valida el saldo para transacciones de ingreso', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
-      mockTransactionRepo.save.mockResolvedValue(makeTransaction({ type: 'income' }));
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
       const dto = { ...baseDto, type: 'income' as const, categoryId: undefined };
 
       await service.createManual(dto as never, 'user-1');
       expect(mockTransactionRepo.getBudgetTotals).not.toHaveBeenCalled();
+      expect(mockManager.query).not.toHaveBeenCalled();
     });
 
     it('skips category validation for income type', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
-      mockTransactionRepo.save.mockResolvedValue(makeTransaction({ type: 'income' }));
       const dto = { ...baseDto, type: 'income' as const, categoryId: undefined };
 
       await service.createManual(dto as never, 'user-1');
