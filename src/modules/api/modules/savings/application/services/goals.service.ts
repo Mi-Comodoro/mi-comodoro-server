@@ -12,6 +12,7 @@ import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositor
 import { CategoryType } from '@/modules/api/modules/categories/domain/category';
 import { CategoryRepository } from '@/modules/api/modules/categories/domain/repositories/category.repository';
 import { FinancesRepository } from '@/modules/api/modules/finances/domain/repositories/finances.repository';
+import { assertSufficientBalance } from '@/modules/api/modules/transactions/domain/budget-balance';
 import { TransactionRepository } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 import { GoalSummary } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 
@@ -191,18 +192,17 @@ export class GoalsService {
       throw new NotFoundException('Goal not found');
     }
 
-    const contributionType = dto.contributionType ?? 'external';
-
-    // 2. Si es internal, validar que la cuenta existe y pertenece al usuario
-    if (contributionType === 'internal') {
-      if (!dto.accountId) {
-        throw new BadRequestException('accountId is required for internal contributions');
-      }
-      const accounts = await this.accountRepository.get(userId);
-      const accountExists = accounts.some((acc) => acc.id === dto.accountId);
-      if (!accountExists) {
-        throw new BadRequestException(`Account ${dto.accountId} not found or not yours`);
-      }
+    // 2. El aporte sale del Disponible del presupuesto. La cuenta de origen es la indicada o,
+    //    si el cliente no la envía, la cuenta de la propia meta; debe ser del usuario.
+    //    El dinero inesperado entra como un ingreso normal y luego se aporta desde el Disponible.
+    const originAccountId = dto.accountId ?? goal.accountId ?? undefined;
+    if (!originAccountId) {
+      throw new BadRequestException('accountId is required for contributions');
+    }
+    const accounts = await this.accountRepository.get(userId);
+    const accountExists = accounts.some((acc) => acc.id === originAccountId);
+    if (!accountExists) {
+      throw new BadRequestException(`Account ${originAccountId} not found or not yours`);
     }
 
     // 3. Obtener el budget activo del mes/año actual
@@ -225,31 +225,57 @@ export class GoalsService {
       'Noviembre',
       'Diciembre',
     ];
-    const now = new Date();
-    const currentMonth = MONTH_NAMES[now.getMonth()];
-    const currentYear = now.getFullYear();
+    // El presupuesto es el del mes de la fecha del aporte (YYYY-MM-DD), no el del mes en curso
+    const [budgetYear, budgetMonthNumber] = dto.date.slice(0, 10).split('-').map(Number);
+    const budgetMonth = MONTH_NAMES[budgetMonthNumber - 1];
 
     const budget = await this.budgetRepository.findByFinancesIdAndMonth(
       finances.id,
-      currentMonth,
-      currentYear,
+      budgetMonth,
+      budgetYear,
     );
     if (!budget) {
-      throw new NotFoundException(
-        `No budget found for current month (${currentMonth}/${currentYear})`,
-      );
+      throw new NotFoundException(`No budget found for ${budgetMonth}/${budgetYear}`);
     }
 
-    // 4. Crear el PlannedSaving con status COMPLETED
-    const plannedSaving = await this.plannedSavingRepository.save({
+    // 3.1 El aporte no puede superar el saldo disponible del presupuesto.
+    //     Los intereses (tipo 'interest') no suman ni restan al saldo.
+    const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
+    assertSufficientBalance(totals, dto.amount);
+
+    // 3.2 Ahorro planificado pendiente más antiguo de esta meta en el mes:
+    //     - si el aporte lo cubre (monto >= plan), ese plan se completa (no se duplica el ahorro)
+    //     - si es parcial, se crea la fila completada y el plan queda pendiente solo por el resto,
+    //       así el objetivo del mes no se infla
+    const budgetPlans = await this.plannedSavingRepository.findByBudget(budget.id as string);
+    const pendingPlan = budgetPlans
+      .filter((plan) => plan.savingGoalId === goalId && plan.status === PlannedSavingStatus.PENDING)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    const pendingPlanAmount = Number(pendingPlan?.amount ?? 0);
+    const coveredPlan = pendingPlan && dto.amount >= pendingPlanAmount ? pendingPlan : undefined;
+    const partialPlan = pendingPlan && !coveredPlan ? pendingPlan : undefined;
+
+    // 4. Completar el plan cubierto o crear el PlannedSaving con status COMPLETED
+    const contributionData = {
       savingGoalId: goalId,
       budgetId: budget.id,
-      accountId: contributionType === 'internal' ? dto.accountId : undefined,
+      accountId: originAccountId,
       amount: dto.amount,
       date: new Date(dto.date),
       status: PlannedSavingStatus.COMPLETED,
       completedAt: new Date(),
-    });
+    };
+    const plannedSaving = coveredPlan
+      ? // El plan queda con lo realmente aportado: los avances de las metas suman los planes completados
+        ((await this.plannedSavingRepository.update(coveredPlan.id, contributionData)) ??
+        (await this.plannedSavingRepository.save(contributionData)))
+      : await this.plannedSavingRepository.save(contributionData);
+
+    if (partialPlan) {
+      // Se guarda primero la fila completada: si esto fallara, el objetivo queda alto pero no se pierde ahorro
+      const remaining = Math.round((pendingPlanAmount - dto.amount) * 100) / 100;
+      await this.plannedSavingRepository.update(partialPlan.id, { amount: remaining });
+    }
 
     // 5. Crear transacción de tipo ahorro (no bloquea el flujo si falla)
     try {
@@ -273,6 +299,25 @@ export class GoalsService {
         this.context,
         `Failed to create savings transaction for goal ${goalId}: ${(err as Error).message}`,
       );
+    }
+
+    // 6. El primer aporte activa la meta: SCHEDULED → IN_PROGRESS (no bloquea el flujo si falla)
+    if (goal.status === GoalStatus.SCHEDULED) {
+      try {
+        await this.goalsRepository.update(goalId, userId, { status: GoalStatus.IN_PROGRESS });
+        await this.historyRepository.add({
+          goalId,
+          userId,
+          field: 'status',
+          oldValue: GoalStatus.SCHEDULED,
+          newValue: GoalStatus.IN_PROGRESS,
+        });
+      } catch (err) {
+        this.logger.warn(
+          this.context,
+          `Failed to move goal ${goalId} to IN_PROGRESS: ${(err as Error).message}`,
+        );
+      }
     }
 
     return plannedSaving;

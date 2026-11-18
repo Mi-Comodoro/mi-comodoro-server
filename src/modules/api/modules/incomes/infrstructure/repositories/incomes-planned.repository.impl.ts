@@ -38,6 +38,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
     return PlannedIncomeMapper.toDomain(complete ?? saved);
   }
 
+  /** `month` en base 0 (enero = 0, diciembre = 11), igual que Date#getMonth. */
   async generateIncomesPlannedForBudget(
     budgetId: string,
     incomes: IncomeSource[],
@@ -50,7 +51,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
       const { amount, frequency, paymentDays } = source;
 
       if (frequency === 'monthly') {
-        const date = new Date(year, month - 1, paymentDays[0]);
+        const date = new Date(year, month, paymentDays[0]);
 
         plannedIncomes.push(
           this.plannedIncomesRepository.create({
@@ -68,7 +69,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
         const splitAmount = amount / paymentDays.length;
 
         for (const day of paymentDays) {
-          const date = new Date(year, month - 1, day);
+          const date = new Date(year, month, day);
 
           plannedIncomes.push(
             this.plannedIncomesRepository.create({

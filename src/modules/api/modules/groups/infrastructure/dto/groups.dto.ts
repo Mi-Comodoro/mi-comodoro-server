@@ -95,3 +95,36 @@ export class RespondGroupInvitationDto {
   @IsUUID()
   categoryId?: string;
 }
+
+export class GroupListItemResponseDto {
+  @ApiProperty({ example: 'a1d959d0-9260-4e62-adb5-8a615b95e819' })
+  id: string;
+
+  @ApiProperty({ example: 'Familia Álvarez' })
+  name: string;
+
+  @ApiProperty({ enum: ['SHARED', 'FAMILIAR', 'TRAVEL'], example: 'SHARED' })
+  type: GroupType;
+
+  @ApiProperty({ example: 'uuid-del-organizador' })
+  ownerId: string;
+
+  @ApiProperty({ enum: ['Planificando', 'Activo', 'Cerrado'], example: 'Activo' })
+  status: string;
+
+  @ApiProperty({ example: 5, description: 'Cupo máximo de miembros del grupo' })
+  maxMembers: number;
+
+  @ApiProperty({
+    example: 3,
+    description:
+      'Miembros activos del grupo (incluye al organizador; excluye invitaciones pendientes)',
+  })
+  memberCount: number;
+
+  @ApiProperty({
+    example: 1,
+    description: 'Invitaciones pendientes de aceptar (no cuentan en memberCount)',
+  })
+  pendingInvitesCount: number;
+}

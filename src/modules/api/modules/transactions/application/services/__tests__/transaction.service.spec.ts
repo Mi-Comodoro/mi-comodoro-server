@@ -11,6 +11,7 @@ const mockTransactionRepo = {
   save: jest.fn(),
   update: jest.fn(),
   softDelete: jest.fn(),
+  getBudgetTotals: jest.fn(),
 };
 const mockBudgetRepo = { findById: jest.fn() };
 const mockCategoryRepo = { findById: jest.fn() };
@@ -56,6 +57,11 @@ describe('TransactionService', () => {
 
     service = module.get<TransactionService>(TransactionService);
     jest.clearAllMocks();
+    mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+      income: 1000000,
+      expense: 0,
+      savings: 0,
+    });
   });
 
   // ─── findByBudget ──────────────────────────────────────────────────────────
@@ -194,6 +200,42 @@ describe('TransactionService', () => {
       const result = await service.createManual(baseDto as never, 'user-1');
       expect(mockTransactionRepo.save).toHaveBeenCalledTimes(1);
       expect(result.id).toBe('txn-1');
+    });
+
+    it('rechaza el gasto cuando no hay ingresos registrados', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
+
+      await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
+        'Aún no has registrado ingresos en este presupuesto.',
+      );
+      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza el gasto cuando supera el saldo disponible', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+        income: 100000,
+        expense: 30000,
+        savings: 30000,
+      });
+
+      await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
+        /Saldo insuficiente: tu saldo disponible es \$40\.000,00\./,
+      );
+      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no valida el saldo para transacciones de ingreso', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockTransactionRepo.save.mockResolvedValue(makeTransaction({ type: 'income' }));
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
+      const dto = { ...baseDto, type: 'income' as const, categoryId: undefined };
+
+      await service.createManual(dto as never, 'user-1');
+      expect(mockTransactionRepo.getBudgetTotals).not.toHaveBeenCalled();
     });
 
     it('skips category validation for income type', async () => {

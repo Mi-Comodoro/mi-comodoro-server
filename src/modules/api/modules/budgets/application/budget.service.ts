@@ -20,6 +20,7 @@ import { PlannedSavingEntity } from '@/modules/api/modules/savings/infrastructur
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 import { UserRepository } from '@/modules/api/modules/users/domain/user.repository';
 
+import { AccountRepository } from '../../accounts/domain/repositories/account.respository';
 import { PlannedExpenseStatus } from '../../expenses/domain/expenses';
 import { PlannedExpenseRepository } from '../../expenses/domain/repositories/expense-planned.repository';
 import { FinancesRepository } from '../../finances/domain/repositories/finances.repository';
@@ -71,6 +72,7 @@ export class BudgetService {
     @Inject('PlannedExpenseRepository')
     private readonly plannedExpenseRepository: PlannedExpenseRepository,
     @Inject('GoalsRepository') private readonly goalsRepository: GoalsRepository,
+    @Inject('AccountRepository') private readonly accountRepository: AccountRepository,
     @Inject('UserRepository') private readonly userRepository: UserRepository,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly systemConfigService: SystemConfigService,
@@ -248,6 +250,8 @@ export class BudgetService {
     this.logger.info(this.context, `Getting budget by ID: ${budgetId}`);
     if (userId) {
       await this.assertBudgetOwner(budgetId, userId);
+      // Solo el endpoint de usuario exige el checklist; las activaciones internas no pasan userId
+      await this.assertCanActivate(budgetId, userId);
     } else {
       await this.getBudgetOrThrow(budgetId);
     }
@@ -446,6 +450,34 @@ export class BudgetService {
 
   async getDefaultBudget(userId: string): Promise<Budget | null> {
     return this.budgetRepository.findDefaultActiveByOwnerId(userId);
+  }
+
+  /**
+   * Requisitos para activar: al menos 1 cuenta, al menos 3 metas activas y el 100% del
+   * ahorro del presupuesto distribuido entre metas activas.
+   */
+  private async assertCanActivate(budgetId: string, userId: string): Promise<void> {
+    const [accounts, goals, allocations] = await Promise.all([
+      this.accountRepository.get(userId),
+      this.goalsRepository.find(userId),
+      this.allocationRepository.find(budgetId),
+    ]);
+
+    const activeGoalIds = new Set(goals.filter((goal) => goal.isActive).map((goal) => goal.id));
+    const distributed = allocations
+      .filter((allocation) => activeGoalIds.has(allocation.goalId))
+      .reduce((acc, allocation) => acc + Number(allocation.percentage ?? 0), 0);
+
+    const missing: string[] = [];
+    if (accounts.length < 1) missing.push('crea al menos 1 cuenta');
+    if (activeGoalIds.size < 3) missing.push('crea al menos 3 metas de ahorro activas');
+    if (Math.round(distributed * 100) !== 10000) {
+      missing.push(`distribuye el 100% de tu ahorro entre tus metas (llevas ${distributed}%)`);
+    }
+
+    if (missing.length > 0) {
+      throw new BadRequestException(`Para activar el presupuesto ${missing.join(', ')}.`);
+    }
   }
 
   private async calculateSurplus(budgetId: string): Promise<number> {

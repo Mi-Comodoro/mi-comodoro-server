@@ -23,9 +23,10 @@ const mockBudgetRepo = {
 };
 const mockFinancesRepo = { findByUserId: jest.fn() };
 const mockPlannedIncomeRepo = { findByBudgetId: jest.fn(), save: jest.fn() };
-const mockAllocationRepo = { findByBudgetId: jest.fn(), save: jest.fn() };
+const mockAllocationRepo = { find: jest.fn(), findByBudgetId: jest.fn(), save: jest.fn() };
 const mockPlannedExpenseRepo = { findByBudget: jest.fn(), save: jest.fn() };
-const mockGoalsRepo = { findById: jest.fn(), update: jest.fn() };
+const mockGoalsRepo = { find: jest.fn(), findById: jest.fn(), update: jest.fn() };
+const mockAccountRepo = { get: jest.fn() };
 const mockUserRepo = { findById: jest.fn() };
 const mockDataSource = { createQueryRunner: jest.fn() };
 const mockSystemConfig = { getNumber: jest.fn().mockResolvedValue(20) };
@@ -85,6 +86,7 @@ describe('BudgetService', () => {
         { provide: 'SavingAllocationRepository', useValue: mockAllocationRepo },
         { provide: 'PlannedExpenseRepository', useValue: mockPlannedExpenseRepo },
         { provide: 'GoalsRepository', useValue: mockGoalsRepo },
+        { provide: 'AccountRepository', useValue: mockAccountRepo },
         { provide: 'UserRepository', useValue: mockUserRepo },
         { provide: getDataSourceToken(), useValue: mockDataSource },
         { provide: SystemConfigService, useValue: mockSystemConfig },
@@ -364,6 +366,77 @@ describe('BudgetService', () => {
         }),
       );
       expect(result).toBeDefined();
+    });
+  });
+
+  // ─── active ────────────────────────────────────────────────────────────────
+  describe('active', () => {
+    const goal = (id: string, isActive = true) => ({ id, isActive });
+    const allocation = (goalId: string, percentage: number) => ({ goalId, percentage });
+
+    beforeEach(() => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget({ ownerId: 'u-1' }));
+      mockBudgetRepo.active.mockResolvedValue(makeBudget({ ownerId: 'u-1', status: 'ACTIVE' }));
+      mockAccountRepo.get.mockResolvedValue([{ id: 'acc-1' }]);
+      mockGoalsRepo.find.mockResolvedValue([goal('g1'), goal('g2'), goal('g3')]);
+      mockAllocationRepo.find.mockResolvedValue([
+        allocation('g1', 50),
+        allocation('g2', 30),
+        allocation('g3', 20),
+      ]);
+    });
+
+    it('rechaza la activación si el usuario no tiene cuentas', async () => {
+      mockAccountRepo.get.mockResolvedValue([]);
+
+      await expect(service.active('b-1', 'u-1')).rejects.toThrow(BadRequestException);
+      await expect(service.active('b-1', 'u-1')).rejects.toThrow(/al menos 1 cuenta/);
+      expect(mockBudgetRepo.active).not.toHaveBeenCalled();
+    });
+
+    it('rechaza la activación con solo 2 metas activas', async () => {
+      mockGoalsRepo.find.mockResolvedValue([goal('g1'), goal('g2'), goal('g3', false)]);
+
+      await expect(service.active('b-1', 'u-1')).rejects.toThrow(/al menos 3 metas/);
+      expect(mockBudgetRepo.active).not.toHaveBeenCalled();
+    });
+
+    it('rechaza la activación con 90% distribuido', async () => {
+      mockAllocationRepo.find.mockResolvedValue([
+        allocation('g1', 50),
+        allocation('g2', 30),
+        allocation('g3', 10),
+      ]);
+
+      await expect(service.active('b-1', 'u-1')).rejects.toThrow(/distribuye el 100%/);
+      expect(mockBudgetRepo.active).not.toHaveBeenCalled();
+    });
+
+    it('ignora asignaciones de metas inactivas al sumar el porcentaje', async () => {
+      mockGoalsRepo.find.mockResolvedValue([goal('g1'), goal('g2'), goal('g3'), goal('g4', false)]);
+      mockAllocationRepo.find.mockResolvedValue([
+        allocation('g1', 50),
+        allocation('g2', 30),
+        allocation('g4', 20),
+      ]);
+
+      await expect(service.active('b-1', 'u-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('activa el presupuesto cuando se cumplen todos los requisitos', async () => {
+      const result = await service.active('b-1', 'u-1');
+
+      expect(mockBudgetRepo.active).toHaveBeenCalledWith('b-1');
+      expect(result).toMatchObject({ status: 'ACTIVE' });
+    });
+
+    it('no valida el checklist en activaciones internas (sin userId)', async () => {
+      mockAccountRepo.get.mockResolvedValue([]);
+
+      await service.active('b-1');
+
+      expect(mockAccountRepo.get).not.toHaveBeenCalled();
+      expect(mockBudgetRepo.active).toHaveBeenCalledWith('b-1');
     });
   });
 });

@@ -77,6 +77,14 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
       scalarData.completedAt = domain.completedAt;
       hasScalarChanges = true;
     }
+    if (domain.amount !== undefined) {
+      scalarData.amount = domain.amount;
+      hasScalarChanges = true;
+    }
+    if (domain.date !== undefined) {
+      scalarData.date = domain.date;
+      hasScalarChanges = true;
+    }
 
     if (hasScalarChanges) {
       const result = await this.plannedSavingRepository.update(id, scalarData);

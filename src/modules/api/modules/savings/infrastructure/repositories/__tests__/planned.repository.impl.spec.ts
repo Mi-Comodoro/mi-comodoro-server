@@ -133,6 +133,14 @@ describe('PlannedSavingRepositoryImpl', () => {
       expect(result).toMatchObject({ status: PlannedSavingStatus.COMPLETED });
     });
 
+    it('persists amount and date so completed plans reflect what was really saved', async () => {
+      mockRepo.update.mockResolvedValue({ affected: 1 });
+      mockRepo.findOne.mockResolvedValue(makePlannedEntity({ amount: 200 }));
+      const date = new Date('2026-11-17');
+      await repository.update('ps-1', { amount: 200, date });
+      expect(mockRepo.update).toHaveBeenCalledWith('ps-1', { amount: 200, date });
+    });
+
     it('returns null when relation update finds no entity', async () => {
       mockRepo.findOne.mockResolvedValue(null);
       const result = await repository.update('ps-1', { savingGoalId: 'goal-2' });
