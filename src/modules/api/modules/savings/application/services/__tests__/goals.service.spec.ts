@@ -494,7 +494,7 @@ describe('GoalsService', () => {
 
       await service.createContribution('goal-1', 'user-1', baseDto as never);
 
-      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), [
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
         'budget-1',
       ]);
       expect(mockTransactionRepo.getBudgetTotals).toHaveBeenCalledWith('budget-1', mockManager);

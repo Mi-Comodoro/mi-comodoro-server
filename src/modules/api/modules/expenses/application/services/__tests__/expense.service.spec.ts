@@ -15,10 +15,36 @@ const mockExpenseRepo = {
   cancel: jest.fn(),
 };
 const mockBudgetRepo = { findById: jest.fn() };
-const mockTransactionRepo = { save: jest.fn() };
+const mockTransactionRepo = { save: jest.fn(), getBudgetTotals: jest.fn() };
 const mockCategoryRepo = { findById: jest.fn() };
 const mockAccountRepo = { findPrimaryByUserId: jest.fn() };
-const mockDataSource = { transaction: jest.fn() };
+// Constructor de consultas encadenable: cada getRawOne devuelve un total (ingresos, ahorros, gastos)
+const mockQuery = {
+  select: jest.fn().mockReturnThis(),
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  getRawOne: jest.fn(),
+};
+const mockManager = {
+  query: jest.fn(),
+  save: jest.fn(),
+  update: jest.fn(),
+  findOne: jest.fn(),
+  createQueryBuilder: jest.fn(() => mockQuery),
+};
+const mockDataSource = {
+  transaction: jest.fn(async (callback: (manager: typeof mockManager) => unknown) =>
+    callback(mockManager),
+  ),
+};
+
+// Totales planificados del presupuesto, en el orden en que se consultan
+const plannedTotals = (income: number, savings: number, expenses: number) => {
+  mockQuery.getRawOne
+    .mockResolvedValueOnce({ total: String(income) })
+    .mockResolvedValueOnce({ total: String(savings) })
+    .mockResolvedValueOnce({ total: String(expenses) });
+};
 const mockLogger = {
   log: jest.fn(),
   info: jest.fn(),
@@ -65,6 +91,13 @@ describe('ExpenseService', () => {
 
     service = module.get<ExpenseService>(ExpenseService);
     jest.clearAllMocks();
+    mockQuery.getRawOne.mockReset();
+    mockManager.save.mockImplementation(async (a: unknown, b?: object) => b ?? a);
+    mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+      income: 1000000,
+      expense: 0,
+      savings: 0,
+    });
   });
 
   // ─── addPlan ───────────────────────────────────────────────────────────────
@@ -89,13 +122,46 @@ describe('ExpenseService', () => {
       await expect(service.addPlan(dto as never, 'u-1')).rejects.toThrow(NotFoundException);
     });
 
-    it('saves and returns the planned expense', async () => {
+    it('guarda el gasto planificado cuando cabe en los ingresos esperados menos los ahorros', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
-      mockExpenseRepo.add.mockResolvedValue(makeExpense());
+      plannedTotals(1000000, 200000, 300000); // quedan 500.000 por planificar
 
       const result = await service.addPlan(dto as never, 'user-1');
-      expect(mockExpenseRepo.add).toHaveBeenCalledTimes(1);
-      expect(result.id).toBe('exp-1');
+
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
+        'budget-1',
+      ]);
+      expect(mockManager.save).toHaveBeenCalledTimes(1);
+      expect(result.name).toBe('Netflix');
+    });
+
+    it('no guarda un gasto planificado que supera lo que queda tras separar los ahorros', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      plannedTotals(1000000, 800000, 100000); // quedan 100.000 y el gasto es de 150.000
+
+      await expect(
+        service.addPlan({ ...dto, expectedAmount: 150000 } as never, 'user-1'),
+      ).rejects.toThrow(/supera lo que te queda por planificar: \$100\.000,00/);
+      expect(mockManager.save).not.toHaveBeenCalled();
+    });
+
+    it('no guarda un gasto planificado si el presupuesto no tiene ingresos esperados', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      plannedTotals(0, 0, 0);
+
+      await expect(service.addPlan(dto as never, 'user-1')).rejects.toThrow(
+        'Aún no tienes ingresos esperados en este presupuesto.',
+      );
+      expect(mockManager.save).not.toHaveBeenCalled();
+    });
+
+    it('un gasto planificado cancelado no se valida contra los ingresos', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+
+      await service.addPlan({ ...dto, status: PlannedExpenseStatus.CANCELED } as never, 'user-1');
+
+      expect(mockQuery.getRawOne).not.toHaveBeenCalled();
+      expect(mockManager.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -162,19 +228,36 @@ describe('ExpenseService', () => {
     it('creates transaction and returns it', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-1', amount: 30000 });
+      mockManager.save.mockResolvedValue({ id: 'tx-1', amount: 30000 });
 
       const result = await service.createUnplannedExpense(baseData);
       expect(result.transaction.id).toBe('tx-1');
     });
 
+    it('bloquea el presupuesto y rechaza el gasto si supera el saldo disponible', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+        income: 100000,
+        expense: 60000,
+        savings: 20000,
+      });
+
+      await expect(service.createUnplannedExpense(baseData)).rejects.toThrow(
+        /Saldo insuficiente: tu saldo disponible es \$20\.000,00\./,
+      );
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
+        'budget-1',
+      ]);
+      expect(mockManager.save).not.toHaveBeenCalled();
+    });
+
     it('uses trimmed description as source when provided', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-2' });
-
       await service.createUnplannedExpense({ ...baseData, description: '  Taxi  ' });
-      expect(mockTransactionRepo.save).toHaveBeenCalledWith(
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ source: 'Taxi', description: 'Taxi' }),
       );
     });
@@ -182,10 +265,9 @@ describe('ExpenseService', () => {
     it('uses default source when description is not provided', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
-      mockTransactionRepo.save.mockResolvedValue({ id: 'tx-3' });
-
       await service.createUnplannedExpense(baseData);
-      expect(mockTransactionRepo.save).toHaveBeenCalledWith(
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ source: 'Gasto no planificado' }),
       );
     });
@@ -243,6 +325,28 @@ describe('ExpenseService', () => {
       expect(updateCallArg.name).toBe('Actualizado');
     });
 
+    it('rechaza subir el monto de un gasto planificado por encima de lo que queda por planificar', async () => {
+      mockExpenseRepo.findById.mockResolvedValue(makeExpense({ expectedAmount: 50000 }));
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      plannedTotals(1000000, 800000, 100000); // sin contar este gasto quedan 100.000
+
+      await expect(
+        service.updatePlannedExpense('exp-1', 'user-1', { expectedAmount: 300000 }),
+      ).rejects.toThrow(/supera lo que te queda por planificar: \$100\.000,00/);
+      expect(mockExpenseRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('permite bajar el monto de un gasto planificado sin validar los ingresos', async () => {
+      mockExpenseRepo.findById.mockResolvedValue(makeExpense({ expectedAmount: 50000 }));
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockExpenseRepo.update.mockResolvedValue(makeExpense({ expectedAmount: 20000 }));
+
+      await service.updatePlannedExpense('exp-1', 'user-1', { expectedAmount: 20000 });
+
+      expect(mockQuery.getRawOne).not.toHaveBeenCalled();
+      expect(mockExpenseRepo.update).toHaveBeenCalledTimes(1);
+    });
+
     it('returns updated expense', async () => {
       mockExpenseRepo.findById.mockResolvedValue(makeExpense());
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
@@ -250,6 +354,47 @@ describe('ExpenseService', () => {
 
       const result = await service.updatePlannedExpense('exp-1', 'user-1', { name: 'Actualizado' });
       expect(result.name).toBe('Actualizado');
+    });
+  });
+
+  // ─── completePlannedExpense ────────────────────────────────────────────────
+  describe('completePlannedExpense', () => {
+    const arrange = () => {
+      mockExpenseRepo.findById.mockResolvedValue(makeExpense({ expectedAmount: 50000 }));
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockAccountRepo.findPrimaryByUserId.mockResolvedValue({ id: 'acc-1' });
+      mockManager.findOne.mockResolvedValue(makeExpense({ status: PlannedExpenseStatus.PAID }));
+    };
+
+    it('paga el gasto y registra la transacción con el presupuesto bloqueado', async () => {
+      arrange();
+
+      const result = await service.completePlannedExpense('exp-1', 'user-1');
+
+      expect(mockManager.query).toHaveBeenCalledWith(expect.stringContaining('FOR NO KEY UPDATE'), [
+        'budget-1',
+      ]);
+      expect(result.plannedExpense.status).toBe(PlannedExpenseStatus.PAID);
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ amount: 50000, type: 'expense' }),
+      );
+    });
+
+    it('no paga el gasto si supera el saldo disponible', async () => {
+      arrange();
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+        income: 100000,
+        expense: 60000,
+        savings: 20000,
+      });
+
+      await expect(service.completePlannedExpense('exp-1', 'user-1')).rejects.toThrow(
+        /Saldo insuficiente: tu saldo disponible es \$20\.000,00\./,
+      );
+      expect(mockManager.save).not.toHaveBeenCalled();
+      expect(mockManager.update).not.toHaveBeenCalled();
     });
   });
 

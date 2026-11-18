@@ -17,6 +17,7 @@ import { FinancesRepository } from '@/modules/api/modules/finances/domain/reposi
 import { assertSufficientBalance } from '@/modules/api/modules/transactions/domain/budget-balance';
 import { TransactionRepository } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 import { GoalSummary } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
+import { lockBudgetRow } from '@/modules/api/modules/transactions/infrastructure/budget-lock';
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 
 import { GoalHistory } from '../../domain/goal-history';
@@ -258,7 +259,7 @@ export class GoalsService {
     //    meta, o no se guarda nada. Se bloquea la fila del presupuesto para que dos aportes
     //    simultáneos no lean el mismo saldo (el segundo espera y ve el saldo ya descontado).
     return await this.dataSource.transaction(async (manager) => {
-      await manager.query('SELECT id FROM budgets WHERE id = $1 FOR UPDATE', [budgetId]);
+      await lockBudgetRow(manager, budgetId);
 
       // 4.1 El aporte no puede superar el saldo disponible del presupuesto.
       //     Los intereses (tipo 'interest') no suman ni restan al saldo.

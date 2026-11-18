@@ -25,17 +25,28 @@ export const assertSufficientBalance = (totals: BudgetTotals, amount: number): v
   }
 };
 
+export interface PlannedBudgetTotals {
+  /** Ingresos esperados (no omitidos) del presupuesto */
+  income: number;
+  /** Ahorros planificados (no omitidos) del presupuesto */
+  savings: number;
+  /** Gastos planificados vigentes (pendientes o pagados) del presupuesto */
+  expenses: number;
+}
+
 /**
- * Los gastos no se bloquean (ya ocurrieron): si superan el Disponible solo se advierte.
- * Devuelve el aviso, o null si el gasto cabe en el saldo disponible.
+ * Un gasto planificado debe caber en los ingresos esperados una vez separados los ahorros:
+ * disponible para planificar = ingresos esperados - ahorros planificados - gastos ya planificados.
  */
-export const getBalanceWarning = (totals: BudgetTotals, amount: number): string | null => {
+export const assertPlannedExpenseFits = (totals: PlannedBudgetTotals, amount: number): void => {
   if (totals.income <= 0) {
-    return 'Aún no has registrado ingresos en este presupuesto.';
+    throw new BadRequestException('Aún no tienes ingresos esperados en este presupuesto.');
   }
-  const available = totals.income - totals.expense - totals.savings;
-  if (amount > available) {
-    return `Este gasto supera tu saldo disponible de ${formatBalance(Math.max(available, 0))}.`;
+  const room = totals.income - totals.savings - totals.expenses;
+  if (amount > room) {
+    throw new BadRequestException(
+      `Este gasto supera lo que te queda por planificar: ${formatBalance(Math.max(room, 0))} ` +
+        '(ingresos esperados menos ahorros y gastos ya planificados).',
+    );
   }
-  return null;
 };
