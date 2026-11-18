@@ -5,6 +5,8 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
@@ -15,6 +17,7 @@ import { FinancesRepository } from '@/modules/api/modules/finances/domain/reposi
 import { assertSufficientBalance } from '@/modules/api/modules/transactions/domain/budget-balance';
 import { TransactionRepository } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
 import { GoalSummary } from '@/modules/api/modules/transactions/domain/repositories/transaction.repository';
+import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 
 import { GoalHistory } from '../../domain/goal-history';
 import { GoalHistoryRepository } from '../../domain/repositories/goal-history.repository';
@@ -22,9 +25,13 @@ import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { PlannedSavingRepository } from '../../domain/repositories/planned.repository';
 import { GoalStatus, SavingGoal } from '../../domain/savings-goals';
 import { PlannedSaving, PlannedSavingStatus } from '../../domain/savings-planned';
+import { GoalHistoryEntity } from '../../infrastructure/database/entities/goal-history.entity';
+import { SavingGoalEntity } from '../../infrastructure/database/entities/saving-goals.entity';
+import { PlannedSavingEntity } from '../../infrastructure/database/entities/saving-planned.entity';
 import { CreateContributionDto } from '../../infrastructure/dto/create-contribution.dto';
 import { UpdateGoalDto } from '../../infrastructure/dto/update-goal.dto';
 import { UpdateGoalStatusDto } from '../../infrastructure/dto/update-goal-status.dto';
+import { PlannedSavingMapper } from '../../infrastructure/mapper/planned.mapper';
 
 @Injectable()
 export class GoalsService {
@@ -39,6 +46,7 @@ export class GoalsService {
     @Inject('TransactionRepository') private transactionRepository: TransactionRepository,
     @Inject('CategoryRepository') private categoryRepository: CategoryRepository,
     private readonly logger: LoggerProviderService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
   async create(data: SavingGoal): Promise<SavingGoal> {
     this.logger.info(this.context, 'Creating saving goals');
@@ -238,89 +246,90 @@ export class GoalsService {
       throw new NotFoundException(`No budget found for ${budgetMonth}/${budgetYear}`);
     }
 
-    // 3.1 El aporte no puede superar el saldo disponible del presupuesto.
-    //     Los intereses (tipo 'interest') no suman ni restan al saldo.
-    const totals = await this.transactionRepository.getBudgetTotals(budget.id as string);
-    assertSufficientBalance(totals, dto.amount);
-
-    // 3.2 Ahorro planificado pendiente más antiguo de esta meta en el mes:
-    //     - si el aporte lo cubre (monto >= plan), ese plan se completa (no se duplica el ahorro)
-    //     - si es parcial, se crea la fila completada y el plan queda pendiente solo por el resto,
-    //       así el objetivo del mes no se infla
-    const budgetPlans = await this.plannedSavingRepository.findByBudget(budget.id as string);
-    const pendingPlan = budgetPlans
-      .filter((plan) => plan.savingGoalId === goalId && plan.status === PlannedSavingStatus.PENDING)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-    const pendingPlanAmount = Number(pendingPlan?.amount ?? 0);
-    const coveredPlan = pendingPlan && dto.amount >= pendingPlanAmount ? pendingPlan : undefined;
-    const partialPlan = pendingPlan && !coveredPlan ? pendingPlan : undefined;
-
-    // 4. Completar el plan cubierto o crear el PlannedSaving con status COMPLETED
-    const contributionData = {
-      savingGoalId: goalId,
-      budgetId: budget.id,
-      accountId: originAccountId,
-      amount: dto.amount,
-      date: new Date(dto.date),
-      status: PlannedSavingStatus.COMPLETED,
-      completedAt: new Date(),
-    };
-    const plannedSaving = coveredPlan
-      ? // El plan queda con lo realmente aportado: los avances de las metas suman los planes completados
-        ((await this.plannedSavingRepository.update(coveredPlan.id, contributionData)) ??
-        (await this.plannedSavingRepository.save(contributionData)))
-      : await this.plannedSavingRepository.save(contributionData);
-
-    if (partialPlan) {
-      // Se guarda primero la fila completada: si esto fallara, el objetivo queda alto pero no se pierde ahorro
-      const remaining = Math.round((pendingPlanAmount - dto.amount) * 100) / 100;
-      await this.plannedSavingRepository.update(partialPlan.id, { amount: remaining });
+    // La categoría se resuelve antes de bloquear nada: sin ella el aporte no restaría del Disponible
+    const savingsCategory = await this.categoryRepository.findByType(CategoryType.SAVINGS);
+    if (!savingsCategory) {
+      throw new NotFoundException('Savings category not found');
     }
 
-    // 5. Crear transacción de tipo ahorro (no bloquea el flujo si falla)
-    try {
-      const category = await this.categoryRepository.findByType(CategoryType.SAVINGS);
-      if (category) {
-        await this.transactionRepository.save({
-          type: 'savings' as const,
-          amount: dto.amount,
-          source: goal.name,
-          userId,
-          budgetId: budget.id,
-          categoryId: category.id,
-          accountId: goal.accountId ?? undefined,
-          toAccountId: goal.accountId ?? undefined,
-          transactionDate: new Date(dto.date),
+    const budgetId = budget.id as string;
+
+    // 4. Todo el aporte es atómico: o se guardan juntos la transacción de ahorro, el plan y la
+    //    meta, o no se guarda nada. Se bloquea la fila del presupuesto para que dos aportes
+    //    simultáneos no lean el mismo saldo (el segundo espera y ve el saldo ya descontado).
+    return await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM budgets WHERE id = $1 FOR UPDATE', [budgetId]);
+
+      // 4.1 El aporte no puede superar el saldo disponible del presupuesto.
+      //     Los intereses (tipo 'interest') no suman ni restan al saldo.
+      const totals = await this.transactionRepository.getBudgetTotals(budgetId, manager);
+      assertSufficientBalance(totals, dto.amount);
+
+      // 4.2 Ahorro planificado pendiente más antiguo de esta meta en el mes:
+      //     - si el aporte lo cubre (monto >= plan), ese plan se completa (no se duplica el ahorro)
+      //     - si es parcial, se crea la fila completada y el plan queda pendiente solo por el resto,
+      //       así el objetivo del mes no se infla
+      const [pendingPlan] = await manager.find(PlannedSavingEntity, {
+        where: { budgetId, savingGoalId: goalId, status: PlannedSavingStatus.PENDING },
+        order: { date: 'ASC' },
+        take: 1,
+      });
+      const pendingPlanAmount = Number(pendingPlan?.amount ?? 0);
+      const coveredPlan = pendingPlan && dto.amount >= pendingPlanAmount ? pendingPlan : undefined;
+      const partialPlan = pendingPlan && !coveredPlan ? pendingPlan : undefined;
+
+      // 4.3 Completar el plan cubierto (queda con lo realmente aportado: los avances de las metas
+      //     suman los planes completados) o crear el PlannedSaving con status COMPLETED
+      const savedPlan = await manager.save(
+        PlannedSavingMapper.toEntity({
+          id: coveredPlan?.id,
           savingGoalId: goalId,
-        });
-      }
-    } catch (err) {
-      this.logger.warn(
-        this.context,
-        `Failed to create savings transaction for goal ${goalId}: ${(err as Error).message}`,
+          budgetId,
+          accountId: originAccountId,
+          amount: dto.amount,
+          date: new Date(dto.date),
+          status: PlannedSavingStatus.COMPLETED,
+          completedAt: new Date(),
+        }),
       );
-    }
 
-    // 6. El primer aporte activa la meta: SCHEDULED → IN_PROGRESS (no bloquea el flujo si falla)
-    if (goal.status === GoalStatus.SCHEDULED) {
-      try {
-        await this.goalsRepository.update(goalId, userId, { status: GoalStatus.IN_PROGRESS });
-        await this.historyRepository.add({
+      if (partialPlan) {
+        const remaining = Math.round((pendingPlanAmount - dto.amount) * 100) / 100;
+        await manager.update(PlannedSavingEntity, partialPlan.id, { amount: remaining });
+      }
+
+      // 4.4 Transacción de ahorro: es la que descuenta el aporte del Disponible
+      await manager.save(TransactionEntity, {
+        type: 'savings' as const,
+        amount: dto.amount,
+        source: goal.name,
+        userId,
+        budgetId,
+        categoryId: savingsCategory.id,
+        accountId: goal.accountId ?? undefined,
+        toAccountId: goal.accountId ?? undefined,
+        transactionDate: new Date(dto.date),
+        savingGoalId: goalId,
+      });
+
+      // 4.5 El primer aporte activa la meta: SCHEDULED → IN_PROGRESS
+      if (goal.status === GoalStatus.SCHEDULED) {
+        await manager.update(
+          SavingGoalEntity,
+          { id: goalId, userId },
+          { status: GoalStatus.IN_PROGRESS },
+        );
+        await manager.save(GoalHistoryEntity, {
           goalId,
           userId,
           field: 'status',
           oldValue: GoalStatus.SCHEDULED,
           newValue: GoalStatus.IN_PROGRESS,
         });
-      } catch (err) {
-        this.logger.warn(
-          this.context,
-          `Failed to move goal ${goalId} to IN_PROGRESS: ${(err as Error).message}`,
-        );
       }
-    }
 
-    return plannedSaving;
+      return PlannedSavingMapper.toDomain(savedPlan);
+    });
   }
 
   async registerGoalInterest(

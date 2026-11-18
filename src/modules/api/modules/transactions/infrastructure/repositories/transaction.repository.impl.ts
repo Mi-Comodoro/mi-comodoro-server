@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
+  EntityManager,
   FindOptionsWhere,
   In,
   IsNull,
@@ -105,8 +106,12 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     };
   }
 
-  async getBudgetTotals(budgetId: string): Promise<BudgetTotals> {
-    const rows = await this.transactionRepository
+  async getBudgetTotals(budgetId: string, manager?: EntityManager): Promise<BudgetTotals> {
+    // Con un manager la suma se lee dentro de la transacción que ya bloqueó el presupuesto
+    const repository = manager
+      ? manager.getRepository(TransactionEntity)
+      : this.transactionRepository;
+    const rows = await repository
       .createQueryBuilder('t')
       .select('t.type', 'type')
       .addSelect('COALESCE(SUM(t.amount), 0)', 'total')

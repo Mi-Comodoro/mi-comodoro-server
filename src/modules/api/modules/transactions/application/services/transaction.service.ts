@@ -11,7 +11,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
-import { assertSufficientBalance } from '../../domain/budget-balance';
+import { getBalanceWarning } from '../../domain/budget-balance';
 import { TransactionRepository } from '../../domain/repositories/transaction.repository';
 import { Transaction, TransactionFilters } from '../../domain/transaction';
 import { CreateManualTransactionDto } from '../../infrastructure/dto/create-manual-transaction.dto';
@@ -71,7 +71,10 @@ export class TransactionService {
     return await this.transactionRepository.findByBudget(budgetId, filters);
   }
 
-  async createManual(dto: CreateManualTransactionDto, userId: string): Promise<Transaction> {
+  async createManual(
+    dto: CreateManualTransactionDto,
+    userId: string,
+  ): Promise<Transaction & { balanceWarning?: string }> {
     this.logger.info(this.context, `Creating manual transaction for user: ${userId}`);
 
     // Validar que el budget existe y pertenece al usuario
@@ -113,10 +116,12 @@ export class TransactionService {
       throw new BadRequestException('Amount must be greater than 0');
     }
 
-    // Los gastos manuales no pueden superar el saldo disponible del presupuesto
+    // Un gasto ya ocurrió: si supera el saldo disponible no se bloquea, solo se advierte.
+    // (Los aportes a metas sí se bloquean: ver GoalsService.createContribution)
+    let balanceWarning: string | null = null;
     if (dto.type === 'expense') {
       const totals = await this.transactionRepository.getBudgetTotals(dto.budgetId);
-      assertSufficientBalance(totals, dto.amount);
+      balanceWarning = getBalanceWarning(totals, dto.amount);
     }
 
     // Crear la transacción
@@ -134,7 +139,7 @@ export class TransactionService {
 
     this.logger.info(this.context, `Manual transaction created: ${transaction.id}`);
 
-    return transaction;
+    return balanceWarning ? { ...transaction, balanceWarning } : transaction;
   }
 
   async updateTransaction(

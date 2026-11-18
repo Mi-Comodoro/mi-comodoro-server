@@ -202,30 +202,47 @@ describe('TransactionService', () => {
       expect(result.id).toBe('txn-1');
     });
 
-    it('rechaza el gasto cuando no hay ingresos registrados', async () => {
+    it('guarda el gasto y advierte cuando no hay ingresos registrados', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.save.mockResolvedValue(makeTransaction());
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({ income: 0, expense: 0, savings: 0 });
 
-      await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
-        'Aún no has registrado ingresos en este presupuesto.',
-      );
-      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+      const result = await service.createManual(baseDto as never, 'user-1');
+
+      expect(mockTransactionRepo.save).toHaveBeenCalledTimes(1);
+      expect(result.balanceWarning).toBe('Aún no has registrado ingresos en este presupuesto.');
     });
 
-    it('rechaza el gasto cuando supera el saldo disponible', async () => {
+    it('guarda el gasto y advierte cuando supera el saldo disponible', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.save.mockResolvedValue(makeTransaction());
       mockTransactionRepo.getBudgetTotals.mockResolvedValue({
         income: 100000,
         expense: 30000,
         savings: 30000,
       });
 
-      await expect(service.createManual(baseDto as never, 'user-1')).rejects.toThrow(
-        /Saldo insuficiente: tu saldo disponible es \$40\.000,00\./,
-      );
-      expect(mockTransactionRepo.save).not.toHaveBeenCalled();
+      const result = await service.createManual(baseDto as never, 'user-1');
+
+      expect(mockTransactionRepo.save).toHaveBeenCalledTimes(1);
+      expect(result.balanceWarning).toMatch(/supera tu saldo disponible de \$40\.000,00\./);
+    });
+
+    it('no advierte cuando el gasto cabe en el saldo disponible', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      mockCategoryRepo.findById.mockResolvedValue({ id: 'cat-1' });
+      mockTransactionRepo.save.mockResolvedValue(makeTransaction());
+      mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+        income: 1000000,
+        expense: 0,
+        savings: 0,
+      });
+
+      const result = await service.createManual(baseDto as never, 'user-1');
+
+      expect(result.balanceWarning).toBeUndefined();
     });
 
     it('no valida el saldo para transacciones de ingreso', async () => {

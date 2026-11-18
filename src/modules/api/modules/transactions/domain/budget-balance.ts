@@ -24,3 +24,18 @@ export const assertSufficientBalance = (totals: BudgetTotals, amount: number): v
     );
   }
 };
+
+/**
+ * Los gastos no se bloquean (ya ocurrieron): si superan el Disponible solo se advierte.
+ * Devuelve el aviso, o null si el gasto cabe en el saldo disponible.
+ */
+export const getBalanceWarning = (totals: BudgetTotals, amount: number): string | null => {
+  if (totals.income <= 0) {
+    return 'Aún no has registrado ingresos en este presupuesto.';
+  }
+  const available = totals.income - totals.expense - totals.savings;
+  if (amount > available) {
+    return `Este gasto supera tu saldo disponible de ${formatBalance(Math.max(available, 0))}.`;
+  }
+  return null;
+};
