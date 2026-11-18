@@ -39,11 +39,23 @@ const mockDataSource = {
 };
 
 // Totales planificados del presupuesto, en el orden en que se consultan
-const plannedTotals = (income: number, savings: number, expenses: number) => {
+const plannedTotals = (
+  income: number,
+  savings: number,
+  expenses: number,
+  { pending = 0, available = 0 }: { pending?: number; available?: number } = {},
+) => {
   mockQuery.getRawOne
     .mockResolvedValueOnce({ total: String(income) })
     .mockResolvedValueOnce({ total: String(savings) })
-    .mockResolvedValueOnce({ total: String(expenses) });
+    .mockResolvedValueOnce({ total: String(expenses) })
+    .mockResolvedValueOnce({ total: String(pending) });
+  // Saldo disponible real = ingresos - gastos - ahorros registrados
+  mockTransactionRepo.getBudgetTotals.mockResolvedValue({
+    income: available,
+    expense: 0,
+    savings: 0,
+  });
 };
 const mockLogger = {
   log: jest.fn(),
@@ -145,14 +157,42 @@ describe('ExpenseService', () => {
       expect(mockManager.save).not.toHaveBeenCalled();
     });
 
-    it('no guarda un gasto planificado si el presupuesto no tiene ingresos esperados', async () => {
+    it('no guarda un gasto planificado si no hay ingresos esperados ni saldo disponible', async () => {
       mockBudgetRepo.findById.mockResolvedValue(makeBudget());
       plannedTotals(0, 0, 0);
 
       await expect(service.addPlan(dto as never, 'user-1')).rejects.toThrow(
-        'Aún no tienes ingresos esperados en este presupuesto.',
+        'Aún no tienes ingresos esperados ni saldo disponible para planificar gastos.',
       );
       expect(mockManager.save).not.toHaveBeenCalled();
+    });
+
+    it('permite planificar con el saldo disponible aunque no haya ingresos esperados', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      plannedTotals(0, 0, 0, { available: 80000 });
+
+      await service.addPlan(dto as never, 'user-1'); // 50.000 caben en 80.000
+
+      expect(mockManager.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('con saldo disponible descuenta lo ya planificado y sin pagar', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      plannedTotals(0, 0, 60000, { pending: 60000, available: 80000 }); // quedan 20.000
+
+      await expect(service.addPlan(dto as never, 'user-1')).rejects.toThrow(
+        /te queda por planificar: \$20\.000,00/,
+      );
+    });
+
+    it('vale la opción con más holgura entre ingresos esperados y saldo disponible', async () => {
+      mockBudgetRepo.findById.mockResolvedValue(makeBudget());
+      // ingresos esperados dejan 0 (1.000.000 - 1.000.000) pero el saldo real alcanza
+      plannedTotals(1000000, 1000000, 0, { available: 200000 });
+
+      await service.addPlan(dto as never, 'user-1');
+
+      expect(mockManager.save).toHaveBeenCalledTimes(1);
     });
 
     it('un gasto planificado cancelado no se valida contra los ingresos', async () => {

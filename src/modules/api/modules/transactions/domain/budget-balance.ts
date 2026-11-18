@@ -32,21 +32,41 @@ export interface PlannedBudgetTotals {
   savings: number;
   /** Gastos planificados vigentes (pendientes o pagados) del presupuesto */
   expenses: number;
+  /** Saldo disponible real: ingresos - gastos - ahorros registrados */
+  available: number;
+  /** Gastos planificados aún sin pagar (los pagados ya descontaron el saldo disponible) */
+  pendingExpenses: number;
 }
 
 /**
- * Un gasto planificado debe caber en los ingresos esperados una vez separados los ahorros:
- * disponible para planificar = ingresos esperados - ahorros planificados - gastos ya planificados.
+ * Un gasto planificado se puede respaldar de dos formas, y vale la que más holgura dé:
+ * - con los ingresos esperados, una vez separados los ahorros y los gastos ya planificados;
+ * - con el saldo disponible, descontando lo que ya está planificado y sin pagar.
+ * Si no hay ni ingresos esperados ni saldo disponible, no se puede planificar.
  */
+export const getPlanningRoom = (totals: PlannedBudgetTotals): number | null => {
+  const hasExpected = totals.income > 0;
+  const hasBalance = totals.available > 0;
+  if (!hasExpected && !hasBalance) return null;
+
+  const fromExpected = hasExpected
+    ? totals.income - totals.savings - totals.expenses
+    : Number.NEGATIVE_INFINITY;
+  const fromBalance = totals.available - totals.pendingExpenses;
+  return Math.max(fromExpected, fromBalance);
+};
+
 export const assertPlannedExpenseFits = (totals: PlannedBudgetTotals, amount: number): void => {
-  if (totals.income <= 0) {
-    throw new BadRequestException('Aún no tienes ingresos esperados en este presupuesto.');
+  const room = getPlanningRoom(totals);
+  if (room === null) {
+    throw new BadRequestException(
+      'Aún no tienes ingresos esperados ni saldo disponible para planificar gastos.',
+    );
   }
-  const room = totals.income - totals.savings - totals.expenses;
   if (amount > room) {
     throw new BadRequestException(
       `Este gasto supera lo que te queda por planificar: ${formatBalance(Math.max(room, 0))} ` +
-        '(ingresos esperados menos ahorros y gastos ya planificados).',
+        '(tus ingresos esperados menos ahorros y gastos planificados, o tu saldo disponible).',
     );
   }
 };

@@ -12,6 +12,7 @@ import { PlannedSavingEntity } from '../../../savings/infrastructure/database/en
 import {
   assertPlannedExpenseFits,
   assertSufficientBalance,
+  PlannedBudgetTotals,
 } from '../../../transactions/domain/budget-balance';
 import { TransactionRepository } from '../../../transactions/domain/repositories/transaction.repository';
 import { Transaction } from '../../../transactions/domain/transaction';
@@ -40,8 +41,13 @@ export class ExpenseService {
     private readonly logger: LoggerProviderService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
-  // Ingresos esperados, ahorros planificados y gastos planificados vigentes del presupuesto
-  private async getPlannedTotals(manager: EntityManager, budgetId: string, excludeId?: string) {
+  // Con qué se puede respaldar un gasto planificado: ingresos esperados, ahorros, gastos ya
+  // planificados y saldo disponible real del presupuesto
+  private async getPlannedTotals(
+    manager: EntityManager,
+    budgetId: string,
+    excludeId?: string,
+  ): Promise<PlannedBudgetTotals> {
     const sum = async (
       entity: typeof PlannedIncomeEntity | typeof PlannedSavingEntity | typeof PlannedExpenseEntity,
       column: string,
@@ -57,13 +63,23 @@ export class ExpenseService {
       return Number(row?.total ?? 0);
     };
 
+    const income = await sum(PlannedIncomeEntity, 'amount', ['PENDING', 'RECEIVED']);
+    const savings = await sum(PlannedSavingEntity, 'amount', ['pending', 'completed']);
+    const expenses = await sum(PlannedExpenseEntity, 'expectedAmount', [
+      PlannedExpenseStatus.PLANNED,
+      PlannedExpenseStatus.PAID,
+    ]);
+    const pendingExpenses = await sum(PlannedExpenseEntity, 'expectedAmount', [
+      PlannedExpenseStatus.PLANNED,
+    ]);
+    const real = await this.transactionRepository.getBudgetTotals(budgetId, manager);
+
     return {
-      income: await sum(PlannedIncomeEntity, 'amount', ['PENDING', 'RECEIVED']),
-      savings: await sum(PlannedSavingEntity, 'amount', ['pending', 'completed']),
-      expenses: await sum(PlannedExpenseEntity, 'expectedAmount', [
-        PlannedExpenseStatus.PLANNED,
-        PlannedExpenseStatus.PAID,
-      ]),
+      income,
+      savings,
+      expenses,
+      pendingExpenses,
+      available: real.income - real.expense - real.savings,
     };
   }
 
