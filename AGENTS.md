@@ -7,6 +7,13 @@
 - Verificar versión activa: `node --version`
 - Cambiar con nvm: `nvm use` (lee .nvmrc automáticamente)
 
+## Agentes y skills
+
+- La fuente de verdad versionada es `.agents/` (`.agents/agents/*.md` y `.agents/skills/`), para que cualquier agente externo (Codex, Cursor, Claude Code...) los lea.
+- Claude Code solo carga subagentes desde `.claude/`. Se copian automáticamente con `pnpm install` (script `prepare`) o a mano con `pnpm agents:sync`. `.claude/agents` y `.claude/skills` están en `.gitignore`: **edita siempre `.agents/`, nunca la copia**.
+- ❌ No usar junctions ni symlinks entre `.claude` y `.agents`: un checkout/rebase puede borrar los archivos reales a través del enlace.
+- `.claude/settings.json` (versionado) desactiva la atribución de Claude en commits y PRs.
+
 ## Stack y versiones actuales
 
 | Tecnología   | Versión  |
