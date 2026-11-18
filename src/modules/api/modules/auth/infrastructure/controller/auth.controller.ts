@@ -38,7 +38,8 @@ export class AuthController {
   ) {}
 
   @Post('/signup')
-  @Throttle({ short: { ttl: 60_000, limit: 5 } })
+  // Se cuenta por IP (aún no hay usuario): el BFF atiende a todos, así que el cupo no puede ser mínimo
+  @Throttle({ short: { ttl: 60_000, limit: 20 } })
   @ApiOperation({ summary: 'Registrar un nuevo usuario local' })
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
@@ -65,6 +66,7 @@ export class AuthController {
   }
 
   @Post('/signin')
+  // Se cuenta por correo: 5 intentos por minuto y por cuenta, sin bloquear a los demás usuarios
   @Throttle({ short: { ttl: 60_000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con email y contrasena' })
@@ -77,7 +79,7 @@ export class AuthController {
   }
 
   @Post('/google')
-  @Throttle({ short: { ttl: 60_000, limit: 10 } })
+  @Throttle({ short: { ttl: 60_000, limit: 30 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
