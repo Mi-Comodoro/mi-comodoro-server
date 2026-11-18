@@ -434,7 +434,8 @@ export class FinancialHealthService {
     );
     const { score: expenseScore, excessPct: expensesExcessPct } = this.calcExpenses(
       totalExpenses,
-      plannedExpenseTotal,
+      totalIncome,
+      totalSavings,
     );
 
     this.logger.info(
@@ -494,23 +495,33 @@ export class FinancialHealthService {
     return { score, rate: Math.round(rate * 100) / 100 };
   }
 
+  /**
+   * Control de gastos medido contra el saldo disponible para gastar
+   * (ingresos reales − ahorros reales), no contra los gastos planificados:
+   * un gasto espontáneo no debe hundir el puntaje de quien no planifica.
+   * Gastos ≤ 70% del gastable: 25 · ≤ 90%: 18 · ≤ 100%: 10 · más de lo gastable: 0.
+   * `excessPct` es el porcentaje gastado por encima de lo gastable.
+   */
   private calcExpenses(
     actualExpenses: number,
-    plannedExpenses: number,
+    income: number,
+    savings: number,
   ): { score: number; excessPct: number } {
-    if (plannedExpenses === 0 && actualExpenses === 0) return { score: 25, excessPct: 0 };
-    if (plannedExpenses === 0 && actualExpenses > 0) return { score: 0, excessPct: 100 };
+    if (actualExpenses <= 0) return { score: 25, excessPct: 0 };
 
-    const excess = Math.max(0, actualExpenses - plannedExpenses);
-    const excessPct = (excess / plannedExpenses) * 100;
+    const spendable = income - savings;
+    if (spendable <= 0) return { score: 0, excessPct: 100 };
+
+    const usagePct = (actualExpenses / spendable) * 100;
+    const excessPct = Math.max(0, Math.round((usagePct - 100) * 100) / 100);
 
     let score: number;
-    if (excessPct === 0) score = 25;
-    else if (excessPct <= 10) score = 15;
-    else if (excessPct <= 25) score = 8;
+    if (usagePct <= 70) score = 25;
+    else if (usagePct <= 90) score = 18;
+    else if (usagePct <= 100) score = 10;
     else score = 0;
 
-    return { score, excessPct: Math.round(excessPct * 100) / 100 };
+    return { score, excessPct };
   }
 
   private calcDti(totalDebt: number, avgMonthlyIncome: number): number {
@@ -617,10 +628,10 @@ export class FinancialHealthService {
   }
 
   private expensesLabel(score: number): string {
-    if (score >= 25) return 'Dentro del plan';
-    if (score >= 15) return 'Ligeramente sobre';
-    if (score >= 8) return 'Sobre el plan';
-    return 'Muy sobre el plan';
+    if (score >= 25) return 'Holgado';
+    if (score >= 18) return 'Controlado';
+    if (score >= 10) return 'Al límite';
+    return 'Sobre tu saldo';
   }
 
   private debtLabel(score: number): string {
