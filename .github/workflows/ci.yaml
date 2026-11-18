@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+# Una sola ejecución por PR: si llega un commit nuevo se cancela la anterior
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    # Runner de GitHub a propósito: el repo es público y el runner propio ([self-hosted])
+    # solo se usa para desplegar, nunca para ejecutar código de un PR.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm exec eslint "src/**/*.ts"
+
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+
+      - name: Pruebas
+        run: pnpm test:ci
+
+      - name: Compilar
+        run: pnpm build
