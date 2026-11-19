@@ -1,4 +1,9 @@
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -8,6 +13,7 @@ import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
+import { ConsentService } from '../../../legal/application/services/consent.service';
 import { UserRole } from '../../../users/domain/user-role.enum';
 import { AuthService } from '../auth.service';
 
@@ -60,6 +66,10 @@ const mockJwtProvider = {
 };
 const mockJwtService = { decode: jest.fn().mockReturnValue({ exp: 9999999999 }) };
 const mockSystemConfig = { getNumber: jest.fn().mockResolvedValue(14) };
+const mockConsentService = {
+  assertAcceptedForRegistration: jest.fn(),
+  recordAcceptance: jest.fn(),
+};
 
 const makeUser = (overrides = {}) => ({
   id: 'user-1',
@@ -88,6 +98,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: SystemConfigService, useValue: mockSystemConfig },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: ConsentService, useValue: mockConsentService },
       ],
     }).compile();
 
@@ -128,6 +139,45 @@ describe('AuthService', () => {
       expect(mockProfileRepo.save).toHaveBeenCalledTimes(1);
       expect(result.token).toBe('signed-jwt-token');
       expect(result.onboarding).toBe('PENDING');
+    });
+
+    describe('autorización de tratamiento de datos', () => {
+      const arrange = () => {
+        mockUserRepo.findByEmail.mockResolvedValue(null);
+        mockUserRepo.save.mockResolvedValue(makeUser({ id: 'new-user-id' }));
+        mockProfileRepo.save.mockResolvedValue({
+          id: 'new-profile-id',
+          accountType: AccountType.TRIAL,
+          trialEndsAt: null,
+        });
+      };
+
+      it('valida la autorización antes de crear la cuenta', async () => {
+        arrange();
+        mockConsentService.assertAcceptedForRegistration.mockImplementationOnce(() => {
+          throw new BadRequestException('Debes aceptar la Política');
+        });
+
+        await expect(
+          service.signup({ ...signupData, acceptedPolicyVersion: undefined }),
+        ).rejects.toThrow(BadRequestException);
+        expect(mockUserRepo.save).not.toHaveBeenCalled();
+        expect(mockProfileRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('graba la evidencia con la IP y el dispositivo al crear la cuenta', async () => {
+        arrange();
+
+        await service.signup({ ...signupData, acceptedPolicyVersion: '2.0' }, 'Mozilla/5.0', {
+          ip: '203.0.113.9',
+        });
+
+        expect(mockConsentService.assertAcceptedForRegistration).toHaveBeenCalledWith('2.0');
+        expect(mockConsentService.recordAcceptance).toHaveBeenCalledWith('new-user-id', '2.0', {
+          ip: '203.0.113.9',
+          userAgent: 'Mozilla/5.0',
+        });
+      });
     });
 
     it('uses TRIAL account type by default', async () => {

@@ -4,6 +4,7 @@ import { SeedPlans20260610000002 } from './migrations/20260610000002-SeedPlans';
 import { AddCustomBucketsToBudget20260610000003 } from './migrations/20260610000003-AddCustomBucketsToBudget';
 import { AddCustomBucketIdToPlannedExpense20260610000004 } from './migrations/20260610000004-AddCustomBucketIdToPlannedExpense';
 import { AddTimezoneToUsers20260610000005 } from './migrations/20260610000005-AddTimezoneToUsers';
+import { AddUserConsents20260610000006 } from './migrations/20260610000006-AddUserConsents';
 
 /**
  * Migraciones que la aplicación aplica al arrancar (cuando migrationsRun está activo).
@@ -17,4 +18,5 @@ export const MIGRATIONS = [
   AddCustomBucketsToBudget20260610000003,
   AddCustomBucketIdToPlannedExpense20260610000004,
   AddTimezoneToUsers20260610000005,
+  AddUserConsents20260610000006,
 ];

@@ -82,6 +82,16 @@ export class SignUpDto {
   usageType?: UsageEnum;
 
   @ApiPropertyOptional({
+    example: '2.0',
+    description:
+      'Versión de la Política de Tratamiento de Datos que la persona aceptó (obligatoria cuando LEGAL_CONSENT_REQUIRED está activo)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  acceptedPolicyVersion?: string;
+
+  @ApiPropertyOptional({
     example: FinancialProfileEnum.employee,
     description: 'Perfil financiero del usuario',
     enum: FinancialProfileEnum,

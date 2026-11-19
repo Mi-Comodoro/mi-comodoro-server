@@ -22,6 +22,7 @@ import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
+import { ConsentService } from '../../legal/application/services/consent.service';
 import { UserProfile } from '../../user-profile/domain/user-profile.entity';
 import { UserProfileRepository } from '../../user-profile/domain/user-profile.repository';
 import { User } from '../../users/domain/user.entity';
@@ -45,6 +46,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly systemConfigService: SystemConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly consentService: ConsentService,
   ) {
     if (!getApps().length) {
       initializeApp({
@@ -57,12 +59,18 @@ export class AuthService {
     }
   }
 
-  async signup(data: CreateUserProfile, userAgent?: string | null) {
+  async signup(
+    data: CreateUserProfile,
+    userAgent?: string | null,
+    context: { ip?: string | null } = {},
+  ) {
     this.logger.info(this.context, 'Creando usuario y perfil de usuario');
     const existingUser = await this.userRepository.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User already exists');
     } else {
+      // La autorización de tratamiento de datos es previa: sin ella no se crea la cuenta
+      this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
       const user: User = {
         id: randomUUID(),
         email: data.email,
@@ -101,6 +109,14 @@ export class AuthService {
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
+      await this.consentService.recordAcceptance(
+        userCreated.id as string,
+        data.acceptedPolicyVersion,
+        {
+          ip: context.ip,
+          userAgent,
+        },
+      );
       this.logger.info(this.context, `Registro completado para el usuario ${userCreated.id}`);
 
       const payload: JwtPayload = {
@@ -167,7 +183,11 @@ export class AuthService {
     return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
-  async loginWithGoogle(data: { idToken: string; name: string }, userAgent?: string | null) {
+  async loginWithGoogle(
+    data: { idToken: string; name: string; acceptedPolicyVersion?: string },
+    userAgent?: string | null,
+    context: { ip?: string | null } = {},
+  ) {
     this.logger.info(this.context, 'Google login attempt processed');
     let payload: JwtPayload;
     const response: {
@@ -186,6 +206,8 @@ export class AuthService {
     const decodedToken = await getAuth().verifyIdToken(idToken);
     const user = (await this.userRepository.findByEmail(decodedToken.email!)) as User;
     if (!user) {
+      // Cuenta nueva con Google: también requiere la autorización previa
+      this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
       this.logger.info(this.context, 'No user found for email, creating new user-profile');
       const userCreated = await this.userRepository.save({
         email: decodedToken.email!,
@@ -208,6 +230,11 @@ export class AuthService {
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
+      await this.consentService.recordAcceptance(
+        userCreated.id as string,
+        data.acceptedPolicyVersion,
+        { ip: context.ip, userAgent },
+      );
       response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;
       this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
