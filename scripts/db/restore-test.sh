@@ -6,7 +6,7 @@
 # Nunca toca la base de producción: crea y elimina "restore_test_<fecha>".
 #
 # Variables: las mismas de conexión que backup.sh y
-#   BACKUP_DIR   dónde buscar (por defecto /var/backups/mi-comodoro)
+#   BACKUP_DIR   dónde buscar (por defecto ~/backups/mi-comodoro)
 #   BACKUP_FILE  archivo concreto a probar; si no se indica se usa el más reciente
 #   COMPARE_DB   base de origen para comparar conteos de filas (opcional, por defecto la de conexión)
 #
@@ -19,7 +19,7 @@ PGUSER="${PGUSER:-${DB_USER:-postgres}}"
 SOURCE_DB="${COMPARE_DB:-${PGDATABASE:-${DB_NAME:-}}}"
 [ -n "${DB_PASSWORD:-}" ] && [ -z "${PGPASSWORD:-}" ] && export PGPASSWORD="$DB_PASSWORD"
 export PGHOST PGPORT PGUSER
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/mi-comodoro}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/backups/mi-comodoro}"
 
 log() { printf '%s [restore-test] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 

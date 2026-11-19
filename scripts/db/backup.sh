@@ -6,7 +6,7 @@
 # entorno. Nunca se imprime.
 #
 # Variables:
-#   BACKUP_DIR           destino local (por defecto /var/backups/mi-comodoro)
+#   BACKUP_DIR           destino local (por defecto ~/backups/mi-comodoro, sin necesitar sudo)
 #   RETENTION_DAYS       días que se conservan los respaldos locales (por defecto 14)
 #   BACKUP_OFFSITE_DEST  destino rclone para copiar fuera del servidor (p. ej. "b2:mi-bucket/db"); opcional
 #   BACKUP_PING_URL      URL a la que se avisa al terminar bien (healthchecks.io o similar); opcional
@@ -21,7 +21,7 @@ PGDATABASE="${PGDATABASE:-${DB_NAME:?Falta PGDATABASE o DB_NAME}}"
 [ -n "${DB_PASSWORD:-}" ] && [ -z "${PGPASSWORD:-}" ] && export PGPASSWORD="$DB_PASSWORD"
 export PGHOST PGPORT PGUSER PGDATABASE
 
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/mi-comodoro}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/backups/mi-comodoro}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 
 log() { printf '%s [backup] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }

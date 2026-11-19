@@ -25,46 +25,61 @@ miles de ellos, el siguiente paso es archivado continuo de WAL con recuperación
 
 ## 2. Instalación en el servidor (una sola vez)
 
-Se ejecuta con el usuario que corre el runner/aplicación (`jarvis`), no como `root`.
+Todo se hace con el usuario que corre el runner y la aplicación (`jarvis`) y **no necesita `sudo`**: los respaldos
+viven en `~/backups/mi-comodoro` (el directorio personal de ese usuario) y el cron es el del propio usuario.
+La única excepción posible es el paso 1, si `pg_dump` no estuviera instalado: lo instala una sola vez alguien con `sudo`.
 
 ```bash
-# 1) Herramientas: la versión de pg_dump debe ser igual o mayor que la del servidor de Postgres
+# 1) Herramientas: pg_dump debe ser de la misma versión que el servidor de Postgres, o mayor
 pg_dump --version && psql --version
-sudo apt-get install -y postgresql-client rclone   # si falta alguna
+#    Si faltan (única tarea que requiere un usuario con sudo):  sudo apt-get install -y postgresql-client
 
-# 2) Carpeta de respaldos, solo accesible por el dueño
-sudo mkdir -p /var/backups/mi-comodoro && sudo chown jarvis:jarvis /var/backups/mi-comodoro
-chmod 700 /var/backups/mi-comodoro
+# 2) rclone SIN sudo (binario en ~/bin) para la copia externa
+mkdir -p ~/bin && cd /tmp \
+  && curl -fsSLO https://downloads.rclone.org/rclone-current-linux-amd64.zip \
+  && unzip -o rclone-current-linux-amd64.zip \
+  && cp rclone-*-linux-amd64/rclone ~/bin/ && chmod +x ~/bin/rclone
+export PATH="$HOME/bin:$PATH" && rclone version
 
-# 3) Credenciales fuera del entorno: ~/.pgpass  (host:puerto:base:usuario:contraseña)
+# 3) Carpeta de respaldos, solo accesible por el dueño (el script también la crea)
+mkdir -p ~/backups/mi-comodoro && chmod 700 ~/backups/mi-comodoro
+
+# 4) Credenciales fuera del entorno: ~/.pgpass  (host:puerto:base:usuario:contraseña)
 echo "127.0.0.1:5432:NOMBRE_BASE:USUARIO:CONTRASEÑA" >> ~/.pgpass && chmod 600 ~/.pgpass
 
-# 4) Copia externa (ejemplo con rclone; Backblaze B2, S3, Google Drive, etc.)
+# 5) Copia externa (Backblaze B2, S3, Google Drive, etc.)
 rclone config                                   # crear el remoto, p. ej. "respaldos"
 ```
+
+Los scripts viajan con cada despliegue a `/var/www/intranet/mi-comodoro-server/scripts/db/` (el workflow los copia),
+así que el cron siempre usa la versión desplegada.
 
 Probar a mano **antes de programar nada**:
 
 ```bash
 cd /var/www/intranet/mi-comodoro-server
 export PGHOST=127.0.0.1 PGUSER=USUARIO PGDATABASE=NOMBRE_BASE
-BACKUP_OFFSITE_DEST="respaldos:mi-comodoro/db" scripts/db/backup.sh
-scripts/db/restore-test.sh        # restaura el más reciente en una base temporal y la borra
+BACKUP_OFFSITE_DEST="respaldos:mi-comodoro/db" bash scripts/db/backup.sh
+bash scripts/db/restore-test.sh   # restaura el más reciente en una base temporal y la borra
 ```
 
 La salida de `restore-test.sh` debe terminar en `RESTAURACIÓN OK` con conteos de filas iguales entre la
 base restaurada y la de origen.
 
-### Programación diaria (cron del usuario `jarvis`)
+### Programación diaria (cron del usuario `jarvis`: `crontab -e`, sin sudo)
 
 ```cron
+PATH=/home/jarvis/bin:/usr/local/bin:/usr/bin:/bin
 # Respaldo diario a las 03:00 (hora del servidor) y prueba de restauración los domingos a las 04:00
-0 3 * * *  cd /var/www/intranet/mi-comodoro-server && PGHOST=127.0.0.1 PGUSER=USUARIO PGDATABASE=NOMBRE_BASE BACKUP_OFFSITE_DEST="respaldos:mi-comodoro/db" BACKUP_PING_URL="https://hc-ping.com/TU-UUID" scripts/db/backup.sh >> /var/log/mi-comodoro-backup.log 2>&1
-0 4 * * 0  cd /var/www/intranet/mi-comodoro-server && PGHOST=127.0.0.1 PGUSER=USUARIO PGDATABASE=NOMBRE_BASE scripts/db/restore-test.sh >> /var/log/mi-comodoro-backup.log 2>&1
+0 3 * * *  cd /var/www/intranet/mi-comodoro-server && PGHOST=127.0.0.1 PGUSER=USUARIO PGDATABASE=NOMBRE_BASE BACKUP_OFFSITE_DEST="respaldos:mi-comodoro/db" BACKUP_PING_URL="https://hc-ping.com/TU-UUID" bash scripts/db/backup.sh >> $HOME/backups/mi-comodoro-backup.log 2>&1
+0 4 * * 0  cd /var/www/intranet/mi-comodoro-server && PGHOST=127.0.0.1 PGUSER=USUARIO PGDATABASE=NOMBRE_BASE bash scripts/db/restore-test.sh >> $HOME/backups/mi-comodoro-backup.log 2>&1
 ```
 
 `BACKUP_PING_URL` (opcional) permite un monitor tipo healthchecks.io: si el aviso diario **no llega**, el
 monitor alerta. Así un respaldo que deja de ejecutarse no pasa desapercibido.
+
+> Los respaldos locales están en el **mismo disco** que la base: por eso la copia externa (paso 5) no es opcional
+> en la práctica. Sin ella, un fallo del disco se lleva los datos y los respaldos a la vez.
 
 ## 3. Qué hace cada script
 
@@ -78,14 +93,14 @@ monitor alerta. Así un respaldo que deja de ejecutarse no pasa desapercibido.
 ## 4. Restaurar de verdad (incidente)
 
 1. **Parar escrituras**: `pm2 stop mi-comodoro-server` (y el frontend si se quiere mostrar mantenimiento).
-2. **Elegir el respaldo**: el más reciente en `/var/backups/mi-comodoro` o, si el disco se perdió, bajarlo de la copia externa
-   (`rclone copy respaldos:mi-comodoro/db/ARCHIVO.dump /var/backups/mi-comodoro/`) y verificar `sha256sum -c`.
+2. **Elegir el respaldo**: el más reciente en `~/backups/mi-comodoro` o, si el disco se perdió, bajarlo de la copia externa
+   (`rclone copy respaldos:mi-comodoro/db/ARCHIVO.dump ~/backups/mi-comodoro/`) y verificar `sha256sum -c`.
 3. **Si la base original sigue existiendo**, conservarla renombrada antes de tocar nada:
    `psql -d postgres -c 'ALTER DATABASE NOMBRE_BASE RENAME TO NOMBRE_BASE_viejo'` (requiere que no haya conexiones).
 4. **Restaurar** en una base nueva con el mismo nombre:
    ```bash
    psql -d postgres -c 'CREATE DATABASE NOMBRE_BASE'
-   pg_restore --no-owner --no-privileges --exit-on-error --dbname=NOMBRE_BASE /var/backups/mi-comodoro/ARCHIVO.dump
+   pg_restore --no-owner --no-privileges --exit-on-error --dbname=NOMBRE_BASE ~/backups/mi-comodoro/ARCHIVO.dump
    ```
 5. **Aplicar migraciones pendientes** si el respaldo es anterior a un despliegue: `pnpm migration:run`.
 6. **Arrancar** `pm2 start mi-comodoro-server` y comprobar `/api/v1/health` y un inicio de sesión.
@@ -97,7 +112,7 @@ monitor alerta. Así un respaldo que deja de ejecutarse no pasa desapercibido.
 | Qué | Cuándo | Evidencia |
 |---|---|---|
 | Primera prueba de restauración en el servidor | antes de abrir la beta | salida `RESTAURACIÓN OK` + RTO medido |
-| Prueba semanal automática (cron) | cada domingo | línea en `/var/log/mi-comodoro-backup.log` |
+| Prueba semanal automática (cron) | cada domingo | línea en `~/backups/mi-comodoro-backup.log` |
 | Alerta si falta el respaldo diario | continua | monitor (healthchecks.io o similar) |
 | Prueba manual completa de la sección 4 en un servidor de prueba | cada 6 meses | acta breve en Notion |
 

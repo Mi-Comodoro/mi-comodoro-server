@@ -51,6 +51,10 @@ jobs:
           cp pnpm-lock.yaml /var/www/intranet/mi-comodoro-server/
           cp pnpm-workspace.yaml /var/www/intranet/mi-comodoro-server/
           cp ecosystem.config.js /var/www/intranet/mi-comodoro-server/
+          # Los scripts de respaldo viven junto a la app para que el cron los encuentre
+          mkdir -p /var/www/intranet/mi-comodoro-server/scripts
+          rm -rf /var/www/intranet/mi-comodoro-server/scripts/db
+          cp -r scripts/db /var/www/intranet/mi-comodoro-server/scripts/
 
       # --ignore-scripts evita el fallo de Husky (script prepare) en produccion
       - name: Instalar dependencias produccion
