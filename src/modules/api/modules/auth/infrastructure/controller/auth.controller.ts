@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -8,6 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 
 import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { CurrentUser } from '@/common/decorators/current-user.request';
@@ -44,7 +45,11 @@ export class AuthController {
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(409, 'User already exists')
-  async signup(@Body() body: SignUpDto, @Headers('user-agent') userAgent?: string) {
+  async signup(
+    @Body() body: SignUpDto,
+    @Req() req: Request,
+    @Headers('user-agent') userAgent?: string,
+  ) {
     this.logger.info(this.context, 'creating user user-profile');
     const { passwordHash } = usePassword();
     const hash = await passwordHash(body.password);
@@ -61,8 +66,9 @@ export class AuthController {
       phone: body.phone,
       handle: body.handle,
       passwordHash: hash,
+      acceptedPolicyVersion: body.acceptedPolicyVersion,
     };
-    return await this.authService.signup(data, userAgent);
+    return await this.authService.signup(data, userAgent, { ip: req.ip });
   }
 
   @Post('/signin')
@@ -84,8 +90,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
-  async loginWithGoogle(@Body() body: GoogleSignInDto, @Headers('user-agent') userAgent?: string) {
-    return await this.authService.loginWithGoogle(body.data, userAgent);
+  async loginWithGoogle(
+    @Body() body: GoogleSignInDto,
+    @Req() req: Request,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return await this.authService.loginWithGoogle(body.data, userAgent, { ip: req.ip });
   }
 
   @Post('/refresh')

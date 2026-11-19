@@ -1,11 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
   IsNotEmptyObject,
+  IsOptional,
   IsString,
   Matches,
+  MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -42,6 +44,16 @@ export class GoogleSignInBodyDataDto {
   @IsString()
   @IsNotEmpty()
   idToken: string;
+
+  @ApiPropertyOptional({
+    example: '2.0',
+    description:
+      'Versión de la Política de Tratamiento de Datos que la persona aceptó (obligatoria al crear la cuenta cuando LEGAL_CONSENT_REQUIRED está activo)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  acceptedPolicyVersion?: string;
 
   @ApiProperty({
     example: 'Miguel Alvarez',

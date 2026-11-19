@@ -10,4 +10,5 @@ export interface CreateUserProfile {
   plan?: string;
   phone?: string;
   handle?: string;
+  acceptedPolicyVersion?: string;
 }
