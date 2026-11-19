@@ -148,7 +148,7 @@ export class UserRepositoryImpl implements UserRepository {
           return result as Omit<typeof u, 'password'>;
         });
     } catch (error) {
-      this.logger.error(this.context, `Error searching users by handle: ${query}`, String(error));
+      this.logger.error(this.context, 'Error searching users by handle', String(error));
       throw error;
     }
   }

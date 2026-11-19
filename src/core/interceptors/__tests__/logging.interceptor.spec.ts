@@ -53,6 +53,18 @@ describe('LoggingInterceptor', () => {
     );
   });
 
+  it('no registra la query string: puede llevar teléfonos o búsquedas', async () => {
+    const next = { handle: () => of(null) };
+    const ctx = makeContext({ url: '/api/v1/users/check-phone?phone=%2B573001234567' });
+    await lastValueFrom(interceptor.intercept(ctx as never, next));
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      'TestController',
+      expect.any(String),
+      'GET',
+      '/api/v1/users/check-phone',
+    );
+  });
+
   it('logs message containing duration in ms', async () => {
     const next = { handle: () => of(null) };
     const result$ = interceptor.intercept(makeContext() as never, next);

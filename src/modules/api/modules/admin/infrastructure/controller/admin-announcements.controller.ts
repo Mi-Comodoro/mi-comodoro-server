@@ -43,9 +43,10 @@ export class AdminAnnouncementsController {
     schema: { properties: { count: { type: 'number' } } },
   })
   @ApiForbiddenResponse({ description: 'Requiere rol ADMIN o SUPER_ADMIN' })
-  async preview(@Query() query: AnnouncementPreviewQueryDto) {
-    this.logger.info(this.context, `Preview count for segment=${query.segment}`);
-    const count = await this.announcementsService.previewCount(query.segment);
+  async preview(@Query() dto: AnnouncementPreviewQueryDto) {
+    const { segment } = dto;
+    this.logger.info(this.context, `Preview count for segment=${segment}`);
+    const count = await this.announcementsService.previewCount(segment);
     return { count };
   }
 

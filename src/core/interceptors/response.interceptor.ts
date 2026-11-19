@@ -2,6 +2,7 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Response } from 'express';
 import { map, Observable, tap } from 'rxjs';
 
+import { pathOnly } from '../../common/utils/log-url';
 import { LoggerProviderService } from '../providers/logs';
 
 interface SuccessResponse {
@@ -34,7 +35,8 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, SuccessRespons
         const status = res.statusCode;
         const message = `Request completed - Status: ${status} [${duration}ms]`;
 
-        this.logger.debug(ctx, message, method, url);
+        // Sin query string: puede llevar teléfonos o búsquedas
+        this.logger.debug(ctx, message, method, pathOnly(url));
       }),
     );
   }

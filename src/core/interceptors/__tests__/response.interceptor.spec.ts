@@ -54,6 +54,27 @@ describe('ResponseInterceptor', () => {
     expect(mockLogger.debug).toHaveBeenCalledTimes(1);
   });
 
+  it('no registra la query string: puede llevar teléfonos o búsquedas', async () => {
+    const ctx = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          method: 'GET',
+          originalUrl: '/api/v1/users/search?q=ana@example.com',
+        }),
+        getResponse: () => ({ statusCode: 200 }),
+      }),
+      getClass: () => ({ name: 'TestController' }),
+    };
+    const next = { handle: () => of({}) };
+    await lastValueFrom(interceptor.intercept(ctx as never, next));
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      'TestController',
+      expect.any(String),
+      'GET',
+      '/api/v1/users/search',
+    );
+  });
+
   it('uses req.url as fallback when originalUrl is not set', async () => {
     const ctx = {
       switchToHttp: () => ({
