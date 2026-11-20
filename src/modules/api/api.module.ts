@@ -18,6 +18,7 @@ import { IncomesModule } from './modules/incomes/incomes.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PlansModule } from './modules/plans/plan.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 import { SavingsModule } from './modules/savings/savings.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { TransactionModule } from './modules/transactions/transaction.module';
@@ -51,6 +52,7 @@ import { UsersModule } from './modules/users/users.module';
     FriendshipsModule,
     NotificationsModule,
     LegalModule,
+    PrivacyModule,
   ],
 })
 export class ApiModule {}
