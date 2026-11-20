@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AccountsPayableModule } from '../accounts-payable/accounts-payable.module';
+import { AccountsReceivableModule } from '../accounts-receivable/accounts-receivable.module';
+import { BudgetModule } from '../budgets/budget.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { GroupsService } from './application/groups.service';
 import { GroupsController } from './infrastructure/controller/groups.controller';
 import { GroupContributionEntity } from './infrastructure/database/entities/group-contribution.entity';
@@ -21,6 +25,10 @@ import { UserGroupRepositoryImpl } from './infrastructure/repositories/user-grou
       GroupExpenseEntity,
       GroupContributionEntity,
     ]),
+    AccountsReceivableModule,
+    AccountsPayableModule,
+    BudgetModule,
+    NotificationsModule,
   ],
   providers: [
     GroupsService,

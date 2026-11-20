@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
+  EntityManager,
   FindOptionsWhere,
   In,
   IsNull,
@@ -11,6 +12,7 @@ import {
   Repository,
 } from 'typeorm';
 
+import { BudgetTotals } from '../../domain/budget-balance';
 import {
   GoalSummary,
   TransactionRepository,
@@ -63,7 +65,15 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     data: Transaction[];
     pagination: TransactionPagination;
   }> {
-    const { type, categoryId, dateFrom, dateTo, page = 1, limit = 20 } = filters;
+    const {
+      type,
+      categoryId,
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 20,
+      includeCategory = true,
+    } = filters;
 
     const where: FindOptionsWhere<TransactionEntity> = { budgetId, nulledAt: IsNull() };
 
@@ -80,7 +90,7 @@ export class TransactionRepositoryImpl implements TransactionRepository {
 
     const [entities, total] = await this.transactionRepository.findAndCount({
       where,
-      relations: { category: true },
+      relations: includeCategory ? { category: true } : {},
       order: { transactionDate: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -94,6 +104,24 @@ export class TransactionRepositoryImpl implements TransactionRepository {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getBudgetTotals(budgetId: string, manager?: EntityManager): Promise<BudgetTotals> {
+    // Con un manager la suma se lee dentro de la transacción que ya bloqueó el presupuesto
+    const repository = manager
+      ? manager.getRepository(TransactionEntity)
+      : this.transactionRepository;
+    const rows = await repository
+      .createQueryBuilder('t')
+      .select('t.type', 'type')
+      .addSelect('COALESCE(SUM(t.amount), 0)', 'total')
+      .where('t.budget_id = :budgetId', { budgetId })
+      .andWhere('t.nulled_at IS NULL')
+      .groupBy('t.type')
+      .getRawMany<{ type: string; total: string }>();
+
+    const sum = (type: string) => Number(rows.find((r) => r.type === type)?.total ?? 0);
+    return { income: sum('income'), expense: sum('expense'), savings: sum('savings') };
   }
 
   async softDelete(id: string): Promise<boolean> {

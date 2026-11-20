@@ -46,7 +46,7 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
 
   async findByBudget(budgetId: string): Promise<PlannedSaving[]> {
     const entities = await this.plannedSavingRepository.find({
-      where: { budget: { id: budgetId } },
+      where: { budgetId },
       relations: { account: true, savingGoal: true, plannedIncome: true, budget: true },
       order: { date: 'DESC' },
     });
@@ -75,6 +75,14 @@ export class PlannedSavingRepositoryImpl implements PlannedSavingRepository {
     }
     if (domain.completedAt !== undefined) {
       scalarData.completedAt = domain.completedAt;
+      hasScalarChanges = true;
+    }
+    if (domain.amount !== undefined) {
+      scalarData.amount = domain.amount;
+      hasScalarChanges = true;
+    }
+    if (domain.date !== undefined) {
+      scalarData.date = domain.date;
       hasScalarChanges = true;
     }
 

@@ -22,19 +22,25 @@ export class AccountEntity implements Account {
   @Column({ nullable: true })
   type: string;
   @Column({
+    name: 'interest_rate',
     type: 'decimal',
-    precision: 10, // Un número total más grande es más seguro
-    scale: 4, // Permite hasta 4 decimales (ej. 12.5525)
+    precision: 10,
+    scale: 4,
     nullable: true,
   })
   interestRate: number;
-  @Column({ type: 'enum', enum: ['daily', 'monthly', 'annually'], default: 'monthly' })
+  @Column({
+    name: 'compounding_frequency',
+    type: 'enum',
+    enum: ['daily', 'monthly', 'annually'],
+    default: 'monthly',
+  })
   compoundingFrequency: CompoundingFrequency;
-  @Column({ default: true })
+  @Column({ name: 'is_active', default: true })
   isActive: boolean;
   @Column({ name: 'is_primary', default: false })
   isPrimary: boolean;
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

@@ -33,6 +33,16 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
     return AccountPayableMapper.toDomain(entity);
   }
 
+  async findById(id: string): Promise<AccountPayable | null> {
+    const entity = await this.accountPayableRepo.findOne({ where: { id } });
+    if (!entity) return null;
+    return AccountPayableMapper.toDomain(entity);
+  }
+
+  async setLinkedCxc(id: string, linkedCxcId: string): Promise<void> {
+    await this.accountPayableRepo.update(id, { linkedCxcId });
+  }
+
   async create(
     data: Omit<AccountPayable, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<AccountPayable> {
@@ -129,7 +139,7 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
     SELECT b.id, COALESCE(SUM(t.amount), 0) as budget_income
     FROM budgets b
     LEFT JOIN transactions t ON t.budget_id::text = b.id::text AND t.type = 'income' AND t.nulled_at IS NULL
-    WHERE b."ownerId"::text = $1::text AND b.status = 'CLOSED'
+    WHERE b.owner_id::text = $1::text AND b.status = 'CLOSED'
     GROUP BY b.id
     ORDER BY b.created_at DESC
     LIMIT 3

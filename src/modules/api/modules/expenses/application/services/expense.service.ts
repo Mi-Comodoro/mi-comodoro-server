@@ -1,20 +1,29 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
 import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
+import { PlannedIncomeEntity } from '../../../incomes/infrstructure/database/entities/incomes-planned.entity';
+import { PlannedSavingEntity } from '../../../savings/infrastructure/database/entities/saving-planned.entity';
+import {
+  assertPlannedExpenseFits,
+  assertSufficientBalance,
+  PlannedBudgetTotals,
+} from '../../../transactions/domain/budget-balance';
 import { TransactionRepository } from '../../../transactions/domain/repositories/transaction.repository';
 import { Transaction } from '../../../transactions/domain/transaction';
+import { lockBudgetRow } from '../../../transactions/infrastructure/budget-lock';
 import { TransactionEntity } from '../../../transactions/infrastructure/database/entities/transaction.entity';
 import { PlannedExpense, PlannedExpenseStatus } from '../../domain/expenses';
 import { PlannedExpenseRepository } from '../../domain/repositories/expense-planned.repository';
 import { PlannedExpenseEntity } from '../../infrastructure/database/expenses-planned.entity';
 import { CreateExpensePlanDto } from '../../infrastructure/dto/expense.dto';
 import { GetPlannedExpensesQueryDto } from '../../infrastructure/dto/expense.query.dto';
+import { ExpenseMapper } from '../../infrastructure/mapper/expense.mapper';
 
 @Injectable()
 export class ExpenseService {
@@ -32,6 +41,48 @@ export class ExpenseService {
     private readonly logger: LoggerProviderService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
+  // Con qué se puede respaldar un gasto planificado: ingresos esperados, ahorros, gastos ya
+  // planificados y saldo disponible real del presupuesto
+  private async getPlannedTotals(
+    manager: EntityManager,
+    budgetId: string,
+    excludeId?: string,
+  ): Promise<PlannedBudgetTotals> {
+    const sum = async (
+      entity: typeof PlannedIncomeEntity | typeof PlannedSavingEntity | typeof PlannedExpenseEntity,
+      column: string,
+      statuses: string[],
+    ): Promise<number> => {
+      const query = manager
+        .createQueryBuilder(entity, 'p')
+        .select(`COALESCE(SUM(p.${column}), 0)`, 'total')
+        .where('p.budgetId = :budgetId', { budgetId })
+        .andWhere('p.status IN (:...statuses)', { statuses });
+      if (excludeId) query.andWhere('p.id != :excludeId', { excludeId });
+      const row = await query.getRawOne<{ total: string }>();
+      return Number(row?.total ?? 0);
+    };
+
+    const income = await sum(PlannedIncomeEntity, 'amount', ['PENDING', 'RECEIVED']);
+    const savings = await sum(PlannedSavingEntity, 'amount', ['pending', 'completed']);
+    const expenses = await sum(PlannedExpenseEntity, 'expectedAmount', [
+      PlannedExpenseStatus.PLANNED,
+      PlannedExpenseStatus.PAID,
+    ]);
+    const pendingExpenses = await sum(PlannedExpenseEntity, 'expectedAmount', [
+      PlannedExpenseStatus.PLANNED,
+    ]);
+    const real = await this.transactionRepository.getBudgetTotals(budgetId, manager);
+
+    return {
+      income,
+      savings,
+      expenses,
+      pendingExpenses,
+      available: real.income - real.expense - real.savings,
+    };
+  }
+
   async addPlan(dto: CreateExpensePlanDto, userId: string) {
     this.logger.info(this.context, '');
     const budget = await this.budgetRepository.findById(dto.budgetId);
@@ -49,8 +100,21 @@ export class ExpenseService {
       isEssential: dto.isEssential,
       notes: dto.notes,
       billsId: dto.billsId,
+      groupId: dto.groupId,
+      customBucketId: dto.customBucketId,
     };
-    return await this.expensePlannedRepository.add(plannedExpense);
+    // Un gasto planificado debe caber en los ingresos esperados una vez separados los ahorros
+    return await this.dataSource.transaction(async (manager) => {
+      if (plannedExpense.status !== PlannedExpenseStatus.CANCELED) {
+        await lockBudgetRow(manager, dto.budgetId);
+        assertPlannedExpenseFits(
+          await this.getPlannedTotals(manager, dto.budgetId),
+          plannedExpense.expectedAmount,
+        );
+      }
+      const saved = await manager.save(ExpenseMapper.toEntity(plannedExpense));
+      return ExpenseMapper.toDomain(saved);
+    });
   }
 
   async findAll(filters: GetPlannedExpensesQueryDto, userId: string) {
@@ -101,15 +165,22 @@ export class ExpenseService {
 
     const description = data.description?.trim();
 
-    const transaction = await this.transactionRepository.save({
-      amount: data.amount,
-      source: description || 'Gasto no planificado',
-      description,
-      type: 'expense',
-      userId: data.userId,
-      budgetId: data.budgetId,
-      categoryId: data.categoryId,
-      transactionDate: data.date,
+    // Un gasto no puede superar el saldo disponible: se valida con el presupuesto bloqueado
+    const transaction = await this.dataSource.transaction(async (manager) => {
+      await lockBudgetRow(manager, data.budgetId);
+      const totals = await this.transactionRepository.getBudgetTotals(data.budgetId, manager);
+      assertSufficientBalance(totals, data.amount);
+
+      return await manager.save(TransactionEntity, {
+        amount: data.amount,
+        source: description || 'Gasto no planificado',
+        description,
+        type: 'expense' as const,
+        userId: data.userId,
+        budgetId: data.budgetId,
+        categoryId: data.categoryId,
+        transactionDate: data.date,
+      });
     });
 
     return { transaction };
@@ -152,6 +223,14 @@ export class ExpenseService {
 
     const today = new Date();
     const [savedTx, updatedExpense] = await this.dataSource.transaction(async (manager) => {
+      // Pagar es registrar un gasto real: no puede superar el saldo disponible
+      await lockBudgetRow(manager, plannedExpense.budgetId);
+      const totals = await this.transactionRepository.getBudgetTotals(
+        plannedExpense.budgetId,
+        manager,
+      );
+      assertSufficientBalance(totals, plannedExpense.expectedAmount);
+
       const tx = await manager.save(TransactionEntity, {
         amount: plannedExpense.expectedAmount,
         source: plannedExpense.name,
@@ -207,6 +286,21 @@ export class ExpenseService {
     // No permitir cambiar budgetId ni status
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { budgetId, status, ...allowedUpdates } = updateData;
+
+    // Subir el monto de un gasto vigente también debe caber en los ingresos menos los ahorros
+    const isActivePlan =
+      plannedExpense.status === PlannedExpenseStatus.PLANNED ||
+      plannedExpense.status === PlannedExpenseStatus.PAID;
+    const newAmount = allowedUpdates.expectedAmount;
+    if (isActivePlan && newAmount !== undefined && newAmount > plannedExpense.expectedAmount) {
+      await this.dataSource.transaction(async (manager) => {
+        await lockBudgetRow(manager, plannedExpense.budgetId);
+        assertPlannedExpenseFits(
+          await this.getPlannedTotals(manager, plannedExpense.budgetId, id),
+          newAmount,
+        );
+      });
+    }
 
     const updated = await this.expensePlannedRepository.update(id, allowedUpdates);
 

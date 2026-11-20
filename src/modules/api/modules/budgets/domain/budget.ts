@@ -1,5 +1,12 @@
 export type FinancialStrategyType = 'BALANCED' | 'CUSTOM';
 export type BudgetStatus = 'ACTIVE' | 'CLOSED' | 'PLANNED';
+export interface CustomBucketItem {
+  id: string;
+  name: string;
+  purpose?: string;
+  percentage: number;
+  color?: string;
+}
 export interface Budget {
   readonly id?: string;
   readonly name: string;
@@ -18,8 +25,10 @@ export interface Budget {
   readonly status: BudgetStatus;
   readonly currency?: string;
   readonly carryForwardAmount?: number;
+  readonly isDefault?: boolean;
   readonly closedAt?: Date | null;
   readonly nulledAt?: Date | null;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
+  readonly customBuckets?: CustomBucketItem[];
 }

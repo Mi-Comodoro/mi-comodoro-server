@@ -5,17 +5,24 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import * as admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 import { AccountType } from '@/common/enums/account-type.enum';
+import {
+  SESSION_INVALIDATED_EVENT,
+  SessionInvalidatedPayload,
+} from '@/common/events/session.events';
 import { usePassword } from '@/common/utils';
 import { JwtPayload } from '@/core/config/security/jwt/jwt.payload';
 import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
+import { ConsentService } from '../../legal/application/services/consent.service';
 import { UserProfile } from '../../user-profile/domain/user-profile.entity';
 import { UserProfileRepository } from '../../user-profile/domain/user-profile.repository';
 import { User } from '../../users/domain/user.entity';
@@ -23,7 +30,6 @@ import { UserRepository } from '../../users/domain/user.repository';
 import { UserRole } from '../../users/domain/user-role.enum';
 import type { RefreshTokenRepository } from '../domain/refresh-token.repository';
 import { CreateUserProfile, LoginUserProfile } from './interface';
-import { signUpToClient } from './mapper/signup.mapper';
 
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -39,10 +45,12 @@ export class AuthService {
     private readonly jwtProvider: JwtProvider,
     private readonly jwtService: JwtService,
     private readonly systemConfigService: SystemConfigService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly consentService: ConsentService,
   ) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
           projectId: process.env.FB_PROJECT_ID,
           clientEmail: process.env.FB_CLIENT_EMAIL,
           privateKey: process.env.FB_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -51,18 +59,25 @@ export class AuthService {
     }
   }
 
-  async signup(data: CreateUserProfile) {
-    this.logger.info(this.context, 'Creating user user-profile');
+  async signup(
+    data: CreateUserProfile,
+    userAgent?: string | null,
+    context: { ip?: string | null } = {},
+  ) {
+    this.logger.info(this.context, 'Creando usuario y perfil de usuario');
     const existingUser = await this.userRepository.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User already exists');
     } else {
+      // La autorización de tratamiento de datos es previa: sin ella no se crea la cuenta
+      this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
       const user: User = {
         id: randomUUID(),
         email: data.email,
         password: data.passwordHash,
         provider: 'LOCAL',
         tokenVersion: 0,
+        handle: data.handle ?? null,
       };
 
       const planMap: Record<string, AccountType> = {
@@ -88,13 +103,43 @@ export class AuthService {
         country: data.country,
         accountType,
         trialEndsAt,
+        phone: data.phone,
         isPhoneVerified: false,
         phoneVerifiedAt: null,
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
-      this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
-      return signUpToClient(userCreated, userProfile);
+      await this.consentService.recordAcceptance(
+        userCreated.id as string,
+        data.acceptedPolicyVersion,
+        {
+          ip: context.ip,
+          userAgent,
+        },
+      );
+      this.logger.info(this.context, `Registro completado para el usuario ${userCreated.id}`);
+
+      const payload: JwtPayload = {
+        userId: userCreated.id,
+        email: userCreated.email,
+        role: userCreated.role ?? UserRole.USER,
+        accountType: userProfile.accountType,
+        userProfileId: userProfile.id,
+        tokenVersion: userCreated.tokenVersion ?? 0,
+      };
+
+      const { token, refreshToken, expiresAt } = await this.generateTokenPair(
+        payload,
+        accountType,
+        userAgent,
+      );
+      return {
+        token,
+        refreshToken,
+        accountType,
+        expiresAt,
+        onboarding: 'PENDING',
+      };
     }
   }
 
@@ -138,7 +183,11 @@ export class AuthService {
     return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
-  async loginWithGoogle(data: { idToken: string; name: string }, userAgent?: string | null) {
+  async loginWithGoogle(
+    data: { idToken: string; name: string; acceptedPolicyVersion?: string },
+    userAgent?: string | null,
+    context: { ip?: string | null } = {},
+  ) {
     this.logger.info(this.context, 'Google login attempt processed');
     let payload: JwtPayload;
     const response: {
@@ -154,9 +203,11 @@ export class AuthService {
       onboarding: '',
     };
     const { idToken, name } = data;
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await getAuth().verifyIdToken(idToken);
     const user = (await this.userRepository.findByEmail(decodedToken.email!)) as User;
     if (!user) {
+      // Cuenta nueva con Google: también requiere la autorización previa
+      this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
       this.logger.info(this.context, 'No user found for email, creating new user-profile');
       const userCreated = await this.userRepository.save({
         email: decodedToken.email!,
@@ -179,6 +230,11 @@ export class AuthService {
         isActive: true,
       };
       const userProfile: UserProfile = await this.accountRepository.save(newUserProfile);
+      await this.consentService.recordAcceptance(
+        userCreated.id as string,
+        data.acceptedPolicyVersion,
+        { ip: context.ip, userAgent },
+      );
       response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;
       this.logger.info(this.context, `Signup completed for user ${userCreated.id}`);
@@ -248,6 +304,11 @@ export class AuthService {
     return this.generateTokenPair(payload, user.userProfile?.accountType, userAgent);
   }
 
+  /** Emite un token de vida corta para conectar el WebSocket sin exponer el access token. */
+  issueWsToken(payload: JwtPayload) {
+    return { token: this.jwtProvider.generateWsToken(payload) };
+  }
+
   async logout(payload: JwtPayload) {
     this.logger.info(this.context, `Logout requested for user ${payload.userId}`);
     const user = await this.userRepository.findAuthById(payload.userId);
@@ -258,6 +319,10 @@ export class AuthService {
 
     await this.userRepository.invalidateTokens(user.id, user.tokenVersion ?? 0);
     await this.refreshTokenRepository.revokeAllForUser(user.id!);
+    // Cierra los sockets abiertos del usuario (ver NotificationsGateway)
+    this.eventEmitter.emit(SESSION_INVALIDATED_EVENT, {
+      userId: user.id!,
+    } satisfies SessionInvalidatedPayload);
 
     return {
       message: 'Logout successful',

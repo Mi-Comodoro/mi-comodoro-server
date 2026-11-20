@@ -1,4 +1,7 @@
 // domain/repositories/transaction.repository.ts
+import { EntityManager } from 'typeorm';
+
+import { BudgetTotals } from '../budget-balance';
 import { Transaction, TransactionFilters, TransactionPagination } from '../transaction';
 
 export interface GoalSummary {
@@ -15,6 +18,7 @@ export interface TransactionRepository {
     data: Transaction[];
     pagination: TransactionPagination;
   }>;
+  getBudgetTotals(budgetId: string, manager?: EntityManager): Promise<BudgetTotals>;
   findById(id: string): Promise<Transaction | null>;
   update(id: string, data: Partial<Transaction>): Promise<Transaction | null>;
   softDelete(id: string): Promise<boolean>;

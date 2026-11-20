@@ -11,4 +11,5 @@ export interface PlannedExpenseRepository {
   update(id: string, data: Partial<PlannedExpense>): Promise<PlannedExpense | null>;
   cancel(id: string): Promise<PlannedExpense>;
   complete(id: string): Promise<PlannedExpense>;
+  countByBudgetAndCustomBucket(budgetId: string, bucketId: string): Promise<number>;
 }

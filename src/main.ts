@@ -22,6 +22,9 @@ async function bootstrap() {
   // 1. Settings base
   setupApp(app);
 
+  // Al recibir SIGTERM/SIGINT (reinicio de PM2) Nest cierra los módulos: se vacía el pool de Postgres
+  app.enableShutdownHooks();
+
   // 2. AppConfig (una sola vez)
   const appConfig = app.get(AppConfigService);
 

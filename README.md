@@ -147,26 +147,26 @@ Las respuestas exitosas siguen el contrato estandarizado por el interceptor glob
 
 ### Requisitos
 
-- Node.js `22.11.x`
-- npm `11.5.2`
+- Node.js `26.13.x` (LTS)
+- pnpm `11.1.2` (vía `packageManager`)
 - PostgreSQL accesible desde la configuracion local
 
 ### Instalacion
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Comandos disponibles
 
 ```bash
-npm run start
-npm run start:dev
-npm run start:prod
-npm run build
-npm run lint
-npm run format
-npm run seed:categories
+pnpm start
+pnpm start:dev
+pnpm start:prod
+pnpm build
+pnpm lint
+pnpm format
+pnpm seed:categories
 ```
 
 ### Bootstrap de la aplicacion
@@ -234,13 +234,13 @@ Esto implica que el comportamiento de sincronizacion de esquema debe tratarse co
 
 ## Documentacion adicional
 
-- [CLAUDE.md](./CLAUDE.md): contexto operativo y reglas del proyecto.
+- [AGENTS.md](./AGENTS.md): contexto operativo y reglas del proyecto.
 
 ## Desarrollo
 
 ### Requisitos
 
-- Node 22 (ver .nvmrc)
+- Node 26 LTS (ver .nvmrc)
 - PostgreSQL 15+
 - pnpm
 

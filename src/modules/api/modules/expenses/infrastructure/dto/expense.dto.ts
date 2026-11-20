@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
@@ -53,6 +53,19 @@ export class CreateExpensePlanDto {
   @ApiProperty({ required: false, example: 'uuid' })
   @IsOptional()
   billsId?: string;
+
+  @ApiPropertyOptional({ example: 'uuid', description: 'ID del grupo al que se asigna este gasto' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid',
+    description: 'ID del bucket personalizado del presupuesto',
+  })
+  @IsOptional()
+  @IsUUID()
+  customBucketId?: string | null;
 }
 export class CreateUnplannedExpenseDto {
   @ApiProperty({ example: 950000, description: 'Monto del gasto no planificado' })
@@ -117,4 +130,17 @@ export class UpdateExpenseDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 'uuid', description: 'ID del grupo al que se asigna este gasto' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'uuid',
+    description: 'ID del bucket personalizado del presupuesto',
+  })
+  @IsOptional()
+  @IsUUID()
+  customBucketId?: string | null;
 }

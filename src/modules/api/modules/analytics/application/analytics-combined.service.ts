@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 
 import { LoggerProviderService } from '@/core/providers';
 
@@ -54,87 +54,118 @@ export class AnalyticsCombinedService {
   async getNetPosition(userId: string): Promise<NetPositionDto> {
     this.logger.info(this.context, `Calculando posición neta para usuario ${userId}`);
 
-    const [apSummary, arSummary, activeBudget] = await Promise.all([
-      this.apService.getSummary(userId),
-      this.arService.getSummary(userId),
-      this.getActiveBudget(userId),
-    ]);
-
-    let monthlyIncome = 0;
-    let freeAmount = 0;
-
-    if (activeBudget?.id) {
-      const [incomes, expenses] = await Promise.all([
-        this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
-        this.plannedExpenseRepository.findByBudget(activeBudget.id),
+    try {
+      const [apSummary, arSummary, activeBudget] = await Promise.all([
+        this.apService.getSummary(userId),
+        this.arService.getSummary(userId),
+        this.getActiveBudget(userId),
       ]);
-      monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
-      const plannedExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
-      freeAmount = Math.max(0, monthlyIncome - plannedExpenses);
-    }
 
-    return {
-      totalAssets: freeAmount,
-      totalDebts: apSummary.totalDebt,
-      totalReceivable: arSummary.totalReceivable,
-      netPosition: freeAmount + arSummary.totalReceivable - apSummary.totalDebt,
-      debtToIncomeRatio: apSummary.debtToIncomeRatio,
-      summary: {
-        accountsPayable: {
-          total: apSummary.totalDebt,
-          monthlyCommitment: apSummary.monthlyCommitments,
-          overdueCount: apSummary.overdueCount,
+      let monthlyIncome = 0;
+      let freeAmount = 0;
+
+      if (activeBudget?.id) {
+        this.logger.info(this.context, `Presupuesto activo encontrado: ${activeBudget.id}`);
+        const [incomes, expenses] = await Promise.all([
+          this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
+          this.plannedExpenseRepository.findByBudget(activeBudget.id),
+        ]);
+        monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
+        const plannedExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
+        freeAmount = Math.max(0, monthlyIncome - plannedExpenses);
+      }
+
+      return {
+        totalAssets: freeAmount,
+        totalDebts: apSummary.totalDebt,
+        totalReceivable: arSummary.totalReceivable,
+        netPosition: freeAmount + arSummary.totalReceivable - apSummary.totalDebt,
+        debtToIncomeRatio: apSummary.debtToIncomeRatio,
+        summary: {
+          accountsPayable: {
+            total: apSummary.totalDebt,
+            monthlyCommitment: apSummary.monthlyCommitments,
+            overdueCount: apSummary.overdueCount,
+          },
+          accountsReceivable: {
+            total: arSummary.totalReceivable,
+            expectedThisMonth: arSummary.expectedThisMonth,
+            overdueCount: arSummary.overdueCount,
+          },
         },
-        accountsReceivable: {
-          total: arSummary.totalReceivable,
-          expectedThisMonth: arSummary.expectedThisMonth,
-          overdueCount: arSummary.overdueCount,
-        },
-      },
-    };
+      };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        this.context,
+        `Error al calcular posición neta para ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException('Error al calcular posición neta');
+    }
   }
 
   async getDebtProjection(userId: string): Promise<DebtProjectionDto> {
     this.logger.info(this.context, `Calculando proyección de deuda para usuario ${userId}`);
 
-    const apAccounts = await this.apService.findAll(userId);
+    try {
+      const apAccounts = await this.apService.findAll(userId);
 
-    const totalDebt = apAccounts.reduce((sum, a) => sum + Number(a.currentBalance), 0);
-    const totalMinPayments = apAccounts.reduce(
-      (sum, a) => sum + (Number(a.minimumPayment) || 0),
-      0,
-    );
+      const totalDebt = apAccounts.reduce((sum, a) => sum + Number(a.currentBalance), 0);
+      const totalMinPayments = apAccounts.reduce(
+        (sum, a) => sum + (Number(a.minimumPayment) || 0),
+        0,
+      );
 
-    const hasPaymentHistory = apAccounts.some(
-      (a) => Number(a.currentBalance) < Number(a.originalAmount),
-    );
+      const hasPaymentHistory = apAccounts.some(
+        (a) => Number(a.currentBalance) < Number(a.originalAmount),
+      );
 
-    const projection = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i);
-      const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
+      const projection = Array.from({ length: 6 }, (_, i) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() + i);
+        const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
 
-      const projectedPayments = apAccounts.reduce((sum, acc) => {
-        if (acc.status === 'active' && acc.minimumPayment) {
-          return sum + Number(acc.minimumPayment) * i;
-        }
-        return sum;
-      }, 0);
+        const projectedPayments = apAccounts.reduce((sum, acc) => {
+          if (acc.status === 'active' && acc.minimumPayment) {
+            return sum + Number(acc.minimumPayment) * i;
+          }
+          return sum;
+        }, 0);
 
-      return {
-        month,
-        projectedBalance: Math.max(0, totalDebt - projectedPayments),
-        minimumPayments: totalMinPayments,
-      };
-    });
+        return {
+          month,
+          projectedBalance: Math.max(0, totalDebt - projectedPayments),
+          minimumPayments: totalMinPayments,
+        };
+      });
 
-    return { projection, simplified: true, hasPaymentHistory };
+      return { projection, simplified: true, hasPaymentHistory };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        this.context,
+        `Error al calcular proyección de deuda para ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException('Error al calcular proyección de deuda');
+    }
   }
 
   async getSavingsTrend(userId: string): Promise<SavingsTrendDto> {
     this.logger.info(this.context, `Calculando tendencia de ahorro para usuario ${userId}`);
-    const trend = await this.plannedSavingRepository.findCompletedLast6MonthsByUserId(userId);
-    return { trend };
+    try {
+      const trend = await this.plannedSavingRepository.findCompletedLast6MonthsByUserId(userId);
+      return { trend };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        this.context,
+        `Error al calcular tendencia de ahorro para ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException('Error al calcular tendencia de ahorro');
+    }
   }
 
   async getCashFlowForecast(
@@ -144,48 +175,59 @@ export class AnalyticsCombinedService {
   ): Promise<CashFlowForecastDto> {
     this.logger.info(this.context, `Calculando pronóstico de flujo de caja para usuario ${userId}`);
 
-    const targetYear = year ? Number(year) : new Date().getFullYear();
-    const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
+    try {
+      const targetYear = year ? Number(year) : new Date().getFullYear();
+      const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
 
-    const [arSummary, activeBudget] = await Promise.all([
-      this.arService.getSummary(userId),
-      this.getActiveBudget(userId),
-    ]);
-
-    let monthlyIncome = 0;
-    let monthlyExpenses = 0;
-
-    if (activeBudget?.id) {
-      const [incomes, expenses] = await Promise.all([
-        this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
-        this.plannedExpenseRepository.findByBudget(activeBudget.id),
+      const [arSummary, activeBudget] = await Promise.all([
+        this.arService.getSummary(userId),
+        this.getActiveBudget(userId),
       ]);
-      monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
-      monthlyExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
-    }
 
-    const monthlyReceivables = arSummary.expectedThisMonth;
+      let monthlyIncome = 0;
+      let monthlyExpenses = 0;
 
-    const months = Array.from({ length: 3 }, (_, i) => {
-      const date = new Date(targetYear, targetMonth - 1 + i, 1);
-      const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
-      const projectedIncome = monthlyIncome + monthlyReceivables;
-      const projectedExpenses = monthlyExpenses;
+      if (activeBudget?.id) {
+        this.logger.info(this.context, `Presupuesto activo encontrado: ${activeBudget.id}`);
+        const [incomes, expenses] = await Promise.all([
+          this.plannedIncomeRepository.findByBudgetId(activeBudget.id),
+          this.plannedExpenseRepository.findByBudget(activeBudget.id),
+        ]);
+        monthlyIncome = incomes.reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
+        monthlyExpenses = expenses.reduce((sum, e) => sum + Number(e.expectedAmount), 0);
+      }
+
+      const monthlyReceivables = arSummary.expectedThisMonth;
+
+      const months = Array.from({ length: 3 }, (_, i) => {
+        const date = new Date(targetYear, targetMonth - 1 + i, 1);
+        const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
+        const projectedIncome = monthlyIncome + monthlyReceivables;
+        const projectedExpenses = monthlyExpenses;
+        return {
+          month,
+          projectedIncome,
+          projectedExpenses,
+          projectedNet: projectedIncome - projectedExpenses,
+        };
+      });
+
       return {
-        month,
-        projectedIncome,
-        projectedExpenses,
-        projectedNet: projectedIncome - projectedExpenses,
+        months,
+        assumptions: {
+          basedOnBudget: !!activeBudget,
+          incomeConstant: true,
+          expensesConstant: true,
+        },
       };
-    });
-
-    return {
-      months,
-      assumptions: {
-        basedOnBudget: !!activeBudget,
-        incomeConstant: true,
-        expensesConstant: true,
-      },
-    };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        this.context,
+        `Error al calcular flujo de caja para ${userId}: ${err.message}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException('Error al calcular flujo de caja');
+    }
   }
 }

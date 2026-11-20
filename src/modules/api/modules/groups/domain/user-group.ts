@@ -1,6 +1,11 @@
 export type GroupType = 'SHARED' | 'FAMILIAR' | 'TRAVEL';
 export type GroupStatus = 'Planificando' | 'Activo' | 'Cerrado';
 
+export type UserGroupWithMemberCount = UserGroup & {
+  memberCount: number;
+  pendingInvitesCount: number;
+};
+
 export interface UserGroup {
   id?: string;
   name: string;

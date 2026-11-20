@@ -5,6 +5,8 @@ export interface GroupMember {
   id?: string;
   groupId: string;
   userId?: string | null;
+  handle?: string | null;
+  displayName?: string | null;
   role: MemberRole;
   memberStatus: MemberStatus;
   isActive: boolean;

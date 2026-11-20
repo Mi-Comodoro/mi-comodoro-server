@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'mi-comodoro-server',
-      script: 'dist/main.js',
+      script: 'dist/src/main.js',
       cwd: '/var/www/intranet/mi-comodoro-server',
       instances: 1,
       exec_mode: 'fork',

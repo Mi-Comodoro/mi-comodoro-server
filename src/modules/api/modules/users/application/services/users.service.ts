@@ -76,10 +76,16 @@ export class UsersService {
           email: user.email,
         },
       };
-      this.logger.info(
-        this.context,
-        `Onboarding bound to authenticated user ${user.id} with persisted email ${user.email}`,
-      );
+      this.logger.info(this.context, `Onboarding bound to authenticated user ${user.id}`);
+
+      if (normalizedData.userInfo.handle) {
+        const existing = await this.userRepository.findByHandle(normalizedData.userInfo.handle);
+        if (existing && existing.id !== userId) {
+          throw new ConflictException('Este handle ya está en uso');
+        }
+        await this.userRepository.updateHandle(userId, normalizedData.userInfo.handle);
+        this.logger.info(this.context, `Handle asignado al usuario ${userId}`);
+      }
 
       const incomes: IncomeSource[] = this.getIncomesData(normalizedData, user);
 
@@ -125,12 +131,26 @@ export class UsersService {
   }
 
   async updateMe(userId: string, dto: UpdateUserDto) {
-    this.logger.info(this.context, `Updating profile for user ${userId}`);
+    this.logger.info(this.context, `Actualizando perfil del usuario ${userId}`);
     const profile = await this.userProfileRepository.findByUserId(userId);
     if (!profile) {
       throw new NotFoundException('User profile not found');
     }
-    const updated = await this.userProfileRepository.update(userId, { ...profile, ...dto });
+
+    const { timezone, ...profileFields } = dto;
+
+    if (timezone !== undefined) {
+      await this.userRepository.updateTimezone(userId, timezone);
+      this.logger.info(
+        this.context,
+        `Zona horaria actualizada a ${timezone} para usuario ${userId}`,
+      );
+    }
+
+    const updated = await this.userProfileRepository.update(userId, {
+      ...profile,
+      ...profileFields,
+    });
     return updated;
   }
 
@@ -153,7 +173,7 @@ export class UsersService {
   }
 
   async searchUsers(query: string, requestingUserId: string) {
-    this.logger.info(this.context, `Searching users with query: ${query}`);
+    this.logger.info(this.context, `Searching users (requested by ${requestingUserId})`);
     return await this.userRepository.searchByHandle(query, requestingUserId);
   }
 

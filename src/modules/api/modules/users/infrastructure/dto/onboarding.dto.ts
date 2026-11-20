@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   ValidateNested,
@@ -64,6 +65,19 @@ class OnboardingUserInfoDto implements UserInfo {
     message: `Gender must be one of: ${Object.values(GenderEnum).join(', ')}`,
   })
   gender: GenderEnum;
+
+  @ApiProperty({
+    description: 'Unique @username handle (lowercase letters, numbers and underscores)',
+    example: 'juanperez',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Handle must be a string' })
+  @Matches(/^[a-z][a-z0-9_]{2,19}$/, {
+    message:
+      'Handle must be 3-20 characters, start with a letter, and contain only lowercase letters, numbers and underscores',
+  })
+  handle?: string;
 }
 
 export class OnboardingFinancesInfoDto implements FinancesInfo {

@@ -8,6 +8,7 @@ export interface AccountReceivable {
   currentBalance: number;
   dueDate?: Date;
   status: 'pending' | 'partial' | 'collected' | 'overdue';
+  linkedCxpId?: string;
   nulledAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;

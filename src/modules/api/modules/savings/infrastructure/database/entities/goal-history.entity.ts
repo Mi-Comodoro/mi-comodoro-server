@@ -7,10 +7,10 @@ export class GoalHistoryEntity implements GoalHistory {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'goal_id' })
+  @Column({ name: 'goal_id', type: 'uuid' })
   goalId: string;
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   @Column()

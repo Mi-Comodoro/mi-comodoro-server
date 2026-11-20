@@ -10,6 +10,7 @@ import { IdempotencyInterceptor } from '@/common/idempotency/idempotency.interce
 import { IdempotencyKey } from '@/common/idempotency/idempotency-key.entity';
 import { InitialConfigModule } from '@/core/config/index';
 import { RolesGuard } from '@/core/config/security/guards/roles.guard';
+import { resolveThrottleTracker } from '@/core/config/security/throttle-tracker';
 import { DatabaseModule } from '@/core/modules/database/postgres.module';
 import { SystemConfigModule } from '@/core/modules/system-config/system-config.module';
 import { LoggerProviderModule } from '@/core/providers/logs';
@@ -22,7 +23,9 @@ import { ApiModule } from './api/api.module';
       {
         name: 'short',
         ttl: 60_000,
-        limit: 60,
+        // Por usuario autenticado (no por IP): ver resolveThrottleTracker
+        limit: 120,
+        getTracker: resolveThrottleTracker,
       },
     ]),
     ScheduleModule.forRoot(),

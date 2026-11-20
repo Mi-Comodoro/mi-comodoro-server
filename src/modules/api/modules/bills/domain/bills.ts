@@ -1,16 +1,15 @@
-import { Category } from '../../categories/domain/category';
-import { User } from '../../users/domain/user.entity';
+export type BillFrequency = 'monthly' | 'yearly';
 
-export interface Bills {
-  id: string;
-  user: User;
-  category: Category;
+export interface Bill {
+  id?: string;
+  userId: string;
+  categoryId: string;
+  name: string;
   expectedAmount: number;
-  dueDate: Date;
-  frequency: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
-  description?: string;
-  isPaid: boolean;
+  billingDay: number;
+  frequency: BillFrequency;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  isPaid: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }

@@ -27,7 +27,7 @@ export class PlannedExpenseEntity implements PlannedExpense {
   @JoinColumn({ name: 'budget_id' })
   budget: BudgetEntity;
 
-  @Column({ name: 'budget_id' })
+  @Column({ name: 'budget_id', type: 'uuid' })
   budgetId: string;
 
   /*
@@ -64,6 +64,13 @@ export class PlannedExpenseEntity implements PlannedExpense {
   isEssential: boolean;
   @Column({ type: 'text', nullable: true })
   notes?: string;
+
+  @Column({ name: 'group_id', type: 'uuid', nullable: true })
+  groupId?: string | null;
+
+  @Column({ name: 'custom_bucket_id', type: 'uuid', nullable: true, default: null })
+  customBucketId?: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at' })

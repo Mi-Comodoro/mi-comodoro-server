@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsDateString, IsNotEmpty, IsNumber, IsString, IsUUID, Min } from 'class-validator';
 
@@ -22,3 +22,5 @@ export class CreateGroupExpenseDto {
   @IsUUID()
   responsibleUserId: string;
 }
+
+export class UpdateGroupExpenseDto extends PartialType(CreateGroupExpenseDto) {}

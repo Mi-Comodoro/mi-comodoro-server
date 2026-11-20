@@ -21,6 +21,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    // El token de WebSocket (typ 'ws') no es válido como token de acceso a la API
+    if (payload.typ === 'ws') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
     const user = await this.userRepository.findAuthById(payload.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');

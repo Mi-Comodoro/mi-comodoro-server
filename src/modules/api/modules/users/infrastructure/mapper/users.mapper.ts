@@ -7,6 +7,7 @@ export class UserMapper {
       email: user.email,
       provider: user.provider,
       onboarding: user.onboarding,
+      timezone: user.timezone,
       userProfile: user.userProfile,
       finances: user.finances,
       createdAt: user.createdAt!,

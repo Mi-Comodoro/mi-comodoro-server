@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -8,6 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 
 import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { CurrentUser } from '@/common/decorators/current-user.request';
@@ -38,12 +39,17 @@ export class AuthController {
   ) {}
 
   @Post('/signup')
-  @Throttle({ short: { ttl: 60_000, limit: 5 } })
+  // Se cuenta por IP (aún no hay usuario): el BFF atiende a todos, así que el cupo no puede ser mínimo
+  @Throttle({ short: { ttl: 60_000, limit: 20 } })
   @ApiOperation({ summary: 'Registrar un nuevo usuario local' })
   @ApiCreatedResponse({ type: SignUpResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
   @ApiErrorResponse(409, 'User already exists')
-  async signup(@Body() body: SignUpDto) {
+  async signup(
+    @Body() body: SignUpDto,
+    @Req() req: Request,
+    @Headers('user-agent') userAgent?: string,
+  ) {
     this.logger.info(this.context, 'creating user user-profile');
     const { passwordHash } = usePassword();
     const hash = await passwordHash(body.password);
@@ -57,12 +63,16 @@ export class AuthController {
       usageType: body.usageType,
       financialProfile: body.financialProfile,
       plan: body.plan,
+      phone: body.phone,
+      handle: body.handle,
       passwordHash: hash,
+      acceptedPolicyVersion: body.acceptedPolicyVersion,
     };
-    return await this.authService.signup(data);
+    return await this.authService.signup(data, userAgent, { ip: req.ip });
   }
 
   @Post('/signin')
+  // Se cuenta por correo: 5 intentos por minuto y por cuenta, sin bloquear a los demás usuarios
   @Throttle({ short: { ttl: 60_000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con email y contrasena' })
@@ -75,15 +85,21 @@ export class AuthController {
   }
 
   @Post('/google')
+  @Throttle({ short: { ttl: 60_000, limit: 30 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Iniciar sesion con Google usando un Firebase ID token' })
   @ApiOkResponse({ type: GoogleSignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
-  async loginWithGoogle(@Body() body: GoogleSignInDto, @Headers('user-agent') userAgent?: string) {
-    return await this.authService.loginWithGoogle(body.data, userAgent);
+  async loginWithGoogle(
+    @Body() body: GoogleSignInDto,
+    @Req() req: Request,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return await this.authService.loginWithGoogle(body.data, userAgent, { ip: req.ip });
   }
 
   @Post('/refresh')
+  @Throttle({ short: { ttl: 60_000, limit: 20 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Renovar la sesion usando un refresh token opaco' })
   @ApiOkResponse({ type: RefreshResponseDto })
@@ -91,6 +107,19 @@ export class AuthController {
   async refresh(@Body() body: RefreshDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Refreshing authenticated session');
     return await this.authService.refresh(body.refreshToken, userAgent);
+  }
+
+  @Get('/ws-token')
+  @UseGuards(AuthGuard('jwt'))
+  @Throttle({ short: { ttl: 60_000, limit: 30 } })
+  @ApiBearerAuth('bearerAuth')
+  @ApiOperation({
+    summary: 'Obtener un token de vida corta (60 s) para conectar el WebSocket de notificaciones',
+  })
+  @ApiOkResponse({ description: 'Token de WebSocket', schema: { example: { token: 'eyJ...' } } })
+  @ApiErrorResponse(401, 'Unauthorized')
+  wsToken(@CurrentUser() user: JwtPayload) {
+    return this.authService.issueWsToken(user);
   }
 
   @Post('/logout')

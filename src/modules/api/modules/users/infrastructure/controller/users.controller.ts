@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { ApiErrorResponse } from '@/common/decorators/api-error.response';
 import { CurrentUser } from '@/common/decorators/current-user.request';
@@ -25,6 +26,7 @@ export class UsersController {
   ) {}
 
   @Get('/check-phone')
+  @Throttle({ short: { ttl: 60_000, limit: 10 } }) // evita enumeración de teléfonos registrados
   @ApiOperation({ summary: 'Verificar disponibilidad de número de teléfono' })
   @ApiQuery({ name: 'phone', required: true, example: '+573001234567' })
   @ApiOkResponse({
@@ -46,7 +48,7 @@ export class UsersController {
   ) {
     this.logger.info(
       this.context,
-      `Onboarding user with token payload userId=${user.userId}, email=${user.email}, tokenVersion=${user.tokenVersion ?? 0}`,
+      `Onboarding user with token payload userId=${user.userId}, tokenVersion=${user.tokenVersion ?? 0}`,
     );
     return await this.userService.onboardingByUserId(user.userId, body);
   }
@@ -93,7 +95,7 @@ export class UsersController {
   @ApiOkResponse({ description: 'Lista de usuarios encontrados' })
   @ApiErrorResponse(401, 'Unauthorized')
   async searchUsers(@CurrentUser() user: JwtPayload, @Query() query: SearchUsersQueryDto) {
-    this.logger.info(this.context, `Searching users: ${query.q}`);
+    this.logger.info(this.context, `Searching users (requested by ${user.userId})`);
     return await this.userService.searchUsers(query.q, user.userId);
   }
 }

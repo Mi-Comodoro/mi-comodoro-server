@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -40,19 +41,22 @@ export class BudgetEntity implements Budget {
   @Column({ name: 'is_shared', nullable: false })
   isShared: boolean;
 
+  @Column({ name: 'is_default', nullable: false, default: false })
+  isDefault: boolean;
+
   @Column({ name: 'needs', nullable: false })
   needsLimit: number;
   @Column({ name: 'wants', nullable: false })
   wantsLimit: number;
   @Column({ name: 'savings', nullable: false })
   savingsLimit: number;
-  @Column({ name: 'finances_id', nullable: false })
+  @Column({ name: 'finances_id', type: 'uuid', nullable: false })
   financesId: string;
-  @Column({ name: 'ownerId', nullable: false })
+  @Column({ name: 'owner_id', type: 'uuid', nullable: false })
   ownerId: string;
-  @Column({ name: 'partnerId', nullable: true })
+  @Column({ name: 'partner_id', type: 'uuid', nullable: true })
   partnerId?: string;
-  @Column({ name: 'updatedBy', nullable: true })
+  @Column({ name: 'updated_by', nullable: true })
   updatedBy?: string;
   @Column({
     name: 'carry_forward_amount',
@@ -64,10 +68,12 @@ export class BudgetEntity implements Budget {
   })
   carryForwardAmount?: number;
   @ManyToOne(() => UserEntity, (user) => user.budgets, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
   owner: UserEntity;
   @OneToMany(() => PlannedExpenseEntity, (expense) => expense.budget)
   plannedExpenses: PlannedExpenseEntity[];
   @ManyToOne(() => UserEntity, { nullable: true })
+  @JoinColumn({ name: 'partner_id' })
   partner?: UserEntity;
   @OneToMany(() => TransactionEntity, (transaction) => transaction.budget)
   transactions: TransactionEntity[];
@@ -80,6 +86,15 @@ export class BudgetEntity implements Budget {
 
   @Column({ name: 'nulled_at', type: 'timestamptz', nullable: true, default: null })
   nulledAt?: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  customBuckets: Array<{
+    id: string;
+    name: string;
+    purpose?: string;
+    percentage: number;
+    color?: string;
+  }>;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

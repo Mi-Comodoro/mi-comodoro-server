@@ -16,6 +16,7 @@ export class AccountPayableMapper {
       dueDate: entity.dueDate,
       nextPaymentDate: entity.nextPaymentDate,
       status: entity.status,
+      linkedCxcId: entity.linkedCxcId,
       nulledAt: entity.nulledAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,

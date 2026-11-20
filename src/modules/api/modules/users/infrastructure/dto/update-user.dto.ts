@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, Validate } from 'class-validator';
+
+import { IsValidTimezone } from './timezone.validator';
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'John Doe' })
@@ -30,4 +32,10 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(2)
   country?: string;
+
+  @ApiPropertyOptional({ example: 'America/Bogota' })
+  @IsOptional()
+  @IsString()
+  @Validate(IsValidTimezone)
+  timezone?: string;
 }

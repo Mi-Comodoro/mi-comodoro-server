@@ -14,6 +14,7 @@ export interface User {
   readonly finances?: Finances;
   readonly handle?: string | null;
   readonly nulledAt?: Date | null;
+  readonly timezone?: string;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }

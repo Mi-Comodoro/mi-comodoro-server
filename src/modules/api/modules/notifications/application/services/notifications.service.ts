@@ -24,7 +24,9 @@ export class NotificationsService {
     payload: NotificationPayload,
   ): Promise<Notification> {
     this.logger.info(this.context, `Creando notificación type=${type} para user=${userId}`);
-    return this.notificationRepository.save(userId, type, payload);
+    const notification = await this.notificationRepository.save(userId, type, payload);
+    this.gateway.sendToUser(userId, 'notification', { type, payload });
+    return notification;
   }
 
   async createBulk(userIds: string[], payload: NotificationPayload): Promise<void> {

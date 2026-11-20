@@ -1,0 +1,6 @@
+allowBuilds:
+  argon2: true
+  "@firebase/util": false
+  "@nestjs/core": false
+  "@scarf/scarf": false
+  protobufjs: false

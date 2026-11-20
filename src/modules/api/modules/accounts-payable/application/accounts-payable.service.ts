@@ -1,7 +1,11 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
+import { NotificationsService } from '@/modules/api/modules/notifications/application/services/notifications.service';
+import { NotificationType } from '@/modules/api/modules/notifications/domain/enums/notification-type.enum';
 
+import { AccountsReceivableService } from '../../accounts-receivable/application/accounts-receivable.service';
 import { AccountPayable } from '../domain/account-payable';
 import { AccountPayableRepository } from '../domain/repositories/account-payable.repository';
 import { CreateAccountPayableDto } from '../infrastructure/dto/create-account-payable.dto';
@@ -25,6 +29,10 @@ export class AccountsPayableService {
     @Inject('AccountPayableRepository')
     private readonly repository: AccountPayableRepository,
     private readonly logger: LoggerProviderService,
+    @Inject(forwardRef(() => AccountsReceivableService))
+    private readonly arService: AccountsReceivableService,
+    private readonly notificationsService: NotificationsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(userId: string): Promise<AccountPayable[]> {
@@ -103,7 +111,45 @@ export class AccountsPayableService {
       throw new NotFoundException('Account payable not found');
     }
     await this.repository.registerPayment(id, dto.amount, new Date(dto.paymentDate), dto.notes);
+
+    if (existing.linkedCxcId) {
+      try {
+        const cxc = await this.arService.findByIdInternal(existing.linkedCxcId);
+        if (cxc) {
+          await this.arService.autoCollect(
+            existing.linkedCxcId,
+            dto.amount,
+            new Date(dto.paymentDate),
+            dto.notes,
+          );
+          await this.notificationsService.createNotification(
+            cxc.userId,
+            NotificationType.PAYMENT_RECEIVED,
+            {
+              senderId: userId,
+              title: 'Pago recibido',
+              body: `Se registró un pago de ${dto.amount} para "${cxc.name}"`,
+            },
+          );
+          await this.dataSource.query(
+            `UPDATE group_expenses SET status = 'paid' WHERE cxp_id = $1`,
+            [id],
+          );
+        }
+      } catch (err) {
+        this.logger.warn(
+          this.context,
+          `No se pudo procesar el cobro vinculado: ${(err as Error).message}`,
+        );
+      }
+    }
+
     return { message: 'Payment registered successfully' };
+  }
+
+  async setLinkedCxc(id: string, linkedCxcId: string): Promise<void> {
+    this.logger.info(this.context, `Setting linked CxC ${linkedCxcId} on CxP ${id}`);
+    await this.repository.setLinkedCxc(id, linkedCxcId);
   }
 
   async getSummary(userId: string): Promise<AccountPayableSummary> {
