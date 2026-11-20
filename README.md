@@ -1,294 +1,44 @@
 # Mi Comodoro Server
 
-API backend para la gestion de finanzas personales y del hogar, construida con NestJS, TypeORM y PostgreSQL.
+API de Mi Comodoro para finanzas personales y del hogar: autenticación, presupuestos, ingresos, gastos, ahorros, cuentas, grupos y análisis. Hecha con NestJS, TypeORM y PostgreSQL; la consume el BFF de `finhub-dashboard`.
 
-Su responsabilidad principal es exponer endpoints HTTP para autenticacion, onboarding, presupuestos, ingresos, gastos, transacciones, ahorros, cuentas y gestion del perfil de usuario, manteniendo una separacion estricta entre dominio, casos de uso e infraestructura.
+## Requisitos
 
-## Proposito
+- Node.js `>=26.13 <27` (`nvm use` lee `.nvmrc`)
+- pnpm 11 (`corepack enable`)
+- PostgreSQL accesible con las credenciales de `.env`
+- Credenciales de Firebase Admin (autenticación con Google)
 
-- Centralizar la logica de negocio financiera del ecosistema Mi Comodoro.
-- Exponer una API autenticada para clientes web y otros consumidores.
-- Mantener una arquitectura modular y hexagonal que facilite el mantenimiento y la evolucion controlada.
-
-## Stack tecnologico
-
-- NestJS
-- TypeScript
-- TypeORM
-- PostgreSQL
-- Passport JWT
-- Swagger
-- class-validator / class-transformer
-- Firebase Admin SDK
-- EventEmitter2
-
-## Arquitectura
-
-El proyecto sigue una arquitectura hexagonal por modulo dentro de `src/modules/api/modules/`.
-
-Flujo estructural:
-
-`domain -> application -> infrastructure`
-
-### Capas
-
-- `domain/`
-  Define contratos y modelos de negocio.
-  Incluye entidades de dominio, enums e interfaces de repositorio.
-
-- `application/`
-  Implementa casos de uso y la orquestacion de reglas de negocio.
-  Los services consumen unicamente contratos del dominio.
-
-- `infrastructure/`
-  Resuelve los detalles tecnicos.
-  Incluye controllers, DTOs, entities de TypeORM, mappers e implementaciones de repositorio.
-
-### Reglas de implementacion
-
-- Los controllers delegan en services y no deben contener logica de persistencia.
-- Los services consumen repositorios mediante interfaces usando string tokens.
-- Las implementaciones de repositorio TypeORM viven en `infrastructure/repositories/`.
-- Las rutas privadas usan `@UseGuards(AuthGuard('jwt'))`.
-- El usuario autenticado se resuelve con `@CurrentUser()`.
-- Las respuestas exitosas no se envuelven manualmente; `ResponseInterceptor` estandariza el contrato de respuesta.
-- Los errores deben expresarse con excepciones nativas de NestJS.
-- El logging de aplicacion se canaliza a traves de `LoggerProviderService`.
-
-## Estructura del proyecto
-
-```text
-src/
-|-- common/                  # Decoradores, constantes y utilidades transversales
-|-- core/                    # Bootstrap, configuracion, seguridad, filtros, interceptores y providers
-|-- modules/
-|   `-- api/
-|       `-- modules/
-|           |-- accounts/
-|           |-- auth/
-|           |-- bills/
-|           |-- budgets/
-|           |-- categories/
-|           |-- expenses/
-|           |-- finances/
-|           |-- health/
-|           |-- incomes/
-|           |-- savings/
-|           |-- shared/
-|           |-- transactions/
-|           |-- user-profile/
-|           `-- users/
-|-- scripts/                 # Scripts operativos como seeds
-`-- types/                   # Tipos compartidos
-```
-
-### Estructura esperada por modulo
-
-```text
-module/
-|-- domain/
-|   |-- [entity].ts
-|   |-- enums/
-|   `-- repositories/
-|-- application/
-|   `-- services/
-`-- infrastructure/
-    |-- controller/
-    |-- database/entities/
-    |-- dto/
-    |-- mapper/
-    `-- repositories/
-```
-
-## Modulos funcionales
-
-El backend incluye actualmente los siguientes modulos de negocio:
-
-- `auth`: registro local, inicio de sesion local, inicio de sesion con Google, refresh de token y logout.
-- `users`: resolucion del usuario autenticado y flujo de onboarding.
-- `user-profile`: gestion del perfil del usuario.
-- `finances`: configuracion financiera asociada al usuario.
-- `budgets`: creacion, consulta, activacion y resumen historico de presupuestos.
-- `incomes`: flujos de ingresos planificados y no planificados.
-- `expenses`: flujos de gastos planificados y no planificados.
-- `transactions`: consulta y mantenimiento de transacciones.
-- `savings`: metas, asignaciones y ahorros planificados.
-- `accounts`: cuentas financieras del usuario.
-- `categories`: catalogo de categorias.
-- `bills`: estructuras relacionadas con facturas.
-- `health`: endpoint basico de salud del servicio.
-- `shared`: elementos compartidos a nivel de modulo.
-
-## Contratos transversales
-
-### Autenticacion
-
-- JWT es el mecanismo principal de autenticacion.
-- El payload autenticado se valida mediante `JwtStrategy`.
-- La invalidacion de sesion se soporta mediante `tokenVersion`.
-
-### Contrato de respuesta HTTP
-
-Las respuestas exitosas siguen el contrato estandarizado por el interceptor global:
-
-```json
-{
-  "success": true,
-  "data": {}
-}
-```
-
-### Documentacion de API
-
-- Swagger se habilita en entornos `local` y `development`.
-- La ruta base de documentacion es `api-docs`.
-
-## Ejecucion local
-
-### Requisitos
-
-- Node.js `26.13.x` (LTS)
-- pnpm `11.1.2` (vía `packageManager`)
-- PostgreSQL accesible desde la configuracion local
-
-### Instalacion
+## Levantarlo
 
 ```bash
 pnpm install
-```
-
-### Comandos disponibles
-
-```bash
-pnpm start
+cp .env.example .env   # completa base de datos, JWT y Firebase
+pnpm migration:run     # crea el esquema (synchronize está desactivado)
 pnpm start:dev
-pnpm start:prod
-pnpm build
+```
+
+La API queda en `http://localhost:9000/api/v1` (puerto `APP_PORT`) y Swagger en `/api-docs`. Todas las variables y sus valores por defecto están en `.env.example`.
+
+## Probarlo
+
+```bash
+pnpm test          # pruebas
+pnpm exec tsc --noEmit
 pnpm lint
-pnpm format
-pnpm seed:categories
 ```
 
-### Bootstrap de la aplicacion
+El CI corre eslint, `tsc --noEmit`, `pnpm test:ci` y `pnpm build`. El hook pre-commit corre lint, prettier y toda la suite.
 
-- El puerto por defecto es `9000` cuando `APP_PORT` no esta definido.
-- Swagger se registra solo fuera de produccion.
-- Los pipes, filtros e interceptores globales se configuran durante el arranque.
+## Migraciones
 
-## Configuracion
+`pnpm migration:generate src/database/migrations/<Nombre>`, `pnpm migration:run` y `pnpm migration:revert`. Toda migración nueva se agrega a `src/database/migrations.registry.ts`.
 
-El proyecto utiliza `@nestjs/config` con servicios de configuracion modulares.
+## Desplegar
 
-### Variables de entorno observables en el codigo
+Un push a `develop` despliega en el servidor mediante un runner propio: respaldo de la base, `pnpm migration:run` y reinicio con PM2. `main` es la rama de producción.
 
-#### Aplicacion
+## Más información
 
-- `NODE_ENV`
-- `APP_NAME`
-- `APP_URL`
-- `APP_PORT`
-
-#### Swagger
-
-- `SWAGGER_URL`
-
-#### JWT
-
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-
-#### PostgreSQL
-
-- `DB_HOST`
-- `DB_PORT`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_NAME`
-
-#### Firebase Admin
-
-- `FB_PROJECT_ID`
-- `FB_CLIENT_EMAIL`
-- `FB_PRIVATE_KEY`
-
-## Persistencia
-
-- La aplicacion usa PostgreSQL a traves de TypeORM.
-- `autoLoadEntities` esta habilitado.
-- `synchronize` esta habilitado actualmente en `DatabaseModule`.
-
-Esto implica que el comportamiento de sincronizacion de esquema debe tratarse con cuidado en entornos controlados.
-
-## Seguridad
-
-- Las rutas privadas estan protegidas con `AuthGuard('jwt')`.
-- El usuario autenticado se resuelve mediante `@CurrentUser()`.
-- Los tokens se generan desde `JwtProvider`.
-- La invalidacion de sesion se basa en `tokenVersion`.
-
-## Logging y observabilidad
-
-- El proyecto usa `LoggerProviderService` como proveedor central de logs.
-- Los interceptores y filtros globales estandarizan la trazabilidad de requests y el manejo de errores.
-- Existe un endpoint de salud disponible a traves del modulo `health`.
-
-## Documentacion adicional
-
-- [AGENTS.md](./AGENTS.md): contexto operativo y reglas del proyecto.
-
-## Desarrollo
-
-### Requisitos
-
-- Node 26 LTS (ver .nvmrc)
-- PostgreSQL 15+
-- pnpm
-
-### Setup
-
-```bash
-nvm use
-pnpm install
-cp .env.example .env   # completar variables
-```
-
-### Variables de entorno requeridas
-
-```
-DATABASE_URL=postgresql://user:pass@localhost:5432/micomodoro
-JWT_SECRET=...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-```
-
-### Migraciones
-
-```bash
-npx typeorm migration:run -d src/core/config/database/typeorm.config.ts
-```
-
-### Backup
-
-```bash
-./scripts/backup.sh
-```
-
-### Branching
-
-- main → producción (solo releases taggeados)
-- develop → staging / integración
-- feat/_ fix/_ → ramas de trabajo, salen de develop
-
-## Criterios de mantenimiento
-
-Este README documenta unicamente informacion estable y verificable en el codigo actual:
-
-- proposito del servicio
-- stack
-- arquitectura
-- estructura
-- contratos transversales
-- ejecucion local
-- configuracion observable
-
-Se excluyen intencionalmente tareas temporales, roadmap y detalles de implementacion que todavia puedan cambiar.
+- [AGENTS.md](AGENTS.md): convenciones y reglas de trabajo.
+- [Respaldos](docs/BACKUPS.md) · [Base de datos](docs/DATABASE.md) · [Política de datos](docs/LEGAL.md) · [Privacidad](docs/PRIVACY.md) · [Logs](docs/LOGS.md)
