@@ -46,7 +46,7 @@ export class OnboardingResponseListener {
     const errorMsg = payload.error instanceof Error ? payload.error.message : String(payload.error);
     this.logger.error(
       this.context,
-      `❌ Onboarding failed for email: ${payload.email}. Error: ${errorMsg}`,
+      `❌ Onboarding failed for user ${payload.userId ?? 'unknown'}${payload.step ? ` at step ${payload.step}` : ''}. Error: ${errorMsg}`,
     );
   }
 }

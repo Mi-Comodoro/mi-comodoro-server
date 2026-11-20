@@ -1,6 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 
+import { pathOnly } from '../../common/utils/log-url';
 import { LoggerProviderService } from '../providers/logs';
 
 @Injectable()
@@ -19,7 +20,8 @@ export class LoggingInterceptor implements NestInterceptor {
         const duration = Date.now() - start;
         const status = context.switchToHttp().getResponse().statusCode;
         const message = `Request completed - Status: ${status} [${duration}ms]`;
-        this.logger.info(ctx, message, method, url);
+        // Sin query string: puede llevar teléfonos o búsquedas
+        this.logger.info(ctx, message, method, pathOnly(url));
       }),
     );
   }

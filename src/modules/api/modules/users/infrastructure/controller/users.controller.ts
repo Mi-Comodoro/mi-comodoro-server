@@ -48,7 +48,7 @@ export class UsersController {
   ) {
     this.logger.info(
       this.context,
-      `Onboarding user with token payload userId=${user.userId}, email=${user.email}, tokenVersion=${user.tokenVersion ?? 0}`,
+      `Onboarding user with token payload userId=${user.userId}, tokenVersion=${user.tokenVersion ?? 0}`,
     );
     return await this.userService.onboardingByUserId(user.userId, body);
   }
@@ -95,7 +95,7 @@ export class UsersController {
   @ApiOkResponse({ description: 'Lista de usuarios encontrados' })
   @ApiErrorResponse(401, 'Unauthorized')
   async searchUsers(@CurrentUser() user: JwtPayload, @Query() query: SearchUsersQueryDto) {
-    this.logger.info(this.context, `Searching users: ${query.q}`);
+    this.logger.info(this.context, `Searching users (requested by ${user.userId})`);
     return await this.userService.searchUsers(query.q, user.userId);
   }
 }

@@ -30,7 +30,7 @@ export class FriendshipsService {
   ) {}
 
   async sendRequest(requesterId: string, handle: string) {
-    this.logger.info(this.context, `User ${requesterId} sending friend request to @${handle}`);
+    this.logger.info(this.context, `User ${requesterId} sending a friend request`);
 
     const addressee = await this.userRepository.findByHandle(handle);
     if (!addressee) {
