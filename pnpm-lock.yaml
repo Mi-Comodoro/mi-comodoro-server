@@ -77,9 +77,6 @@ importers:
       dotenv:
         specifier: 17.4.1
         version: 17.4.1
-      fast-xml-parser:
-        specifier: ^5.12.1
-        version: 5.12.1
       firebase-admin:
         specifier: 14.5.1
         version: 14.5.1
@@ -5049,7 +5046,8 @@ snapshots:
     optionalDependencies:
       '@nestjs/platform-socket.io': 11.2.10(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/websockets@11.2.10)(rxjs@7.8.2)
 
-  '@nodable/entities@3.1.0': {}
+  '@nodable/entities@3.1.0':
+    optional: true
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -5561,7 +5559,8 @@ snapshots:
       normalize-path: 3.0.0
       picomatch: 2.3.2
 
-  anynum@1.0.1: {}
+  anynum@1.0.1:
+    optional: true
 
   app-root-path@3.1.0: {}
 
@@ -6273,6 +6272,7 @@ snapshots:
     dependencies:
       path-expression-matcher: 1.6.2
       xml-naming: 0.3.0
+    optional: true
 
   fast-xml-parser@5.12.1:
     dependencies:
@@ -6282,6 +6282,7 @@ snapshots:
       path-expression-matcher: 1.6.2
       strnum: 2.5.1
       xml-naming: 0.3.0
+    optional: true
 
   fastq@1.20.3:
     dependencies:
@@ -6705,7 +6706,8 @@ snapshots:
 
   is-unicode-supported@0.1.0: {}
 
-  is-unsafe@2.0.3: {}
+  is-unsafe@2.0.3:
+    optional: true
 
   isarray@2.0.5: {}
 
@@ -7482,7 +7484,8 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-expression-matcher@1.6.2: {}
+  path-expression-matcher@1.6.2:
+    optional: true
 
   path-is-absolute@1.0.1: {}
 
@@ -7971,6 +7974,7 @@ snapshots:
   strnum@2.5.1:
     dependencies:
       anynum: 1.0.1
+    optional: true
 
   strtok3@10.8.0:
     dependencies:
@@ -8352,7 +8356,8 @@ snapshots:
 
   ws@8.21.3: {}
 
-  xml-naming@0.3.0: {}
+  xml-naming@0.3.0:
+    optional: true
 
   xtend@4.0.2: {}
 
