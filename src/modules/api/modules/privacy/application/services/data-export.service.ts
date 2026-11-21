@@ -46,6 +46,13 @@ export class DataExportService {
       [userId],
     );
 
+    // Solicitud con la que se registró en la beta cerrada (ya no guarda su correo, solo fechas y versión)
+    const betaAccess = await this.rows(
+      `SELECT policy_version, consent_at, created_at, decided_at, registered_at
+         FROM beta_access_requests WHERE registered_user_id = $1`,
+      [userId],
+    );
+
     const [
       profile,
       settings,
@@ -145,6 +152,7 @@ export class DataExportService {
       profile,
       settings,
       consents,
+      betaAccess,
       sessions,
       finances,
       accounts,

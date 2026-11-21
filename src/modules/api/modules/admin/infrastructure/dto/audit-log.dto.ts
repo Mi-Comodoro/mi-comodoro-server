@@ -8,9 +8,11 @@ export type AuditAction =
   | 'TRIAL_EXTENDED'
   | 'USER_DELETED'
   | 'CONFIG_UPDATED'
-  | 'ANNOUNCEMENT_SENT';
+  | 'ANNOUNCEMENT_SENT'
+  | 'BETA_ACCESS_APPROVED'
+  | 'BETA_ACCESS_REJECTED';
 
-export type AuditTargetType = 'user' | 'config' | 'announcement';
+export type AuditTargetType = 'user' | 'config' | 'announcement' | 'beta_request';
 
 export class CreateAuditLogDto {
   adminId: string;
@@ -31,10 +33,10 @@ export class AuditLogQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filtrar por tipo de objetivo',
-    enum: ['user', 'config', 'announcement'],
+    enum: ['user', 'config', 'announcement', 'beta_request'],
   })
   @IsOptional()
-  @IsIn(['user', 'config', 'announcement'])
+  @IsIn(['user', 'config', 'announcement', 'beta_request'])
   targetType?: string;
 
   @ApiPropertyOptional({ description: 'Fecha inicio (ISO 8601)' })
