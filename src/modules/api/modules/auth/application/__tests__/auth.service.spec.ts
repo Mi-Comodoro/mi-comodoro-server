@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
+import { BetaAccessService } from '../../../beta-access/application/services/beta-access.service';
 import { ConsentService } from '../../../legal/application/services/consent.service';
 import { UserRole } from '../../../users/domain/user-role.enum';
 import { AuthService } from '../auth.service';
@@ -70,6 +72,10 @@ const mockConsentService = {
   assertAcceptedForRegistration: jest.fn(),
   recordAcceptance: jest.fn(),
 };
+const mockBetaAccess = {
+  assertCanRegister: jest.fn().mockResolvedValue(undefined),
+  markRegistered: jest.fn().mockResolvedValue(undefined),
+};
 
 const makeUser = (overrides = {}) => ({
   id: 'user-1',
@@ -99,6 +105,7 @@ describe('AuthService', () => {
         { provide: SystemConfigService, useValue: mockSystemConfig },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: ConsentService, useValue: mockConsentService },
+        { provide: BetaAccessService, useValue: mockBetaAccess },
       ],
     }).compile();
 
@@ -177,6 +184,41 @@ describe('AuthService', () => {
           ip: '203.0.113.9',
           userAgent: 'Mozilla/5.0',
         });
+      });
+    });
+
+    describe('beta cerrada', () => {
+      it('exige la invitación antes de crear la cuenta', async () => {
+        mockUserRepo.findByEmail.mockResolvedValue(null);
+        mockBetaAccess.assertCanRegister.mockRejectedValueOnce(
+          new ForbiddenException('sin invitación'),
+        );
+
+        await expect(service.signup({ ...signupData, inviteToken: undefined })).rejects.toThrow(
+          ForbiddenException,
+        );
+        expect(mockBetaAccess.assertCanRegister).toHaveBeenCalledWith(signupData.email, undefined);
+        expect(mockUserRepo.save).not.toHaveBeenCalled();
+      });
+
+      it('gasta la invitación con el id de la cuenta creada', async () => {
+        mockUserRepo.findByEmail.mockResolvedValue(null);
+        mockUserRepo.save.mockResolvedValue(makeUser({ id: 'new-user-id' }));
+        mockProfileRepo.save.mockResolvedValue({
+          id: 'p-1',
+          userId: 'new-user-id',
+          accountType: AccountType.TRIAL,
+          trialEndsAt: null,
+        });
+
+        await service.signup({ ...signupData, inviteToken: 'tok' });
+
+        expect(mockBetaAccess.assertCanRegister).toHaveBeenCalledWith(signupData.email, 'tok');
+        expect(mockBetaAccess.markRegistered).toHaveBeenCalledWith(
+          signupData.email,
+          'tok',
+          'new-user-id',
+        );
       });
     });
 

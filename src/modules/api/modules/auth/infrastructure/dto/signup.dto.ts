@@ -92,6 +92,15 @@ export class SignUpDto {
   acceptedPolicyVersion?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Token de la invitación a la beta cerrada (obligatorio cuando BETA_INVITE_REQUIRED está activo)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  inviteToken?: string;
+
+  @ApiPropertyOptional({
     example: FinancialProfileEnum.employee,
     description: 'Perfil financiero del usuario',
     enum: FinancialProfileEnum,
