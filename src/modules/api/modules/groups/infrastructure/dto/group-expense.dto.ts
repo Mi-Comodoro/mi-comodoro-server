@@ -9,7 +9,7 @@ export class CreateGroupExpenseDto {
   description: string;
 
   @ApiProperty({ example: 450000, minimum: 1 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(1)
   @Type(() => Number)
   amount: number;

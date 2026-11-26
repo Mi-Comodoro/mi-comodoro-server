@@ -25,7 +25,7 @@ export class CreateBillDto {
   categoryId: string;
 
   @ApiProperty({ example: 45000 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   expectedAmount: number;
 

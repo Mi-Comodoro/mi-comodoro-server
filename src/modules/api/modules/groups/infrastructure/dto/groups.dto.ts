@@ -69,7 +69,7 @@ export class InviteWithContextDto {
     description: 'Monto planificado del organizador para el viaje',
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   plannedAmount?: number;
 }

@@ -19,7 +19,7 @@ export class CreateAccountReceivableDto {
   debtor?: string;
 
   @ApiProperty({ description: 'Monto original a cobrar', minimum: 0.01 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Type(() => Number)
   originalAmount: number;
