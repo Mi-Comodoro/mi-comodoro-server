@@ -244,7 +244,7 @@ describe('BudgetService', () => {
     });
 
     it('creates an empty budget and returns it', async () => {
-      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'finances-1' });
+      mockFinancesRepo.findByUserId.mockResolvedValue({ id: 'finances-1', currency: 'USD' });
       mockBudgetRepo.findByFinancesIdAndMonth.mockResolvedValue(null);
       mockBudgetRepo.save.mockResolvedValue(makeBudget());
 
@@ -256,6 +256,9 @@ describe('BudgetService', () => {
       });
 
       expect(mockBudgetRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockBudgetRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ currency: 'USD' }),
+      );
       expect(result.month).toBe('Junio');
     });
   });
