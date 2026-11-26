@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { QueryFailedError } from 'typeorm';
 
 import { LoggerProviderService } from '../providers';
 
@@ -21,6 +22,13 @@ interface ErrorResponse {
   error: string;
   statusCode: number;
 }
+
+/** Postgres: invalid_text_representation (p. ej. un id que no es un UUID) */
+const PG_INVALID_TEXT = '22P02';
+
+const isInvalidInput = (exception: unknown): boolean =>
+  exception instanceof QueryFailedError &&
+  (exception.driverError as { code?: string } | undefined)?.code === PG_INVALID_TEXT;
 
 @Catch()
 @Injectable()
@@ -65,6 +73,12 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       message = this.extractMessage(exception);
       error = this.getExceptionName(exception);
+    } else if (isInvalidInput(exception)) {
+      status = 400;
+      message = 'Identificador o valor con formato inválido.';
+      error = 'BadRequest';
+      // Sin el mensaje de Postgres: incluye el valor que envió el cliente
+      this.logger.warn(this.context, 'Petición con un valor que la base de datos rechaza (22P02)');
     } else {
       this.logger.error(
         this.context,
