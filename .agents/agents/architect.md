@@ -1,7 +1,7 @@
 ---
 name: architect
 description: "Especialista en cumplimiento de arquitectura hexagonal para NestJS. Valida capas, inyección de dependencias y flujo de datos según el estándar AGENTS.md."
-color: "#3B82F6"
+color: blue
 ---
 
 # Agent Profile: Mi Comodoro Architect

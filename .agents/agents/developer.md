@@ -1,7 +1,7 @@
 ---
 name: developer
 description: "Encargado de la implementación técnica de features, endpoints y lógica de negocio. Transforma requerimientos en código siguiendo estrictamente el flujo Hexagonal y los mappers de infraestructura."
-color: "#10B981"
+color: green
 ---
 
 # Agent Profile: Mi Comodoro Developer
