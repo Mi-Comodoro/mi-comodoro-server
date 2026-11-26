@@ -22,7 +22,11 @@ const mockCategoryRepo = { findByType: jest.fn() };
 const mockAccountRepo = { findPrimaryByUserId: jest.fn(), findByIdAndUser: jest.fn() };
 const mockAllocationRepo = { find: jest.fn() };
 const mockManager = { update: jest.fn(), save: jest.fn() };
-const mockDataSource = { transaction: jest.fn(), getRepository: jest.fn() };
+const mockDataSource = {
+  transaction: jest.fn(),
+  getRepository: jest.fn(),
+  query: jest.fn().mockResolvedValue([{ currency: 'COP' }]),
+};
 const mockLogger = {
   log: jest.fn(),
   info: jest.fn(),

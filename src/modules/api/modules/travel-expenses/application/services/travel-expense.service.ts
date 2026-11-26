@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
 
-import { roundMoney } from '@/common/helpers/money.helpers';
+import { findUserMoneyStrategy } from '@/common/money/user-money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GroupMemberEntity } from '../../../groups/infrastructure/database/entities/group-member.entity';
@@ -84,18 +84,29 @@ export class TravelExpenseService {
           where: { groupId: dto.groupId, isActive: true, nulledAt: IsNull() },
         });
         if (!members.length) throw new BadRequestException('El grupo no tiene miembros activos');
-        const perMember = roundMoney(Number(dto.amount) / members.length);
-        assignments = members.map((m) => ({
+        const strategy = await findUserMoneyStrategy(this.dataSource, userId);
+        const ordered = this.payerFirst(members, userId);
+        const shares = strategy.allocate(
+          Number(dto.amount),
+          ordered.map(() => 1),
+        );
+        assignments = ordered.map((m, i) => ({
           expenseId: savedExpense.id,
           userId: m.userId ?? undefined,
-          assignedAmount: perMember,
+          assignedAmount: shares[i],
           settled: false,
         }));
       } else if (dto.splitType === 'PERCENTAGE') {
-        assignments = dto.assignments!.map((a) => ({
+        const strategy = await findUserMoneyStrategy(this.dataSource, userId);
+        const ordered = this.payerFirst(dto.assignments!, userId);
+        const shares = strategy.allocate(
+          Number(dto.amount),
+          ordered.map((a) => a.percentage!),
+        );
+        assignments = ordered.map((a, i) => ({
           expenseId: savedExpense.id,
           userId: a.userId,
-          assignedAmount: roundMoney((a.percentage! / 100) * Number(dto.amount)),
+          assignedAmount: shares[i],
           settled: false,
         }));
       } else {
@@ -119,6 +130,14 @@ export class TravelExpenseService {
         })),
       };
     });
+  }
+
+  /** Orden fijo del reparto: primero quien paga y luego por id, para que los centavos sobrantes no cambien de dueño */
+  private payerFirst<T extends { userId?: string | null }>(people: T[], payerId: string): T[] {
+    const rank = (person: T) => (person.userId === payerId ? 0 : 1);
+    return [...people].sort(
+      (a, b) => rank(a) - rank(b) || (a.userId ?? '').localeCompare(b.userId ?? ''),
+    );
   }
 
   async getByGroup(groupId: string, userId: string) {
@@ -163,13 +182,18 @@ export class TravelExpenseService {
       const members = await this.memberRepo.find({
         where: { groupId: expense.groupId, isActive: true, nulledAt: IsNull() },
       });
-      const perMember = roundMoney(Number(newAmount) / members.length);
+      const strategy = await findUserMoneyStrategy(this.dataSource, expense.paidBy);
+      const ordered = this.payerFirst(members, expense.paidBy);
+      const shares = strategy.allocate(
+        Number(newAmount),
+        ordered.map(() => 1),
+      );
       await this.assignmentRepo.deleteByExpense(id);
       await this.assignmentRepo.saveMany(
-        members.map((m) => ({
+        ordered.map((m, i) => ({
           expenseId: id,
           userId: m.userId ?? undefined,
-          assignedAmount: perMember,
+          assignedAmount: shares[i],
           settled: false,
         })),
       );

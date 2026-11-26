@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { roundMoney } from '@/common/helpers/money.helpers';
+import { getMoneyStrategy, type MoneyStrategy } from '@/common/money/money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AccountsPayableService } from '../../accounts-payable/application/accounts-payable.service';
@@ -253,7 +254,8 @@ export class FinancialHealthService {
         budgets.map((budget) => this.calculatePillarsForBudget(budget)),
       );
 
-      const averaged = this.averagePillars(pillarsByBudget);
+      const money = getMoneyStrategy(finances.currency);
+      const averaged = this.averagePillars(pillarsByBudget, money);
       const avgMonthlyIncome = averaged.avgMonthlyIncome;
       const dti = this.calcDti(totalDebt, avgMonthlyIncome);
       const debtScore = this.calcDebtScore(totalDebt, avgMonthlyIncome);
@@ -553,7 +555,10 @@ export class FinancialHealthService {
     return 0;
   }
 
-  private averagePillars(pillars: PillarResult[]): PillarResult {
+  private averagePillars(
+    pillars: PillarResult[],
+    money: MoneyStrategy = getMoneyStrategy(),
+  ): PillarResult {
     const count = pillars.length;
     const sum = pillars.reduce(
       (acc, p) => ({
@@ -592,7 +597,7 @@ export class FinancialHealthService {
       expenseScore: Math.round(sum.expenseScore / count),
       expensesExcessPct: Math.round((sum.expensesExcessPct / count) * 100) / 100,
       totalTransactions: sum.totalTransactions,
-      avgMonthlyIncome: roundMoney(sum.avgMonthlyIncome / count),
+      avgMonthlyIncome: money.round(sum.avgMonthlyIncome / count),
       totalIncome: roundMoney(sum.totalIncome),
       totalExpenses: roundMoney(sum.totalExpenses),
       totalSavings: roundMoney(sum.totalSavings),

@@ -28,7 +28,7 @@ const makePayload = (overrides = {}) => ({
         isActive: true,
       },
     ],
-    finances: {},
+    finances: { currency: 'USD' },
   },
   budget: { id: 'budget-1', year: 2026, month: 'junio' },
   ...overrides,
@@ -75,6 +75,7 @@ describe('OnboardingIncomesListener', () => {
       createdIncomes,
       2026,
       5, // junio → index 5
+      'USD',
     );
   });
 

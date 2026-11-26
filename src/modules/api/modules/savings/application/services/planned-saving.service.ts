@@ -8,6 +8,7 @@ import {
 import { DataSource } from 'typeorm';
 
 import { roundMoney } from '@/common/helpers/money.helpers';
+import { findUserMoneyStrategy } from '@/common/money/user-money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
@@ -106,8 +107,14 @@ export class PlannedSavingService {
       return [saved];
     }
 
-    const savingsToCreate = validAllocations.map((a) => ({
-      amount: roundMoney(dto.amount * (a.percentage / 100)),
+    const strategy = await findUserMoneyStrategy(this.dataSource, userId);
+    // Solo las metas con cuenta reciben ahorro: se reparte la parte del monto que les corresponde
+    const weights = validAllocations.map((a) => Number(a.percentage));
+    const covered = weights.reduce((sum, w) => sum + w, 0);
+    const amounts = strategy.allocate((dto.amount * covered) / 100, weights);
+
+    const savingsToCreate = validAllocations.map((a, index) => ({
+      amount: amounts[index],
       budgetId: dto.budgetId,
       plannedIncomeId: dto.plannedIncomeId,
       savingGoalId: a.goalId,

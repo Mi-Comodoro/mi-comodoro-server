@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { roundMoney } from '@/common/helpers/money.helpers';
+import { getMoneyStrategy } from '@/common/money/money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 
 import { PlannedIncome } from '../../domain/income-planned';
@@ -45,6 +45,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
     incomes: IncomeSource[],
     year: number,
     month: number,
+    currency?: string,
   ): Promise<void> {
     this.logger.info(this.context, 'Frecuencia' + ' ' + incomes);
     const plannedIncomes: PlannedIncomeEntity[] = [];
@@ -67,9 +68,12 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
         );
       }
       if (frequency === 'biweekly') {
-        const splitAmount = roundMoney(amount / paymentDays.length);
+        const splitAmounts = getMoneyStrategy(currency).allocate(
+          Number(amount),
+          paymentDays.map(() => 1),
+        );
 
-        for (const day of paymentDays) {
+        for (const [index, day] of paymentDays.entries()) {
           const date = new Date(year, month, day);
 
           plannedIncomes.push(
@@ -78,7 +82,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
               incomeSourceId: source.id,
               source: source.source,
               incomeSource: source,
-              amount: splitAmount,
+              amount: splitAmounts[index],
               date,
               status: 'PENDING',
             }),

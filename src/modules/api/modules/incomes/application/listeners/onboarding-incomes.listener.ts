@@ -89,6 +89,7 @@ export class OnboardingIncomesListener {
           incomesData,
           currentMonth.getFullYear(),
           currentMonth.getMonth(),
+          payload.data.finances?.currency,
         );
 
         this.logger.info(

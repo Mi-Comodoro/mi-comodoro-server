@@ -23,7 +23,10 @@ const mockAssignmentRepo = {
 };
 const mockMemberRepo = { findOne: jest.fn(), find: jest.fn() };
 const mockManager = { create: jest.fn(), save: jest.fn() };
-const mockDataSource = { transaction: jest.fn() };
+const mockDataSource = {
+  transaction: jest.fn(),
+  query: jest.fn().mockResolvedValue([{ currency: 'COP' }]),
+};
 const mockLogger = {
   log: jest.fn(),
   info: jest.fn(),
@@ -159,7 +162,7 @@ describe('TravelExpenseService', () => {
       expect(result.assignments).toHaveLength(2);
     });
 
-    it('rounds each EQUAL share to 2 decimals (100 / 3 = 33.33)', async () => {
+    it('splits EQUAL without losing a cent (100 / 3), the payer takes the leftover', async () => {
       mockMemberRepo.findOne.mockResolvedValue(makeMember());
       mockMemberRepo.find.mockResolvedValue([
         makeMember(),
@@ -176,10 +179,10 @@ describe('TravelExpenseService', () => {
       await service.createExpense('user-1', { ...baseDto, amount: 100 });
 
       const assignmentsArg = mockManager.create.mock.calls[1][1] as { assignedAmount: number }[];
-      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([33.33, 33.33, 33.33]);
+      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([33.34, 33.33, 33.33]);
     });
 
-    it('rounds PERCENTAGE shares half away from zero (1.005)', async () => {
+    it('splits PERCENTAGE so the shares add up to the total (1% and 99% of 100.5)', async () => {
       mockMemberRepo.findOne.mockResolvedValue(makeMember());
       mockManager.create
         .mockReturnValueOnce({ groupId: 'group-1', amount: '100.5' })
@@ -199,7 +202,34 @@ describe('TravelExpenseService', () => {
       });
 
       const assignmentsArg = mockManager.create.mock.calls[1][1] as { assignedAmount: number }[];
-      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([1.01, 99.5]);
+      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([1.01, 99.49]);
+    });
+
+    it('gives the leftover cent to the payer even when listed last', async () => {
+      mockMemberRepo.findOne.mockResolvedValue(makeMember());
+      mockMemberRepo.find.mockResolvedValue([
+        makeMember({ id: 'member-3', userId: 'user-3' }),
+        makeMember({ id: 'member-2', userId: 'user-2' }),
+        makeMember(),
+      ]);
+      mockManager.create
+        .mockReturnValueOnce({ groupId: 'group-1', amount: '100' })
+        .mockReturnValueOnce([]);
+      mockManager.save
+        .mockResolvedValueOnce({ id: 'exp-1', amount: '100' })
+        .mockResolvedValueOnce([]);
+
+      await service.createExpense('user-1', { ...baseDto, amount: 100 });
+
+      const rows = mockManager.create.mock.calls[1][1] as {
+        userId: string;
+        assignedAmount: number;
+      }[];
+      expect(rows.map((r) => [r.userId, r.assignedAmount])).toEqual([
+        ['user-1', 33.34],
+        ['user-2', 33.33],
+        ['user-3', 33.33],
+      ]);
     });
 
     it('creates PERCENTAGE split expense calculating amounts from percentages', async () => {
