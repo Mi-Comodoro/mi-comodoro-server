@@ -32,6 +32,7 @@ const mockPlannedSavingRepo = {
 
 const mockAccountRepo = {
   get: jest.fn(),
+  findByIdAndUser: jest.fn(),
 };
 
 const mockBudgetRepo = {
@@ -106,6 +107,7 @@ describe('GoalsService', () => {
 
     service = module.get<GoalsService>(GoalsService);
     jest.clearAllMocks();
+    mockAccountRepo.findByIdAndUser.mockResolvedValue({ id: 'account-1' });
     // Por defecto el manager devuelve lo que se le pasa a save, como lo haría TypeORM
     mockManager.save.mockImplementation(async (a: unknown, b?: object) => b ?? a);
     mockManager.find.mockResolvedValue([]);
@@ -122,6 +124,14 @@ describe('GoalsService', () => {
       const result = await service.create(baseGoal as never);
       expect(mockGoalsRepo.create).toHaveBeenCalledWith(baseGoal);
       expect(result).toEqual(baseGoal);
+    });
+
+    it('rechaza una cuenta que no es de la persona y no crea la meta', async () => {
+      mockAccountRepo.findByIdAndUser.mockResolvedValue(null);
+      await expect(
+        service.create({ ...baseGoal, accountId: 'account-ajena' } as never),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockGoalsRepo.create).not.toHaveBeenCalled();
     });
 
     it('propaga error si goalsRepository.create falla', async () => {

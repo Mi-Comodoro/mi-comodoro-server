@@ -1210,6 +1210,7 @@ describe('GroupsService', () => {
         makeMember({ id: 'member-1', memberStatus: 'invited' }),
       );
       mockDataSource.query
+        .mockResolvedValueOnce([{ id: 'budget-2' }]) // budget ownership
         .mockResolvedValueOnce(undefined) // UPDATE group_members
         .mockResolvedValueOnce([{ payload: { organizerPlannedAmount: 500_000 } }]) // invitation notification
         .mockResolvedValueOnce([]) // categories
@@ -1236,6 +1237,7 @@ describe('GroupsService', () => {
         makeMember({ id: 'member-1', memberStatus: 'invited' }),
       );
       mockDataSource.query
+        .mockResolvedValueOnce([{ id: 'budget-2' }]) // budget ownership
         .mockResolvedValueOnce(undefined) // UPDATE group_members
         .mockResolvedValueOnce([{ payload: { organizerPlannedAmount: 400_000.01 } }]) // notification
         .mockResolvedValueOnce([{ currency: 'COP' }]) // finances
@@ -1251,6 +1253,23 @@ describe('GroupsService', () => {
 
       // The organizer keeps the odd cent
       expect(result.expense).toMatchObject({ expectedAmount: 200_000 });
+    });
+
+    it("rejects a budget that is not the responder's, before joining the group", async () => {
+      mockGroupRepo.findById.mockResolvedValue(makeGroup());
+      mockMemberRepo.findOne.mockResolvedValue(
+        makeMember({ id: 'member-1', memberStatus: 'invited' }),
+      );
+      mockDataSource.query.mockReset();
+      mockDataSource.query.mockResolvedValue([]);
+
+      await expect(
+        service.respondToInvitation('group-1', 'user-2', {
+          action: 'accept_full',
+          budgetId: 'budget-of-someone-else',
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockDataSource.query).toHaveBeenCalledTimes(1);
     });
 
     it('returns accepted=true without expense when no budget is found for accept_full', async () => {

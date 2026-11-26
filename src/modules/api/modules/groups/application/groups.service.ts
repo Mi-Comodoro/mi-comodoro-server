@@ -533,6 +533,15 @@ export class GroupsService {
       return { accepted: false };
     }
 
+    // Antes de activar la membresía: el presupuesto indicado debe ser de quien responde
+    if (dto.budgetId && dto.action !== 'accept_no_budget') {
+      const owned = await this.dataSource.query<{ id: string }[]>(
+        `SELECT id FROM budgets WHERE id = $1 AND owner_id = $2 AND nulled_at IS NULL`,
+        [dto.budgetId, responderId],
+      );
+      if (!owned?.length) throw new NotFoundException('Presupuesto no encontrado');
+    }
+
     // Activate membership only if still pending (idempotent — first attempt may have activated already)
     if (member.memberStatus === 'invited') {
       await this.dataSource.query(
