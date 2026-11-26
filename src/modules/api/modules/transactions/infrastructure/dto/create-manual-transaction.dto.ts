@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsDate,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -42,6 +43,7 @@ export class CreateManualTransactionDto {
   budgetId: string;
 
   @ApiProperty({ example: '2026-05-16', description: 'Fecha de la transacción' })
+  @IsDate()
   @IsNotEmpty()
   transactionDate: Date;
 

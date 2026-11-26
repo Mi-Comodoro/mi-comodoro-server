@@ -147,7 +147,8 @@ export class AuthService {
     this.logger.info(this.context, 'Login attempt processed');
     const user = await this.userRepository.findByEmail(credential.email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      // Misma respuesta que con contraseña incorrecta: no revelar qué correos tienen cuenta
+      throw new UnauthorizedException('Wrong email or password');
     }
     const { passwordIsValid, passwordHash } = usePassword();
 

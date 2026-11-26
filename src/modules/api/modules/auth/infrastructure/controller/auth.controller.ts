@@ -78,7 +78,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar sesion con email y contrasena' })
   @ApiOkResponse({ type: SignInResponseDto })
   @ApiErrorResponse(400, 'Invalid request data')
-  @ApiErrorResponse(404, 'User not found')
+  @ApiErrorResponse(401, 'Wrong email or password')
   async signin(@Body() body: SignInDto, @Headers('user-agent') userAgent?: string) {
     this.logger.info(this.context, 'Logging into the user user-profile');
     return await this.authService.signin(body, userAgent);

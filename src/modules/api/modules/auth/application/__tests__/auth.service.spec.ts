@@ -206,10 +206,10 @@ describe('AuthService', () => {
 
   // ─── signin ────────────────────────────────────────────────────────────────
   describe('signin', () => {
-    it('throws NotFoundException when user does not exist', async () => {
+    it('responde igual que con contraseña incorrecta cuando el usuario no existe', async () => {
       mockUserRepo.findByEmail.mockResolvedValue(null);
       await expect(service.signin({ email: 'no@test.com', password: 'pass' })).rejects.toThrow(
-        NotFoundException,
+        new UnauthorizedException('Wrong email or password'),
       );
     });
 
