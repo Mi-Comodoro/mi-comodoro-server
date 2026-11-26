@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
+import { findUserMoneyStrategy } from '@/common/money/user-money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
@@ -105,8 +107,14 @@ export class PlannedSavingService {
       return [saved];
     }
 
-    const savingsToCreate = validAllocations.map((a) => ({
-      amount: Number((dto.amount * (a.percentage / 100)).toFixed(2)),
+    const strategy = await findUserMoneyStrategy(this.dataSource, userId);
+    // Solo las metas con cuenta reciben ahorro: se reparte la parte del monto que les corresponde
+    const weights = validAllocations.map((a) => Number(a.percentage));
+    const covered = weights.reduce((sum, w) => sum + w, 0);
+    const amounts = strategy.allocate((dto.amount * covered) / 100, weights);
+
+    const savingsToCreate = validAllocations.map((a, index) => ({
+      amount: amounts[index],
       budgetId: dto.budgetId,
       plannedIncomeId: dto.plannedIncomeId,
       savingGoalId: a.goalId,
@@ -235,10 +243,10 @@ export class PlannedSavingService {
       if (interestAmount > 0 && goal) {
         this.logger.info(
           this.context,
-          `Creating interest transaction for goal ${goal.id}: ${interestAmount.toFixed(2)}`,
+          `Creating interest transaction for goal ${goal.id}: ${interestAmount}`,
         );
         interestTx = await manager.save(TransactionEntity, {
-          amount: Number(interestAmount.toFixed(2)),
+          amount: interestAmount,
           type: 'interest' as const,
           source: `Interés: ${goal.name}`,
           userId: budget.ownerId,
@@ -275,6 +283,6 @@ export class PlannedSavingService {
 
   private calculateInterest(accumulatedAmount: number, annualRate: number, days: number): number {
     const wholeDays = Math.floor(days);
-    return accumulatedAmount * (Math.pow(1 + annualRate / 100, wholeDays / 365) - 1);
+    return roundMoney(accumulatedAmount * (Math.pow(1 + annualRate / 100, wholeDays / 365) - 1));
   }
 }

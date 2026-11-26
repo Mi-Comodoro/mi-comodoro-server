@@ -209,6 +209,23 @@ describe('AccountsPayableService', () => {
       expect(result.byType['credit_card']).toBe(500000);
     });
 
+    it('rounds totals, byType and debtToIncomeRatio to 2 decimals', async () => {
+      mockRepo.getSummaryData.mockResolvedValue({
+        accounts: [
+          { currentBalance: '0.1', minimumPayment: '0.1', type: 'loan', status: 'active' },
+          { currentBalance: '0.2', minimumPayment: '1.005', type: 'loan', status: 'active' },
+        ],
+        avgMonthlyIncome: 100 / 36,
+      });
+
+      const result = await service.getSummary('user-1');
+
+      expect(result.totalDebt).toBe(0.3);
+      expect(result.byType['loan']).toBe(0.3);
+      expect(result.monthlyCommitments).toBe(1.11);
+      expect(result.debtToIncomeRatio).toBe(0.01);
+    });
+
     it('sets debtToIncomeRatio to 2 when income is 0 but there is debt', async () => {
       mockRepo.getSummaryData.mockResolvedValue({
         accounts: [

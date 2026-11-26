@@ -2,6 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, LessThan, Repository } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
+
 import { AccountPayable } from '../../domain/account-payable';
 import { AccountPayableRepository } from '../../domain/repositories/account-payable.repository';
 import { AccountPayableEntity } from '../database/account-payable.entity';
@@ -146,7 +148,7 @@ export class AccountPayableRepositoryImpl implements AccountPayableRepository {
   ) sub`;
     const result = await this.dataSource.query(query, [userId]);
 
-    const avgMonthlyIncome = result[0]?.avg_income ? Number(result[0].avg_income) : 0;
+    const avgMonthlyIncome = result[0]?.avg_income ? roundMoney(Number(result[0].avg_income)) : 0;
 
     // Also update overdue status for accounts with past nextPaymentDate
     const today = new Date();

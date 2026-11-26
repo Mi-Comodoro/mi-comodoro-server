@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 
+import { findUserMoneyStrategy } from '@/common/money/user-money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 import { PlannedSavingEntity } from '@/modules/api/modules/savings/infrastructure/database/entities/saving-planned.entity';
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
@@ -196,12 +197,18 @@ export class PlannedIncomeService {
       throw new BadRequestException('Allocations must sum 100%');
     }
 
-    const domainRows = allocations.map((item) => {
+    const strategy = await findUserMoneyStrategy(this.dataSource, budget.ownerId);
+    const amounts = strategy.allocate(
+      totalSavings,
+      allocations.map((item) => Number(item.percentage)),
+    );
+
+    const domainRows = allocations.map((item, index) => {
       if (!item.goal?.accountId) {
         throw new BadRequestException(`Goal ${item.goalId} has no account assigned`);
       }
 
-      const amount = Number((totalSavings * (item.percentage / 100)).toFixed(2));
+      const amount = amounts[index];
 
       return {
         plannedIncomeId: plannedIncome.id,

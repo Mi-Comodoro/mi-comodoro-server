@@ -1237,7 +1237,8 @@ describe('GroupsService', () => {
       );
       mockDataSource.query
         .mockResolvedValueOnce(undefined) // UPDATE group_members
-        .mockResolvedValueOnce([{ payload: { organizerPlannedAmount: 400_000 } }]) // notification
+        .mockResolvedValueOnce([{ payload: { organizerPlannedAmount: 400_000.01 } }]) // notification
+        .mockResolvedValueOnce([{ currency: 'COP' }]) // finances
         .mockResolvedValueOnce([]) // categories
         .mockResolvedValueOnce([{ id: 'half-expense-id' }]) // INSERT
         .mockResolvedValueOnce([]); // getMemberProfiles
@@ -1248,6 +1249,7 @@ describe('GroupsService', () => {
         budgetId: 'budget-2',
       });
 
+      // The organizer keeps the odd cent
       expect(result.expense).toMatchObject({ expectedAmount: 200_000 });
     });
 

@@ -9,6 +9,7 @@ export interface PlannedIncomeRepository {
     incomes: IncomeSource[],
     year: number,
     month: number,
+    currency?: string,
   ): Promise<void>;
 
   findByBudgetId(budgetId: string): Promise<Partial<PlannedIncome & { source: string }>[]>;

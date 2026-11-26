@@ -1,5 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AccountsPayableService } from '../../accounts-payable/application/accounts-payable.service';
@@ -135,8 +136,8 @@ export class AnalyticsCombinedService {
 
         return {
           month,
-          projectedBalance: Math.max(0, totalDebt - projectedPayments),
-          minimumPayments: totalMinPayments,
+          projectedBalance: roundMoney(Math.max(0, totalDebt - projectedPayments)),
+          minimumPayments: roundMoney(totalMinPayments),
         };
       });
 
@@ -202,13 +203,13 @@ export class AnalyticsCombinedService {
       const months = Array.from({ length: 3 }, (_, i) => {
         const date = new Date(targetYear, targetMonth - 1 + i, 1);
         const month = date.toLocaleString('es-CO', { month: 'short', year: '2-digit' });
-        const projectedIncome = monthlyIncome + monthlyReceivables;
-        const projectedExpenses = monthlyExpenses;
+        const projectedIncome = roundMoney(monthlyIncome + monthlyReceivables);
+        const projectedExpenses = roundMoney(monthlyExpenses);
         return {
           month,
           projectedIncome,
           projectedExpenses,
-          projectedNet: projectedIncome - projectedExpenses,
+          projectedNet: roundMoney(projectedIncome - projectedExpenses),
         };
       });
 

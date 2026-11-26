@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import { findUserMoneyStrategy } from '@/common/money/user-money.strategy';
 import { LoggerProviderService } from '@/core/providers';
 import { AccountsPayableService } from '@/modules/api/modules/accounts-payable/application/accounts-payable.service';
 import { AccountsReceivableService } from '@/modules/api/modules/accounts-receivable/application/accounts-receivable.service';
@@ -555,8 +556,12 @@ export class GroupsService {
       );
 
       const organizerAmount = Number(inviteNotification[0]?.payload?.organizerPlannedAmount ?? 0);
-      const amount =
-        dto.action === 'accept_full' ? organizerAmount : Math.round(organizerAmount / 2);
+      let amount = organizerAmount;
+      if (dto.action === 'accept_half') {
+        const strategy = await findUserMoneyStrategy(this.dataSource, responderId);
+        // La primera parte es la de quien organiza: se queda el centavo sobrante
+        amount = strategy.allocate(organizerAmount, [1, 1])[1];
+      }
 
       if (amount > 0) {
         // Resolve budget — accept ACTIVE or PLANNED (getDefaultBudget only finds ACTIVE+isDefault)

@@ -40,6 +40,7 @@ const mockAccountRepo = {
 
 const mockDataSource = {
   transaction: jest.fn(),
+  query: jest.fn().mockResolvedValue([{ currency: 'COP' }]),
 };
 
 const mockLogger = {

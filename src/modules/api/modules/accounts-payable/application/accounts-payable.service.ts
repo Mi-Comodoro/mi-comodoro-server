@@ -1,6 +1,7 @@
 import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 import { NotificationsService } from '@/modules/api/modules/notifications/application/services/notifications.service';
 import { NotificationType } from '@/modules/api/modules/notifications/domain/enums/notification-type.enum';
@@ -185,7 +186,9 @@ export class AccountsPayableService {
     const annualIncome = avgMonthlyIncome * 12;
     // Sin presupuestos cerrados, avgMonthlyIncome = 0. Si hay deuda, el ratio
     // debe ser alto (riesgo máximo), no 0 (riesgo mínimo).
-    const debtToIncomeRatio = annualIncome > 0 ? totalDebt / annualIncome : totalDebt > 0 ? 2 : 0;
+    const debtToIncomeRatio = roundMoney(
+      annualIncome > 0 ? totalDebt / annualIncome : totalDebt > 0 ? 2 : 0,
+    );
 
     const byType: Record<string, number> = {};
     for (const account of accounts) {
@@ -193,9 +196,13 @@ export class AccountsPayableService {
       byType[t] = (byType[t] ?? 0) + Number(account.currentBalance);
     }
 
+    for (const key of Object.keys(byType)) {
+      byType[key] = roundMoney(byType[key]);
+    }
+
     return {
-      totalDebt,
-      monthlyCommitments,
+      totalDebt: roundMoney(totalDebt),
+      monthlyCommitments: roundMoney(monthlyCommitments),
       overdueCount,
       nextDueDate,
       debtToIncomeRatio,
