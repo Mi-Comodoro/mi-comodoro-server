@@ -28,7 +28,7 @@ export class CreateExpensePlanDto {
   name: string;
 
   @ApiProperty({ example: 950000 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   expectedAmount: number;
 
@@ -69,7 +69,7 @@ export class CreateExpensePlanDto {
 }
 export class CreateUnplannedExpenseDto {
   @ApiProperty({ example: 950000, description: 'Monto del gasto no planificado' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   amount: number;
 
@@ -111,7 +111,7 @@ export class UpdateExpenseDto {
   name?: string;
 
   @ApiProperty({ example: 1000000, required: false })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @IsOptional()
   expectedAmount?: number;

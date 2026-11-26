@@ -30,7 +30,7 @@ export class UpdateGoalDto {
 
   @ApiProperty({ required: false, example: 5000 })
   @ValidateIf((o) => o.targetAmount !== undefined && o.targetAmount !== null)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(1)
   targetAmount?: number | null;
 

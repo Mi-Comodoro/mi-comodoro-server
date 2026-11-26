@@ -12,7 +12,7 @@ export class CreateContributionDto {
   accountId?: string;
 
   @ApiProperty({ example: 100.5, description: 'Monto del aporte' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(1)
   amount: number;
 

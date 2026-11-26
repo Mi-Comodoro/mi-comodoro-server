@@ -3,7 +3,7 @@ import { IsDate, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator'
 
 export class UpdateTransactionDto {
   @ApiPropertyOptional({ example: 75000, description: 'Nuevo monto de la transacción' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsOptional()
   amount?: number;
 

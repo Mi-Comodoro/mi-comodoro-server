@@ -4,7 +4,7 @@ import { IsDateString, IsNumber, IsOptional, IsString, Min } from 'class-validat
 
 export class CreatePaymentDto {
   @ApiProperty({ description: 'Monto del pago' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Type(() => Number)
   amount: number;

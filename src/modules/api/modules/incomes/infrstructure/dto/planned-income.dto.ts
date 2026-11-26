@@ -201,7 +201,7 @@ export class UnplannedIncomeResponseDto {
 
 export class CreateUnplannedIncomeDto {
   @ApiProperty({ type: 'number', example: 1200.5, description: 'Monto del ingreso no planificado' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   amount: number;
 
@@ -243,7 +243,7 @@ export class CreateManualPlannedIncomeDto {
   budgetId: string;
 
   @ApiProperty({ type: 'number', example: 1200.5, description: 'Monto del ingreso puntual' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   amount: number;
 

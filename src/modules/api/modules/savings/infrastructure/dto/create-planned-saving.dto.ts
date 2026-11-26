@@ -3,7 +3,7 @@ import { IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreatePlannedSavingDto {
   @ApiProperty({ description: 'Monto a ahorrar', minimum: 1 })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(1)
   amount: number;
 
