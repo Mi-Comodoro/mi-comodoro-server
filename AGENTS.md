@@ -54,6 +54,7 @@ Módulos en `src/modules/api/modules/<módulo>/{domain,application/services,infr
 - Nada identificable en logs (correo, teléfono, usuario, búsquedas, query strings): lo verifica `logs-sin-datos-personales.spec.ts`. Ver `docs/LOGS.md`.
 - El límite de tasa cuenta por usuario (`resolveThrottleTracker`). La IP real solo llega si el BFF la reenvía y `TRUST_PROXY` está configurado.
 - La aceptación de la política de datos está apagada por defecto (`LEGAL_CONSENT_REQUIRED`). Ver `docs/LEGAL.md` y `docs/PRIVACY.md`.
+- La beta es por invitación: el registro exige una invitación aprobada cuando `BETA_INVITE_REQUIRED` está activo (apagado por defecto). Ver `docs/BETA-ACCESS.md`.
 
 ## Trampas conocidas
 

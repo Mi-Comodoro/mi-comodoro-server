@@ -22,6 +22,7 @@ import { JwtProvider } from '@/core/config/security/jwt/jwt.provider';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 
+import { BetaAccessService } from '../../beta-access/application/services/beta-access.service';
 import { ConsentService } from '../../legal/application/services/consent.service';
 import { UserProfile } from '../../user-profile/domain/user-profile.entity';
 import { UserProfileRepository } from '../../user-profile/domain/user-profile.repository';
@@ -47,6 +48,7 @@ export class AuthService {
     private readonly systemConfigService: SystemConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly consentService: ConsentService,
+    private readonly betaAccessService: BetaAccessService,
   ) {
     if (!getApps().length) {
       initializeApp({
@@ -71,6 +73,8 @@ export class AuthService {
     } else {
       // La autorización de tratamiento de datos es previa: sin ella no se crea la cuenta
       this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
+      // Beta cerrada: sin invitación aprobada para este correo no se crea la cuenta
+      await this.betaAccessService.assertCanRegister(data.email, data.inviteToken);
       const user: User = {
         id: randomUUID(),
         email: data.email,
@@ -116,6 +120,11 @@ export class AuthService {
           ip: context.ip,
           userAgent,
         },
+      );
+      await this.betaAccessService.markRegistered(
+        data.email,
+        data.inviteToken,
+        userCreated.id as string,
       );
       this.logger.info(this.context, `Registro completado para el usuario ${userCreated.id}`);
 
@@ -185,7 +194,7 @@ export class AuthService {
   }
 
   async loginWithGoogle(
-    data: { idToken: string; name: string; acceptedPolicyVersion?: string },
+    data: { idToken: string; name: string; acceptedPolicyVersion?: string; inviteToken?: string },
     userAgent?: string | null,
     context: { ip?: string | null } = {},
   ) {
@@ -209,6 +218,7 @@ export class AuthService {
     if (!user) {
       // Cuenta nueva con Google: también requiere la autorización previa
       this.consentService.assertAcceptedForRegistration(data.acceptedPolicyVersion);
+      await this.betaAccessService.assertCanRegister(decodedToken.email!, data.inviteToken);
       this.logger.info(this.context, 'No user found for email, creating new user-profile');
       const userCreated = await this.userRepository.save({
         email: decodedToken.email!,
@@ -235,6 +245,11 @@ export class AuthService {
         userCreated.id as string,
         data.acceptedPolicyVersion,
         { ip: context.ip, userAgent },
+      );
+      await this.betaAccessService.markRegistered(
+        decodedToken.email!,
+        data.inviteToken,
+        userCreated.id as string,
       );
       response.accountType = userProfile.accountType;
       response.onboarding = userCreated.onboarding!;

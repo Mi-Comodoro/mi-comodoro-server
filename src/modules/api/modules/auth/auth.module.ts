@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { SecurityJwtModule } from '@/core/config/security/jwt/jwt.module';
 
+import { BetaAccessModule } from '../beta-access/beta-access.module';
 import { LegalModule } from '../legal/legal.module';
 import { UserProfileEntity } from '../user-profile/infrastructure/database/entities/user-profile.entity';
 import { UserProfileRepositoryImpl } from '../user-profile/infrastructure/repository/user-profile.repository.impl';
@@ -18,6 +19,7 @@ import { RefreshTokenRepositoryImpl } from './infrastructure/repositories/refres
     TypeOrmModule.forFeature([UserEntity, UserProfileEntity, RefreshTokenEntity]),
     SecurityJwtModule,
     LegalModule,
+    BetaAccessModule,
   ],
   providers: [
     AuthService,
