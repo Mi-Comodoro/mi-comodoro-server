@@ -51,6 +51,13 @@ export class GoalsService {
   ) {}
   async create(data: SavingGoal): Promise<SavingGoal> {
     this.logger.info(this.context, 'Creating saving goals');
+    if (data.accountId) {
+      const account =
+        data.userId && (await this.accountRepository.findByIdAndUser(data.accountId, data.userId));
+      if (!account) {
+        throw new BadRequestException(`Account ${data.accountId} not found or not yours`);
+      }
+    }
     return await this.goalsRepository.create(data);
   }
 

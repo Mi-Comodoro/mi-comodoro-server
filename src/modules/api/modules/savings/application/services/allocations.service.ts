@@ -4,6 +4,7 @@ import { LoggerProviderService } from '@/core/providers';
 
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { SavingAllocationRepository } from '../../domain/repositories/allocation.repository';
+import { GoalsRepository } from '../../domain/repositories/goals.repository';
 import { SavingAllocation } from '../../domain/savings-allocations';
 import { SavingDistributionItemDto } from '../../infrastructure/dto/update-saving-distribution.dto';
 
@@ -16,14 +17,19 @@ export class SavingAllocationService {
     private readonly allocationRepository: SavingAllocationRepository,
     @Inject('BudgetRepository')
     private readonly budgetRepository: BudgetRepository,
+    @Inject('GoalsRepository')
+    private readonly goalsRepository: GoalsRepository,
   ) {}
-  async create(data: SavingAllocation): Promise<SavingAllocation> {
+  async create(userId: string, data: SavingAllocation): Promise<SavingAllocation> {
     this.logger.info(this.context, 'Creando asignación de ahorro');
+    await this.assertBudgetOwner(userId, data.budgetId);
+    await this.assertGoalsOwner(userId, [data.goalId]);
     return await this.allocationRepository.create(data);
   }
 
-  async find(budgetId: string): Promise<SavingAllocation[]> {
+  async find(userId: string, budgetId: string): Promise<SavingAllocation[]> {
     this.logger.info(this.context, `Obteniendo asignaciones de ahorro para budget ${budgetId}`);
+    await this.assertBudgetOwner(userId, budgetId);
     return await this.allocationRepository.find(budgetId);
   }
 
@@ -34,14 +40,11 @@ export class SavingAllocationService {
   ): Promise<SavingAllocation[]> {
     this.logger.info(this.context, `Reemplazando distribución de ahorro para budget ${budgetId}`);
 
-    const budget = await this.budgetRepository.findById(budgetId);
-    if (!budget || budget.ownerId !== userId) {
-      this.logger.warn(
-        this.context,
-        `Presupuesto no encontrado o sin acceso: budgetId=${budgetId}, userId=${userId}`,
-      );
-      throw new NotFoundException('Presupuesto no encontrado');
-    }
+    await this.assertBudgetOwner(userId, budgetId);
+    await this.assertGoalsOwner(
+      userId,
+      distributions.map((d) => d.goalId),
+    );
 
     const totalPercentage = distributions.reduce((sum, d) => sum + d.percentage, 0);
     if (totalPercentage > 100) {
@@ -67,5 +70,25 @@ export class SavingAllocationService {
     );
 
     return result;
+  }
+
+  /** Lo ajeno responde igual que lo inexistente: no confirma que el identificador exista */
+  private async assertBudgetOwner(userId: string, budgetId: string): Promise<void> {
+    const budget = await this.budgetRepository.findById(budgetId);
+    if (!budget || budget.ownerId !== userId) {
+      this.logger.warn(
+        this.context,
+        `Presupuesto no encontrado o sin acceso: budgetId=${budgetId}, userId=${userId}`,
+      );
+      throw new NotFoundException('Presupuesto no encontrado');
+    }
+  }
+
+  private async assertGoalsOwner(userId: string, goalIds: string[]): Promise<void> {
+    for (const goalId of goalIds) {
+      if (!(await this.goalsRepository.findByIdAndUser(goalId, userId))) {
+        throw new NotFoundException('Meta no encontrada');
+      }
+    }
   }
 }

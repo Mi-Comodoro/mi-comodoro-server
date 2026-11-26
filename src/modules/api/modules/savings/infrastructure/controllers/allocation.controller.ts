@@ -34,10 +34,11 @@ export class SavingAllocationController {
   @ApiCreatedResponse({ description: 'Asignación creada exitosamente' })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
   @ApiErrorResponse(HttpStatus.BAD_REQUEST, 'Datos inválidos')
-  async create(@Body() body: SavingsAllocationCreateDto) {
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Presupuesto o meta no encontrados')
+  async create(@CurrentUser() user: JwtPayload, @Body() body: SavingsAllocationCreateDto) {
     this.logger.info(this.context, 'Creando asignación de ahorro');
     const data = { ...body };
-    return await this.savingAllocationService.create(data);
+    return await this.savingAllocationService.create(user.userId, data);
   }
 
   @Get('/:budgetId')
@@ -45,9 +46,10 @@ export class SavingAllocationController {
   @ApiParam({ name: 'budgetId', type: String, description: 'UUID del presupuesto' })
   @ApiOkResponse({ description: 'Lista de asignaciones de ahorro' })
   @ApiErrorResponse(HttpStatus.UNAUTHORIZED, 'No autorizado')
-  async find(@Param('budgetId') budgetId: string) {
+  @ApiErrorResponse(HttpStatus.NOT_FOUND, 'Presupuesto no encontrado')
+  async find(@CurrentUser() user: JwtPayload, @Param('budgetId') budgetId: string) {
     this.logger.info(this.context, 'Obteniendo asignaciones de ahorro');
-    return await this.savingAllocationService.find(budgetId);
+    return await this.savingAllocationService.find(user.userId, budgetId);
   }
 
   @Patch('/:budgetId')

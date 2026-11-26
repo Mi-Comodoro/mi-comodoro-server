@@ -1,12 +1,14 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 
 import { LoggerProviderService } from '@/core/providers';
 
 import { AccountRepository } from '../../../accounts/domain/repositories/account.respository';
+import { BillsEntity } from '../../../bills/infrastructure/database/bills.entity';
 import { BudgetRepository } from '../../../budgets/domain/repositories/budget.repository';
 import { CategoryRepository } from '../../../categories/domain/repositories/category.repository';
+import { GroupMemberEntity } from '../../../groups/infrastructure/database/entities/group-member.entity';
 import { PlannedIncomeEntity } from '../../../incomes/infrstructure/database/entities/incomes-planned.entity';
 import { PlannedSavingEntity } from '../../../savings/infrastructure/database/entities/saving-planned.entity';
 import {
@@ -89,6 +91,7 @@ export class ExpenseService {
     if (!budget || budget.ownerId !== userId) {
       throw new NotFoundException('Budget not found');
     }
+    await this.assertReferences(userId, dto);
 
     const plannedExpense: PlannedExpense = {
       budgetId: dto.budgetId,
@@ -115,6 +118,25 @@ export class ExpenseService {
       const saved = await manager.save(ExpenseMapper.toEntity(plannedExpense));
       return ExpenseMapper.toDomain(saved);
     });
+  }
+
+  /** Un gasto solo puede apuntar a un grupo del que la persona es miembro y a una factura suya */
+  private async assertReferences(
+    userId: string,
+    { groupId, billsId }: { groupId?: string | null; billsId?: string | null },
+  ): Promise<void> {
+    if (groupId) {
+      const member = await this.dataSource
+        .getRepository(GroupMemberEntity)
+        .findOne({ where: { groupId, userId, isActive: true, nulledAt: IsNull() } });
+      if (!member) throw new NotFoundException('Grupo no encontrado');
+    }
+    if (billsId) {
+      const bill = await this.dataSource
+        .getRepository(BillsEntity)
+        .findOne({ where: { id: billsId, userId } });
+      if (!bill) throw new NotFoundException('Factura no encontrada');
+    }
   }
 
   async findAll(filters: GetPlannedExpensesQueryDto, userId: string) {
@@ -286,6 +308,7 @@ export class ExpenseService {
     // No permitir cambiar budgetId ni status
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { budgetId, status, ...allowedUpdates } = updateData;
+    await this.assertReferences(userId, allowedUpdates);
 
     // Subir el monto de un gasto vigente también debe caber en los ingresos menos los ahorros
     const isActivePlan =

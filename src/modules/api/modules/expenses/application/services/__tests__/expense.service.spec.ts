@@ -205,6 +205,27 @@ describe('ExpenseService', () => {
     });
   });
 
+  describe('referencias a grupos y facturas', () => {
+    const findOne = jest.fn();
+    const dto = { budgetId: 'b-1', name: 'x', expectedAmount: 1000, dueDate: '2026-11-28' };
+
+    beforeEach(() => {
+      mockBudgetRepo.findById.mockResolvedValue({ id: 'b-1', ownerId: 'user-1' });
+      findOne.mockReset().mockResolvedValue(null);
+      Object.assign(mockDataSource, { getRepository: jest.fn(() => ({ findOne })) });
+    });
+
+    it.each([{ groupId: 'grupo-ajeno' }, { billsId: 'factura-ajena' }])(
+      'no crea un gasto que apunte a %p',
+      async (reference) => {
+        await expect(service.addPlan({ ...dto, ...reference } as never, 'user-1')).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(findOne).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
   // ─── findAll ───────────────────────────────────────────────────────────────
   describe('findAll', () => {
     it('throws BadRequestException when budgetId is missing', async () => {
