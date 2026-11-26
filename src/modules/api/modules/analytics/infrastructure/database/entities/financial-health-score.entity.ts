@@ -49,19 +49,40 @@ export class FinancialHealthScoreEntity implements FinancialHealthScore {
   @Column({
     name: 'avg_monthly_income',
     type: 'decimal',
-    precision: 10,
+    precision: 14,
     scale: 2,
     nullable: true,
   })
   avgMonthlyIncome: number;
 
-  @Column({ name: 'total_income', type: 'bigint', nullable: true, default: 0 })
+  @Column({
+    name: 'total_income',
+    type: 'decimal',
+    precision: 14,
+    scale: 2,
+    nullable: true,
+    default: 0,
+  })
   totalIncome: number;
 
-  @Column({ name: 'total_expenses', type: 'bigint', nullable: true, default: 0 })
+  @Column({
+    name: 'total_expenses',
+    type: 'decimal',
+    precision: 14,
+    scale: 2,
+    nullable: true,
+    default: 0,
+  })
   totalExpenses: number;
 
-  @Column({ name: 'total_savings', type: 'bigint', nullable: true, default: 0 })
+  @Column({
+    name: 'total_savings',
+    type: 'decimal',
+    precision: 14,
+    scale: 2,
+    nullable: true,
+    default: 0,
+  })
   totalSavings: number;
 
   @CreateDateColumn({ name: 'calculated_at' })
