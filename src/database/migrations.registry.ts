@@ -8,6 +8,7 @@ import { AddUserConsents20260610000006 } from './migrations/20260610000006-AddUs
 import { AddAccountDeletion20260610000007 } from './migrations/20260610000007-AddAccountDeletion';
 import { AddBetaAccessRequests20260610000008 } from './migrations/20260610000008-AddBetaAccessRequests';
 import { SeedBetaAccessConfig20260610000009 } from './migrations/20260610000009-SeedBetaAccessConfig';
+import { HealthScoreMoneyColumns20260610000010 } from './migrations/20260610000010-HealthScoreMoneyColumns';
 
 /**
  * Migraciones que la aplicación aplica al arrancar (cuando migrationsRun está activo).
@@ -25,4 +26,5 @@ export const MIGRATIONS = [
   AddAccountDeletion20260610000007,
   AddBetaAccessRequests20260610000008,
   SeedBetaAccessConfig20260610000009,
+  HealthScoreMoneyColumns20260610000010,
 ];
