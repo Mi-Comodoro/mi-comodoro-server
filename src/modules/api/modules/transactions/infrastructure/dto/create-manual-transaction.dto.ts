@@ -14,7 +14,7 @@ export type TransactionType = 'income' | 'expense' | 'savings';
 
 export class CreateManualTransactionDto {
   @ApiProperty({ example: 50000, description: 'Monto de la transacción' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
   amount: number;
 

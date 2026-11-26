@@ -6,6 +6,7 @@ import { AccountsReceivableModule } from './modules/accounts-receivable/accounts
 import { AdminModule } from './modules/admin/admin.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BetaAccessModule } from './modules/beta-access/beta-access.module';
 import { BillsModule } from './modules/bills/bills.module';
 import { BudgetModule } from './modules/budgets/budget.module';
 import { CategoryModule } from './modules/categories/category.module';
@@ -52,6 +53,7 @@ import { UsersModule } from './modules/users/users.module';
     FriendshipsModule,
     NotificationsModule,
     LegalModule,
+    BetaAccessModule,
     PrivacyModule,
   ],
 })

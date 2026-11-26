@@ -31,7 +31,7 @@ export class SavingsGoalsCreateDto implements SavingGoal {
 
   @ApiProperty({ example: 5000, description: 'Monto total (opcional)', required: false })
   @ValidateIf((o) => o.targetAmount !== undefined && o.targetAmount !== null)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(1)
   targetAmount?: number;
 

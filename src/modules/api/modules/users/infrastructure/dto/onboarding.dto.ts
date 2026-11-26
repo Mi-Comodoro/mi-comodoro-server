@@ -213,7 +213,7 @@ export class IncomesDto implements Incomes {
     example: 5000,
   })
   @IsNotEmpty({ message: 'Income amount is required' })
-  @IsNumber({}, { message: 'Income amount must be a number' })
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'Income amount must be a number' })
   amount: number;
   @ApiProperty({
     description: 'Indicates if the income is additional to the main source',

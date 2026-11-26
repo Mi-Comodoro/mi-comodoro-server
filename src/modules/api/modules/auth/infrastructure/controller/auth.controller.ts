@@ -67,6 +67,7 @@ export class AuthController {
       handle: body.handle,
       passwordHash: hash,
       acceptedPolicyVersion: body.acceptedPolicyVersion,
+      inviteToken: body.inviteToken,
     };
     return await this.authService.signup(data, userAgent, { ip: req.ip });
   }

@@ -55,6 +55,15 @@ export class GoogleSignInBodyDataDto {
   @MaxLength(20)
   acceptedPolicyVersion?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Token de la invitación a la beta cerrada (obligatorio al crear la cuenta cuando BETA_INVITE_REQUIRED está activo)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  inviteToken?: string;
+
   @ApiProperty({
     example: 'Miguel Alvarez',
     description: 'Nombre visible del usuario autenticado con Google',

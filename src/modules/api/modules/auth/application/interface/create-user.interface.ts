@@ -11,4 +11,5 @@ export interface CreateUserProfile {
   phone?: string;
   handle?: string;
   acceptedPolicyVersion?: string;
+  inviteToken?: string;
 }

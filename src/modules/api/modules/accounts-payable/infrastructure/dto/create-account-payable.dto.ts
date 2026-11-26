@@ -30,13 +30,13 @@ export class CreateAccountPayableDto {
   type?: string;
 
   @ApiProperty({ description: 'Monto original de la deuda' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Type(() => Number)
   originalAmount: number;
 
   @ApiPropertyOptional({ description: 'Pago mínimo mensual' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Type(() => Number)
   @IsOptional()

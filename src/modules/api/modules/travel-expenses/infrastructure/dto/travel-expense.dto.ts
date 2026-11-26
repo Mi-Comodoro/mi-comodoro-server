@@ -22,7 +22,7 @@ export class CreateAssignmentDto {
 
   @ApiPropertyOptional({ example: 25000, description: 'Monto asignado (requerido para CUSTOM)' })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   assignedAmount?: number;
 
@@ -47,7 +47,7 @@ export class CreateTravelExpenseDto {
   description: string;
 
   @ApiProperty({ example: 120000, description: 'Monto total del gasto' })
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   amount: number;
 
@@ -83,7 +83,7 @@ export class UpdateTravelExpenseDto {
 
   @ApiPropertyOptional({ example: 150000 })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   amount?: number;
 

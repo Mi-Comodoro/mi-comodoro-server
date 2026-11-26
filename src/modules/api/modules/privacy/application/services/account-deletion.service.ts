@@ -261,6 +261,8 @@ export class AccountDeletionService {
       ]) {
         await q(`DELETE FROM ${table} WHERE user_id = $1`);
       }
+      // La solicitud de acceso a la beta apunta a la persona con otro nombre de columna
+      await q('DELETE FROM beta_access_requests WHERE registered_user_id = $1');
 
       // 4b. Dependencias SIN borrado en cascada (NO ACTION). PostgreSQL revisa esas llaves en medio de
       //     la cascada, así que hay que borrarlas antes, de abajo hacia arriba: movimientos y ahorros
