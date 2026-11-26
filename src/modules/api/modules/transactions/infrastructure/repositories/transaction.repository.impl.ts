@@ -91,7 +91,8 @@ export class TransactionRepositoryImpl implements TransactionRepository {
     const [entities, total] = await this.transactionRepository.findAndCount({
       where,
       relations: includeCategory ? { category: true } : {},
-      order: { transactionDate: 'DESC' },
+      // Desempate estable: sin él, las del mismo momento cambian de orden entre una carga y otra
+      order: { transactionDate: 'DESC', createdAt: 'DESC', id: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -132,7 +133,8 @@ export class TransactionRepositoryImpl implements TransactionRepository {
   async findByGoalId(goalId: string): Promise<Transaction[]> {
     const entities = await this.transactionRepository.find({
       where: { savingGoalId: goalId, nulledAt: IsNull() },
-      order: { transactionDate: 'DESC' },
+      // Desempate estable: sin él, las del mismo momento cambian de orden entre una carga y otra
+      order: { transactionDate: 'DESC', createdAt: 'DESC', id: 'DESC' },
     });
     return entities.map(TransactionMapper.toDomain);
   }
