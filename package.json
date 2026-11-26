@@ -11,6 +11,7 @@
     "build": "nest build && tsc-alias",
     "prepare": "husky && node scripts/sync-claude-agents.mjs",
     "agents:sync": "node scripts/sync-claude-agents.mjs",
+    "agents:check": "node scripts/check-agents.mjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

@@ -38,6 +38,9 @@ jobs:
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
 
+      - name: Verificar agentes
+        run: pnpm agents:check
+
       - name: Lint
         run: pnpm exec eslint "src/**/*.ts"
 

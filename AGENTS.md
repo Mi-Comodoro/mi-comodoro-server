@@ -7,6 +7,7 @@ API de Mi Comodoro: NestJS 11, TypeORM y PostgreSQL, arquitectura hexagonal por 
 - `pnpm install --frozen-lockfile` (Node `>=26.13 <27` según `.nvmrc`)
 - `pnpm start:dev` (watch; puerto `APP_PORT`, por defecto 9000; prefijo `/api/v1`; Swagger en `/api-docs`)
 - `pnpm lint` · `pnpm exec tsc --noEmit` · `pnpm test` · `pnpm test:ci` · `pnpm build`
+- `pnpm agents:check` (espejo `.agents`/`.claude`, frontmatter y tamaño de este archivo; corre en el CI)
 - `pnpm migration:generate src/database/migrations/<Nombre>` (TypeORM 0.3: la ruta es posicional, no existe `--name`) · `pnpm migration:run` · `pnpm migration:revert` · `pnpm seed:categories`
 - El hook pre-commit corre lint, prettier y TODA la suite de pruebas con `--bail` (2 a 3 min). El CI corre eslint, `tsc --noEmit`, `test:ci` y build.
 
@@ -22,7 +23,7 @@ Las variables están en `.env.example` (fuente única). Nunca valores reales en 
 
 ## Notion
 
-Tareas, estado, decisiones, hallazgos y roadmap van en Notion (MCP), nunca en el repo: página «🚀 Mi Comodoro — Project Tracker», base «Roadmap de tareas». Este repo solo guarda lo que no se deduce leyendo el código.
+Tareas, estado, decisiones, hallazgos y roadmap van en Notion (MCP), nunca en el repo: página «🚀 Mi Comodoro — Project Tracker», base «Roadmap de tareas». Este repo solo guarda lo que no se deduce leyendo el código. Notion no se carga al empezar: consultarlo solo si la tarea lo toca (buscar la tarjeta del tema y abrir solo esa). Al cerrar una sesión de trabajo, aplicar la skill `session-compactor`.
 
 ## Arquitectura
 
@@ -58,3 +59,24 @@ Módulos en `src/modules/api/modules/<módulo>/{domain,application/services,infr
 - `health` es solo liveness; la salud financiera vive en `analytics`.
 - La carpeta `incomes/infrstructure` conserva un typo histórico: no renombrar sin corregir los imports.
 - `.agents/` es la fuente de agentes; `.claude/agents` es una copia ignorada por git (`pnpm agents:sync`).
+
+## Dónde leer (solo si la tarea lo toca)
+
+| Tema | Archivo |
+| --- | --- |
+| Respaldos y restauración | `docs/BACKUPS.md` |
+| Pool, tiempos y esquema | `docs/DATABASE.md` |
+| Qué se puede escribir en logs | `docs/LOGS.md` |
+| Política de datos y consentimiento | `docs/LEGAL.md`, `docs/PRIVACY.md` |
+| Beta por invitación | `docs/BETA-ACCESS.md` |
+| Variables de entorno | `.env.example` |
+
+## Agentes
+
+Usar un subagente solo si el autor lo pide; si no, aplicar la regla en la misma sesión. Flujo habitual: `developer` → `architect` → `review`. Los agentes no se invocan entre sí.
+
+| Si la tarea es… | Agente | Escribe código |
+| --- | --- | --- |
+| Implementar endpoints y casos de uso | `developer` | Sí |
+| Validar arquitectura hexagonal | `architect` | No |
+| Revisión final antes de integrar (DoD) | `review` | No |
