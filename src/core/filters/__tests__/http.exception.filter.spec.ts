@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 
 import { GlobalHttpExceptionFilter } from '../http.exception.filter';
 
@@ -105,6 +106,23 @@ describe('GlobalHttpExceptionFilter', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: false, statusCode: 500 }),
     );
+  });
+
+  const queryError = (code: string) =>
+    new QueryFailedError('SELECT 1', [], Object.assign(new Error('valor secreto'), { code }));
+
+  it('responds 400 when the database rejects the format of a value (22P02)', () => {
+    const res = callFilter(queryError('22P02'));
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 400, error: 'BadRequest' }),
+    );
+    expect(JSON.stringify(mockLogger.warn.mock.calls)).not.toContain('valor secreto');
+  });
+
+  it('keeps 500 for any other database error', () => {
+    const res = callFilter(queryError('23505'));
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 
   it('extracts array messages from BadRequestException (class-validator format)', () => {
