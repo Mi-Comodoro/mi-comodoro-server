@@ -159,6 +159,49 @@ describe('TravelExpenseService', () => {
       expect(result.assignments).toHaveLength(2);
     });
 
+    it('rounds each EQUAL share to 2 decimals (100 / 3 = 33.33)', async () => {
+      mockMemberRepo.findOne.mockResolvedValue(makeMember());
+      mockMemberRepo.find.mockResolvedValue([
+        makeMember(),
+        makeMember({ id: 'member-2', userId: 'user-2' }),
+        makeMember({ id: 'member-3', userId: 'user-3' }),
+      ]);
+      mockManager.create
+        .mockReturnValueOnce({ groupId: 'group-1', amount: '100' })
+        .mockReturnValueOnce([]);
+      mockManager.save
+        .mockResolvedValueOnce({ id: 'exp-1', amount: '100' })
+        .mockResolvedValueOnce([]);
+
+      await service.createExpense('user-1', { ...baseDto, amount: 100 });
+
+      const assignmentsArg = mockManager.create.mock.calls[1][1] as { assignedAmount: number }[];
+      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([33.33, 33.33, 33.33]);
+    });
+
+    it('rounds PERCENTAGE shares half away from zero (1.005)', async () => {
+      mockMemberRepo.findOne.mockResolvedValue(makeMember());
+      mockManager.create
+        .mockReturnValueOnce({ groupId: 'group-1', amount: '100.5' })
+        .mockReturnValueOnce([]);
+      mockManager.save
+        .mockResolvedValueOnce({ id: 'exp-1', amount: '100.5' })
+        .mockResolvedValueOnce([]);
+
+      await service.createExpense('user-1', {
+        ...baseDto,
+        amount: 100.5,
+        splitType: 'PERCENTAGE' as const,
+        assignments: [
+          { userId: 'user-1', percentage: 1 },
+          { userId: 'user-2', percentage: 99 },
+        ] as never,
+      });
+
+      const assignmentsArg = mockManager.create.mock.calls[1][1] as { assignedAmount: number }[];
+      expect(assignmentsArg.map((a) => a.assignedAmount)).toEqual([1.01, 99.5]);
+    });
+
     it('creates PERCENTAGE split expense calculating amounts from percentages', async () => {
       mockMemberRepo.findOne.mockResolvedValue(makeMember());
       mockManager.create

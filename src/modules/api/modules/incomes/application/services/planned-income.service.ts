@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 import { PlannedSavingEntity } from '@/modules/api/modules/savings/infrastructure/database/entities/saving-planned.entity';
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
@@ -201,7 +202,7 @@ export class PlannedIncomeService {
         throw new BadRequestException(`Goal ${item.goalId} has no account assigned`);
       }
 
-      const amount = Number((totalSavings * (item.percentage / 100)).toFixed(2));
+      const amount = roundMoney(totalSavings * (item.percentage / 100));
 
       return {
         plannedIncomeId: plannedIncome.id,

@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 
 import { AccountsPayableService } from '../../accounts-payable/application/accounts-payable.service';
@@ -124,7 +125,7 @@ export class FinancialHealthService {
     const excessPct = Number(cached!.expensesExcessPct ?? 0);
     const dti = Number(cached!.dti ?? 0);
     const avgMonthlyIncome = Number(cached!.avgMonthlyIncome ?? 0);
-    const totalDebt = avgMonthlyIncome > 0 ? (dti / 100) * avgMonthlyIncome * 12 : 0;
+    const totalDebt = avgMonthlyIncome > 0 ? roundMoney((dti / 100) * avgMonthlyIncome * 12) : 0;
 
     return {
       score: {
@@ -173,9 +174,9 @@ export class FinancialHealthService {
       debtRatio: this.buildDebtRatio(dti, totalDebt, avgMonthlyIncome * 12),
       totalTransactions: cached!.totalTransactions ?? 0,
       totals: {
-        income: Number(cached!.totalIncome ?? 0),
-        expenses: Number(cached!.totalExpenses ?? 0),
-        savings: Number(cached!.totalSavings ?? 0),
+        income: roundMoney(Number(cached!.totalIncome ?? 0)),
+        expenses: roundMoney(Number(cached!.totalExpenses ?? 0)),
+        savings: roundMoney(Number(cached!.totalSavings ?? 0)),
       },
     };
   }
@@ -200,7 +201,7 @@ export class FinancialHealthService {
       );
 
       const budgets = this.selectLastThree(allBudgets);
-      const totalDebt = apSummary.totalDebt ?? 0;
+      const totalDebt = roundMoney(apSummary.totalDebt ?? 0);
 
       if (budgets.length === 0) {
         this.logger.warn(
@@ -257,9 +258,11 @@ export class FinancialHealthService {
       const dti = this.calcDti(totalDebt, avgMonthlyIncome);
       const debtScore = this.calcDebtScore(totalDebt, avgMonthlyIncome);
       const totalTransactions = pillarsByBudget.reduce((sum, p) => sum + p.totalTransactions, 0);
-      const totalIncome = pillarsByBudget.reduce((sum, p) => sum + p.totalIncome, 0);
-      const totalExpenses = pillarsByBudget.reduce((sum, p) => sum + p.totalExpenses, 0);
-      const totalSavings = pillarsByBudget.reduce((sum, p) => sum + p.totalSavings, 0);
+      const totalIncome = roundMoney(pillarsByBudget.reduce((sum, p) => sum + p.totalIncome, 0));
+      const totalExpenses = roundMoney(
+        pillarsByBudget.reduce((sum, p) => sum + p.totalExpenses, 0),
+      );
+      const totalSavings = roundMoney(pillarsByBudget.reduce((sum, p) => sum + p.totalSavings, 0));
 
       const totalScore =
         averaged.cashFlowScore + averaged.savingsScore + averaged.expenseScore + debtScore;
@@ -403,9 +406,15 @@ export class FinancialHealthService {
       includeCategory: false,
     });
 
-    const totalIncome = incomeTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
-    const totalExpenses = expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
-    const totalSavings = savingsTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0);
+    const totalIncome = roundMoney(
+      incomeTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0),
+    );
+    const totalExpenses = roundMoney(
+      expenseTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0),
+    );
+    const totalSavings = roundMoney(
+      savingsTransactions.data.reduce((sum, t) => sum + Number(t.amount), 0),
+    );
     const totalTransactions =
       incomeTransactions.pagination.total +
       expenseTransactions.pagination.total +
@@ -583,10 +592,10 @@ export class FinancialHealthService {
       expenseScore: Math.round(sum.expenseScore / count),
       expensesExcessPct: Math.round((sum.expensesExcessPct / count) * 100) / 100,
       totalTransactions: sum.totalTransactions,
-      avgMonthlyIncome: Math.round(sum.avgMonthlyIncome / count),
-      totalIncome: sum.totalIncome,
-      totalExpenses: sum.totalExpenses,
-      totalSavings: sum.totalSavings,
+      avgMonthlyIncome: roundMoney(sum.avgMonthlyIncome / count),
+      totalIncome: roundMoney(sum.totalIncome),
+      totalExpenses: roundMoney(sum.totalExpenses),
+      totalSavings: roundMoney(sum.totalSavings),
     };
   }
 
@@ -690,7 +699,7 @@ export class FinancialHealthService {
         label: 'Sin deudas',
         badge: 'success',
         totalDebt: 0,
-        annualIncomeEstimate,
+        annualIncomeEstimate: roundMoney(annualIncomeEstimate),
       };
     }
 

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
 import { CategoryType } from '@/modules/api/modules/categories/domain/category';
@@ -129,7 +130,7 @@ export class InterestCronService {
 
         await this.dataSource.transaction(async (manager) => {
           await manager.save(TransactionEntity, {
-            amount: Number(interestAmount.toFixed(2)),
+            amount: interestAmount,
             type: 'interest' as const,
             source: `Interés: ${goal.name}`,
             userId: goal.userId,
@@ -161,6 +162,6 @@ export class InterestCronService {
   }
 
   private calculateInterest(accumulatedAmount: number, annualRate: number, days: number): number {
-    return accumulatedAmount * (Math.pow(1 + annualRate / 100, days / 365) - 1);
+    return roundMoney(accumulatedAmount * (Math.pow(1 + annualRate / 100, days / 365) - 1));
   }
 }

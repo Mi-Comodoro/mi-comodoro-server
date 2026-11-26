@@ -10,6 +10,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { toZonedTime } from 'date-fns-tz';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { SystemConfigService } from '@/core/modules/system-config/system-config.service';
 import { LoggerProviderService } from '@/core/providers';
 import { CategoryType } from '@/modules/api/modules/categories/domain/category';
@@ -208,9 +209,7 @@ export class BudgetService {
       ...item,
       status: item.status as BudgetStatus,
       savingsRate:
-        item.receivedIncome > 0
-          ? Number(((item.totalSavings / item.receivedIncome) * 100).toFixed(2))
-          : 0,
+        item.receivedIncome > 0 ? roundMoney((item.totalSavings / item.receivedIncome) * 100) : 0,
     }));
   }
   async getBudgetById(budgetId: string, userId?: string): Promise<Budget> {

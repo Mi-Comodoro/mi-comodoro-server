@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 import { AccountRepository } from '@/modules/api/modules/accounts/domain/repositories/account.respository';
 import { BudgetRepository } from '@/modules/api/modules/budgets/domain/repositories/budget.repository';
@@ -106,7 +107,7 @@ export class PlannedSavingService {
     }
 
     const savingsToCreate = validAllocations.map((a) => ({
-      amount: Number((dto.amount * (a.percentage / 100)).toFixed(2)),
+      amount: roundMoney(dto.amount * (a.percentage / 100)),
       budgetId: dto.budgetId,
       plannedIncomeId: dto.plannedIncomeId,
       savingGoalId: a.goalId,
@@ -235,10 +236,10 @@ export class PlannedSavingService {
       if (interestAmount > 0 && goal) {
         this.logger.info(
           this.context,
-          `Creating interest transaction for goal ${goal.id}: ${interestAmount.toFixed(2)}`,
+          `Creating interest transaction for goal ${goal.id}: ${interestAmount}`,
         );
         interestTx = await manager.save(TransactionEntity, {
-          amount: Number(interestAmount.toFixed(2)),
+          amount: interestAmount,
           type: 'interest' as const,
           source: `Interés: ${goal.name}`,
           userId: budget.ownerId,
@@ -275,6 +276,6 @@ export class PlannedSavingService {
 
   private calculateInterest(accumulatedAmount: number, annualRate: number, days: number): number {
     const wholeDays = Math.floor(days);
-    return accumulatedAmount * (Math.pow(1 + annualRate / 100, wholeDays / 365) - 1);
+    return roundMoney(accumulatedAmount * (Math.pow(1 + annualRate / 100, wholeDays / 365) - 1));
   }
 }

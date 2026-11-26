@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 
 import { GroupMemberEntity } from '../../../groups/infrastructure/database/entities/group-member.entity';
@@ -83,7 +84,7 @@ export class TravelExpenseService {
           where: { groupId: dto.groupId, isActive: true, nulledAt: IsNull() },
         });
         if (!members.length) throw new BadRequestException('El grupo no tiene miembros activos');
-        const perMember = Number(dto.amount) / members.length;
+        const perMember = roundMoney(Number(dto.amount) / members.length);
         assignments = members.map((m) => ({
           expenseId: savedExpense.id,
           userId: m.userId ?? undefined,
@@ -94,7 +95,7 @@ export class TravelExpenseService {
         assignments = dto.assignments!.map((a) => ({
           expenseId: savedExpense.id,
           userId: a.userId,
-          assignedAmount: Number(((a.percentage! / 100) * Number(dto.amount)).toFixed(2)),
+          assignedAmount: roundMoney((a.percentage! / 100) * Number(dto.amount)),
           settled: false,
         }));
       } else {
@@ -162,7 +163,7 @@ export class TravelExpenseService {
       const members = await this.memberRepo.find({
         where: { groupId: expense.groupId, isActive: true, nulledAt: IsNull() },
       });
-      const perMember = Number(newAmount) / members.length;
+      const perMember = roundMoney(Number(newAmount) / members.length);
       await this.assignmentRepo.deleteByExpense(id);
       await this.assignmentRepo.saveMany(
         members.map((m) => ({

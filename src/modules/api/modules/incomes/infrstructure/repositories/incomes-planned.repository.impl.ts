@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { roundMoney } from '@/common/helpers/money.helpers';
 import { LoggerProviderService } from '@/core/providers';
 
 import { PlannedIncome } from '../../domain/income-planned';
@@ -66,7 +67,7 @@ export class PlannedIncomeRepositoryImpl implements PlannedIncomeRepository {
         );
       }
       if (frequency === 'biweekly') {
-        const splitAmount = amount / paymentDays.length;
+        const splitAmount = roundMoney(amount / paymentDays.length);
 
         for (const day of paymentDays) {
           const date = new Date(year, month, day);
