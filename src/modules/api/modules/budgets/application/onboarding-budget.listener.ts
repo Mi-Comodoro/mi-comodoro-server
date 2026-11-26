@@ -45,6 +45,7 @@ export class OnboardingBudgetListener {
         frequency: payload.data.budget.budgetFrequency,
         status: 'PLANNED',
         ownerId: payload.userId,
+        currency: payload.data.finances.currency,
       };
 
       const savedBudget = await this.budgetRepository.save(budget);

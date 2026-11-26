@@ -107,7 +107,11 @@ export class BudgetService {
       ? this.buildBudgetFromSource(sourceBudget, input.userId, finances.id, month, year, input.name)
       : await this.buildEmptyBudget(input.userId, finances.id, month, year, input.name);
 
-    const createdBudget = await this.budgetRepository.save(budgetToCreate);
+    // La moneda es la del perfil de la persona, también al clonar un presupuesto anterior
+    const createdBudget = await this.budgetRepository.save({
+      ...budgetToCreate,
+      currency: finances.currency,
+    });
 
     if (sourceBudget) {
       await this.cloneMonthlyConfiguration(
