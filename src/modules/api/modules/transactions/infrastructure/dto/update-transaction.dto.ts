@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDate, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateTransactionDto {
   @ApiPropertyOptional({ example: 75000, description: 'Nuevo monto de la transacción' })
@@ -23,6 +23,7 @@ export class UpdateTransactionDto {
   categoryId?: string;
 
   @ApiPropertyOptional({ example: '2026-05-16', description: 'Nueva fecha de la transacción' })
+  @IsDate()
   @IsOptional()
   transactionDate?: Date;
 }
