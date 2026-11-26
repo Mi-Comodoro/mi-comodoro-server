@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { subDays } from 'date-fns';
 import { IsNull, MoreThan, Repository } from 'typeorm';
@@ -7,6 +7,7 @@ import { LoggerProviderService } from '@/core/providers';
 import { BudgetEntity } from '@/modules/api/modules/budgets/infrastructure/database/entities/budget.entity';
 import { TransactionEntity } from '@/modules/api/modules/transactions/infrastructure/database/entities/transaction.entity';
 import { UserProfileEntity } from '@/modules/api/modules/user-profile/infrastructure/database/entities/user-profile.entity';
+import { UserRole } from '@/modules/api/modules/users/domain/user-role.enum';
 import { UserEntity } from '@/modules/api/modules/users/infrastructure/database/user.entity';
 
 import type {
@@ -82,6 +83,7 @@ export class AdminUsersService {
     adminId: string,
     adminHandle: string,
     ip?: string | null,
+    adminRole?: string,
   ) {
     this.logger.info(this.context, `Updating user ${id}`);
     const user = await this.userRepo.findOne({
@@ -89,6 +91,7 @@ export class AdminUsersService {
       relations: { userProfile: true },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
+    this.assertCanManage(adminRole, user.role, dto.role);
 
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};
@@ -126,10 +129,12 @@ export class AdminUsersService {
     adminId: string,
     adminHandle: string,
     ip?: string | null,
+    adminRole?: string,
   ): Promise<void> {
     this.logger.info(this.context, `Soft deleting user ${id}`);
     const user = await this.userRepo.findOne({ where: { id, nulledAt: IsNull() } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
+    this.assertCanManage(adminRole, user.role);
     await this.userRepo.update(id, { nulledAt: new Date() });
     await this.auditLogService.log({
       adminId,
@@ -141,6 +146,15 @@ export class AdminUsersService {
       after: { nulledAt: new Date().toISOString() },
       ip: ip ?? null,
     });
+  }
+
+  /** Solo un super_admin otorga ese rol o modifica y elimina a quien lo tiene */
+  private assertCanManage(actorRole: string | undefined, targetRole: string, newRole?: string) {
+    const touchesSuperAdmin =
+      targetRole === UserRole.SUPER_ADMIN || newRole === UserRole.SUPER_ADMIN;
+    if (touchesSuperAdmin && actorRole !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Solo un super administrador puede hacer este cambio.');
+    }
   }
 
   async getStats(): Promise<AdminStatsDto> {

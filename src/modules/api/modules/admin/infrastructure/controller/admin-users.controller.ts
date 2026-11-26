@@ -75,7 +75,7 @@ export class AdminUsersController {
     @Ip() ip: string,
   ) {
     this.logger.info(this.context, `Admin updating user ${id}`);
-    return this.adminUsersService.update(id, dto, admin.userId, admin.email, ip);
+    return this.adminUsersService.update(id, dto, admin.userId, admin.email, ip, admin.role);
   }
 
   @Delete(':id')
@@ -86,6 +86,6 @@ export class AdminUsersController {
   @ApiForbiddenResponse({ description: 'Requiere rol admin' })
   async softDelete(@Param('id') id: string, @CurrentUser() admin: JwtPayload, @Ip() ip: string) {
     this.logger.info(this.context, `Admin soft deleting user ${id}`);
-    return this.adminUsersService.softDelete(id, admin.userId, admin.email, ip);
+    return this.adminUsersService.softDelete(id, admin.userId, admin.email, ip, admin.role);
   }
 }

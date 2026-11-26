@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
@@ -169,6 +169,46 @@ describe('AdminUsersService', () => {
   });
 
   // ─── softDelete ────────────────────────────────────────────────────────────
+  describe('super_admin', () => {
+    const asAdmin = ['admin-1', 'admin@test.com', null, 'admin'] as const;
+
+    it.each([
+      ['otorga el rol', 'user', { role: 'super_admin' }],
+      ['cambia a quien lo tiene', 'super_admin', { role: 'user' }],
+      ['desactiva a quien lo tiene', 'super_admin', { isActive: false }],
+    ])('un admin no %s', async (_label, targetRole, dto) => {
+      mockUserRepo.findOne.mockResolvedValue(makeUserEntity({ role: targetRole }));
+
+      await expect(service.update('user-1', dto as never, ...asAdmin)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockUserRepo.update).not.toHaveBeenCalled();
+      expect(mockProfileRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('un admin no elimina a un super_admin', async () => {
+      mockUserRepo.findOne.mockResolvedValue(makeUserEntity({ role: 'super_admin' }));
+
+      await expect(service.softDelete('user-1', ...asAdmin)).rejects.toThrow(ForbiddenException);
+      expect(mockUserRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('un super_admin sí otorga el rol', async () => {
+      mockUserRepo.findOne.mockResolvedValue(makeUserEntity());
+
+      await service.update(
+        'user-1',
+        { role: 'super_admin' } as never,
+        'boss-1',
+        'boss@test.com',
+        null,
+        'super_admin',
+      );
+
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { role: 'super_admin' });
+    });
+  });
+
   describe('softDelete', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
