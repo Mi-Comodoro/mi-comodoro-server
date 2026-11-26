@@ -2,6 +2,10 @@ name: Deploy Backend NestJS
 on:
   push:
     branches: [ develop ]
+# El despliegue solo necesita leer el código: sin esto el token hereda los permisos por defecto
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: [self-hosted, Linux, X64]
